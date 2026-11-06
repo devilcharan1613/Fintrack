@@ -39,4 +39,16 @@ class FinancialCalculatorTest {
     fun monthlyEmiSupportsInterestFreeLoans() {
         assertEquals(1000.0, FinancialCalculator.monthlyEmi(12000.0, 0.0, 12), 0.001)
     }
+
+    @Test
+    fun borrowIncreasesBalanceAndLendDecreasesIt() {
+        val account = AccountEntity(id = 7, name = "Cash", accountType = "Wallet", balance = 100.0)
+        val transactions = listOf(
+            TransactionEntity(accountId = 7, type = "BORROW", amount = 50.0, category = "Borrowed"),
+            TransactionEntity(accountId = 7, type = "LEND", amount = 20.0, category = "Lent")
+        )
+
+        assertEquals(130.0, FinancialCalculator.balance(account, transactions), 0.001)
+        assertEquals(30.0, FinancialCalculator.netCashFlow(transactions), 0.001)
+    }
 }

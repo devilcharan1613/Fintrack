@@ -41,7 +41,6 @@ class FinanceRepository(private val database: FinTrackDatabase) {
         ).forEach { (name, type) ->
             finance.insertCategory(CategoryEntity(name = name, type = type, isSystem = true))
         }
-    }
     val totalBalance: Flow<Double> = accounts.getComputedTotalBalance()
     val income: Flow<Double> = finance.totalIncome()
     val expense: Flow<Double> = finance.totalExpense()
@@ -50,7 +49,12 @@ class FinanceRepository(private val database: FinTrackDatabase) {
     suspend fun updateAccount(account: AccountEntity) = accounts.updateAccount(account.copy(updatedAt = System.currentTimeMillis()))
     suspend fun archiveAccount(account: AccountEntity) = accounts.archiveAccount(account.id)
 
-    suspend fun saveTransaction(transaction: TransactionEntity) = finance.insertTransaction(transaction)
+    suspend fun saveTransaction(transaction: TransactionEntity) {
+        require(transaction.amount > 0) { "Transaction amount must be positive" }
+        require(transaction.category.isNotBlank()) { "Transaction category is required" }
+        require(accounts.getAccountById(transaction.accountId) != null) { "Account does not exist" }
+        finance.insertTransaction(transaction)
+    }
     suspend fun updateTransaction(transaction: TransactionEntity) {
         require(transaction.amount > 0) { "Transaction amount must be positive" }
         database.withTransaction {
@@ -72,6 +76,8 @@ class FinanceRepository(private val database: FinTrackDatabase) {
     suspend fun addTransfer(from: Long, to: Long, amount: Double, note: String) {
         require(from != to) { "Transfer accounts must be different" }
         require(amount > 0) { "Transfer amount must be positive" }
+        require(accounts.getAccountById(from) != null) { "Source account does not exist" }
+        require(accounts.getAccountById(to) != null) { "Destination account does not exist" }
         val transferId = UUID.randomUUID().toString()
         database.withTransaction {
             finance.insertTransaction(
@@ -130,7 +136,7 @@ class FinanceRepository(private val database: FinTrackDatabase) {
             append("{\"version\":2,\"accounts\":[")
             append(accountRows.joinToString(",") { "{\"id\":${it.id},\"name\":${quote(it.name)},\"type\":${quote(it.accountType)},\"balance\":${it.balance},\"currency\":${quote(it.currency)}}"} )
             append("],\"transactions\":[")
-            append(transactionRows.joinToString(",") { "{\"accountId\":${it.accountId},\"type\":${quote(it.type)},\"amount\":${it.amount},\"category\":${quote(it.category)},\"subcategory\":${quote(it.subcategory)},\"note\":${quote(it.note)},\"timestamp\":${it.timestamp},\"transferAccountId\":${it.transferAccountId ?: "null"},\"transferId\":${it.transferId?.let { value -> quote(value) } ?: "null"}}"} )
+            append(transactionRows.joinToString(",") { "{\"accountId\":${it.accountId},\"type\":${quote(it.type)},\"amount\":${it.amount},\"category\":${quote(it.category)},\"subcategory\":${quote(it.subcategory)},\"note\":${quote(it.note)},\"timestamp\":${it.timestamp},\"personId\":${it.personId ?: "null"},\"transferAccountId\":${it.transferAccountId ?: "null"},\"transferId\":${it.transferId?.let { value -> quote(value) } ?: "null"}}"} )
             append("],\"budgets\":[")
             append(budgetRows.joinToString(",") { "{\"category\":${quote(it.category)},\"limit\":${it.limitAmount},\"month\":${quote(it.month)}}"} )
             append("],\"goals\":[")
@@ -194,6 +200,7 @@ class FinanceRepository(private val database: FinTrackDatabase) {
                                 category = text(obj, "category"),
                                 note = text(obj, "note"),
                                 subcategory = text(obj, "subcategory"),
+                                personId = number(obj, "personId").toLong().takeIf { it > 0 },
                                 timestamp = number(obj, "timestamp").toLong().takeIf { it > 0 } ?: System.currentTimeMillis(),
                                 transferAccountId = number(obj, "transferAccountId").toLong().takeIf { it > 0 },
                                 transferId = text(obj, "transferId").ifBlank { null }

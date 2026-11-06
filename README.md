@@ -8,10 +8,12 @@
 - Offline SQLite persistence for accounts and financial records
 - Dashboard with balance, income/expense summary, quick actions and empty states
 - Account, transaction, budget, savings goal and loan entry forms
+- Income, expense, transfer, borrow and lend transaction types with subcategories
 - Reports for income, expenses, net cash flow and current balance
 - Bottom navigation: Home, Accounts, Transactions, Reports, More
 - Local categories and people management
 - Atomic transfer records and Room schema migrations through version 3
+- Validated account references and atomic transfer writes
 - No login, cloud sync, INTERNET permission, or demo finance records
 
 ## Open

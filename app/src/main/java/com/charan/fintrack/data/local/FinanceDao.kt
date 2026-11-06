@@ -49,13 +49,13 @@ interface FinanceDao {
     @Query("DELETE FROM transactions WHERE transferId = :transferId")
     suspend fun deleteTransfer(transferId: String)
 
-    @Query("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'INCOME'")
+    @Query("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type IN ('INCOME', 'BORROW')")
     fun totalIncome(): Flow<Double>
 
-    @Query("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'EXPENSE'")
+    @Query("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type IN ('EXPENSE', 'LEND')")
     fun totalExpense(): Flow<Double>
 
-    @Query("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'EXPENSE' AND category = :category AND timestamp >= :from AND timestamp < :to")
+    @Query("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type IN ('EXPENSE', 'LEND') AND category = :category AND timestamp >= :from AND timestamp < :to")
     fun spentForCategory(category: String, from: Long, to: Long): Flow<Double>
 
     @Query("SELECT * FROM budgets ORDER BY category")

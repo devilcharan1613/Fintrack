@@ -4,15 +4,17 @@ import com.charan.fintrack.data.local.AccountEntity
 import com.charan.fintrack.data.local.TransactionEntity
 
 object FinancialCalculator {
+    private val positiveTypes = setOf("INCOME", "TRANSFER_IN", "BORROW")
+
     fun balance(account: AccountEntity, transactions: List<TransactionEntity>): Double =
         account.balance + transactions.filter { it.accountId == account.id }.sumOf {
-            when (it.type) {
-                "INCOME", "TRANSFER_IN" -> it.amount
-                else -> -it.amount
-            }
+            if (it.type in positiveTypes) it.amount else -it.amount
         }
 
     fun netCashFlow(income: Double, expense: Double): Double = income - expense
+
+    fun netCashFlow(transactions: List<TransactionEntity>): Double =
+        transactions.sumOf { if (it.type in positiveTypes) it.amount else -it.amount }
 
     fun categoryTotal(
         transactions: List<TransactionEntity>,
@@ -21,7 +23,7 @@ object FinancialCalculator {
         to: Long? = null
     ): Double = transactions
         .asSequence()
-        .filter { it.type == "EXPENSE" && it.category.equals(category, ignoreCase = true) }
+        .filter { it.type in setOf("EXPENSE", "LEND") && it.category.equals(category, ignoreCase = true) }
         .filter { from == null || it.timestamp >= from }
         .filter { to == null || it.timestamp < to }
         .sumOf { it.amount }
