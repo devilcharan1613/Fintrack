@@ -10,7 +10,8 @@
 - Account, transaction, budget, savings goal and loan entry forms
 - Reports for income, expenses, net cash flow and current balance
 - Bottom navigation: Home, Accounts, Transactions, Reports, More
-- Placeholder destinations for later milestones
+- Local categories and people management
+- Atomic transfer records and Room schema migrations through version 3
 - No login, cloud sync, INTERNET permission, or demo finance records
 
 ## Open
@@ -27,6 +28,11 @@ Expected output: `app/build/outputs/apk/debug/app-debug.apk`.
 ## Scope
 FinTrack is an offline personal finance tracker. It does not require login, cloud sync,
 or the `INTERNET` permission. Records are stored locally in the app's SQLite database.
+
+The Room database preserves the original accounts table through migrations and adds
+transactions, budgets, goals, loans, categories, people, and loan payments without
+resetting existing records. JSON backups include account, transaction, planning,
+category, and people data; CSV export contains transaction history.
 
 ## Verification
 The debug APK builds with `./gradlew assembleDebug` and is written to

@@ -12,7 +12,7 @@ class AccountRepository(
     }
 
     fun getTotalBalance(): Flow<Double?> {
-        return accountDao.getTotalBalance()
+        return accountDao.getComputedTotalBalance()
     }
 
     suspend fun getAccountById(id: Long): AccountEntity? {
@@ -36,4 +36,6 @@ class AccountRepository(
     suspend fun archiveAccount(id: Long) {
         accountDao.archiveAccount(id)
     }
+
+    fun getBalance(id: Long): Flow<Double> = accountDao.getBalance(id)
 }

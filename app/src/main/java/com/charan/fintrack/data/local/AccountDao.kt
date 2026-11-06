@@ -33,4 +33,10 @@ interface AccountDao {
 
     @Query("SELECT SUM(balance) FROM accounts WHERE isArchived = 0")
     fun getTotalBalance(): Flow<Double?>
+
+    @Query("SELECT COALESCE(SUM(a.balance), 0) + COALESCE((SELECT SUM(CASE WHEN t.type = 'INCOME' OR t.type = 'TRANSFER_IN' THEN t.amount ELSE -t.amount END) FROM transactions t WHERE t.accountId = a.id), 0) FROM accounts a WHERE a.id = :accountId AND a.isArchived = 0")
+    fun getBalance(accountId: Long): Flow<Double>
+
+    @Query("SELECT COALESCE(SUM(a.balance), 0) + COALESCE((SELECT SUM(CASE WHEN t.type = 'INCOME' OR t.type = 'TRANSFER_IN' THEN t.amount ELSE -t.amount END) FROM transactions t WHERE t.accountId = a.id), 0) FROM accounts a WHERE a.isArchived = 0")
+    fun getComputedTotalBalance(): Flow<Double>
 }
