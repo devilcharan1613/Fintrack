@@ -11,6 +11,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -88,6 +90,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -290,6 +294,7 @@ private sealed interface DialogKind {
 @Composable
 private fun DashboardScreen(accounts: List<AccountEntity>, transactions: List<TransactionEntity>, balance: Double, income: Double, expense: Double, add: () -> Unit, transfer: () -> Unit) {
     Page("Good ${greeting()} 👋", "Let's make your money work smarter") {
+        BrandHeader()
         CardSurface(Modifier.fillMaxWidth(), gradient = true) {
             Text("Total Balance", color = TextMuted, fontSize = 13.sp)
             AnimatedMoney(balance, 30)
@@ -373,7 +378,33 @@ private fun ReportsScreen(balance: Double, income: Double, expense: Double, tran
 private val chartColors = listOf(Emerald, Blue, Amber, Color(0xFFB88CFF), Danger)
 
 @Composable private fun CardSurface(modifier: Modifier = Modifier, gradient: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
-    Card(modifier, shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = if (gradient) CardRaised else CardNavy), content = { Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(7.dp), content = content) })
+    Card(
+        modifier,
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, if (gradient) Emerald.copy(alpha = .22f) else Color.White.copy(alpha = .06f)),
+        colors = CardDefaults.cardColors(containerColor = if (gradient) CardRaised else CardNavy),
+        content = { Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(7.dp), content = content) }
+    )
+}
+@Composable private fun BrandHeader() {
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Image(
+            painter = painterResource(com.charan.fintrack.R.drawable.fintrack_launcher_foreground),
+            contentDescription = "FinTrack logo",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.size(34.dp).clip(RoundedCornerShape(10.dp))
+        )
+        Spacer(Modifier.width(9.dp))
+        Text("Fin", color = TextPrimary, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+        Text("Track", color = Emerald, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.weight(1f))
+        IconButton(onClick = {}) {
+            Icon(Icons.Default.Settings, "Settings", tint = TextMuted, modifier = Modifier.size(20.dp))
+        }
+    }
 }
 @Composable private fun Page(title: String, subtitle: String, action: String? = null, onAction: (() -> Unit)? = null, back: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     LazyColumn(contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxSize()) {
