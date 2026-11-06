@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -149,6 +150,7 @@ private fun FinTrackApp(context: Context) {
     var tab by remember { mutableStateOf(MainTab.Home) }
     var detail by remember { mutableStateOf(DetailScreen.More) }
     var dialog by remember { mutableStateOf<DialogKind?>(null) }
+    var confirmClear by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { repo.seedDefaultCategories() }
@@ -161,6 +163,15 @@ private fun FinTrackApp(context: Context) {
     }
     val restore = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch { runCatching { context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { repo.restoreJson(it.readText()) } }.onSuccess { notify("Backup restored") }.onFailure { notify("Restore failed") } }
+    }
+    val importCsv = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            runCatching {
+                context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { repo.importCsv(it.readText()) }
+                    ?: error("Unable to read CSV file")
+            }.onSuccess { count -> notify("$count transactions imported") }
+                .onFailure { notify("CSV import failed: ${it.message ?: "invalid file"}") }
+        }
     }
     val add = {
         dialog = when (tab) {
@@ -202,11 +213,11 @@ private fun FinTrackApp(context: Context) {
         ) { padding ->
             AnimatedContent(tab, label = "tab", modifier = Modifier.padding(padding)) { selected ->
                 when (selected) {
-                    MainTab.Home -> DashboardScreen(accounts, transactions, balance, income, expense, ::add, { dialog = DialogKind.Transfer })
+                    MainTab.Home -> DashboardScreen(accounts, transactions, balance, income, expense, { add() }, { dialog = DialogKind.Transfer })
                     MainTab.Accounts -> AccountsScreen(accounts, transactions, balance, { dialog = DialogKind.Account })
                     MainTab.Transactions -> TransactionsScreen(accounts, transactions, categories, { dialog = DialogKind.Transaction }, { transaction -> scope.launch { repo.deleteTransaction(transaction) } }, { transaction -> dialog = DialogKind.EditTransaction(transaction) })
                     MainTab.Reports -> ReportsScreen(balance, income, expense, transactions)
-                    MainTab.More -> MoreScreen(detail, budgets, goals, loans, categories, persons, transactions, { detail = it }, { scope.launch { repo.deleteBudget(it) } }, { scope.launch { repo.deleteGoal(it) } }, { scope.launch { repo.deleteLoan(it) } }, { scope.launch { repo.deleteCategory(it) } }, { scope.launch { repo.deletePerson(it) } }, { exportCsv.launch("fintrack-transactions.csv") }, { exportJson.launch("fintrack-backup.json") }, { restore.launch(arrayOf("application/json", "text/*")) })
+                    MainTab.More -> MoreScreen(detail, budgets, goals, loans, categories, persons, transactions, { detail = it }, { scope.launch { repo.deleteBudget(it) } }, { scope.launch { repo.deleteGoal(it) } }, { scope.launch { repo.deleteLoan(it) } }, { scope.launch { repo.deleteCategory(it) } }, { scope.launch { repo.deletePerson(it) } }, { exportCsv.launch("fintrack-transactions.csv") }, { exportJson.launch("fintrack-backup.json") }, { restore.launch(arrayOf("application/json", "text/*")) }, { importCsv.launch(arrayOf("text/csv", "text/*")) }, { confirmClear = true })
                 }
             }
         }
@@ -223,6 +234,24 @@ private fun FinTrackApp(context: Context) {
             DialogKind.Category -> CategoryForm({ dialog = null }) { scope.launch { repo.addCategory(it); dialog = null } }
             DialogKind.Person -> PersonForm({ dialog = null }) { scope.launch { repo.addPerson(it); dialog = null } }
         }
+    }
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text("Clear all data?") },
+            text = { Text("This permanently removes all accounts, transactions, budgets, goals, loans, categories and people from this device.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        runCatching { repo.clearAllData() }
+                            .onSuccess { notify("All local data cleared") }
+                            .onFailure { notify("Could not clear data") }
+                        confirmClear = false
+                    }
+                }) { Text("Delete everything", color = Danger) }
+            },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } }
+        )
     }
 }
 
@@ -287,7 +316,7 @@ private fun TransactionsScreen(accounts: List<AccountEntity>, transactions: List
 }
 
 @Composable
-private fun MoreScreen(detail: DetailScreen, budgets: List<BudgetEntity>, goals: List<GoalEntity>, loans: List<LoanEntity>, categories: List<CategoryEntity>, persons: List<PersonEntity>, transactions: List<TransactionEntity>, navigate: (DetailScreen) -> Unit, deleteBudget: (BudgetEntity) -> Unit, deleteGoal: (GoalEntity) -> Unit, deleteLoan: (LoanEntity) -> Unit, deleteCategory: (CategoryEntity) -> Unit, deletePerson: (PersonEntity) -> Unit, csv: () -> Unit, json: () -> Unit, restore: () -> Unit) {
+private fun MoreScreen(detail: DetailScreen, budgets: List<BudgetEntity>, goals: List<GoalEntity>, loans: List<LoanEntity>, categories: List<CategoryEntity>, persons: List<PersonEntity>, transactions: List<TransactionEntity>, navigate: (DetailScreen) -> Unit, deleteBudget: (BudgetEntity) -> Unit, deleteGoal: (GoalEntity) -> Unit, deleteLoan: (LoanEntity) -> Unit, deleteCategory: (CategoryEntity) -> Unit, deletePerson: (PersonEntity) -> Unit, csv: () -> Unit, json: () -> Unit, restore: () -> Unit, importCsv: () -> Unit, clearData: () -> Unit) {
     when (detail) {
         DetailScreen.More -> Page("More", "Plan, manage and customise") {
             MoreTile("Budgets", "Monthly spending limits", Icons.Default.Assessment) { navigate(DetailScreen.Budgets) }
@@ -302,7 +331,7 @@ private fun MoreScreen(detail: DetailScreen, budgets: List<BudgetEntity>, goals:
         DetailScreen.Loans -> Page("Loans", "Stay on top of repayments", back = { navigate(DetailScreen.More) }) { loans.forEach { ProgressTile(it.name, it.paidAmount, it.principal, Blue) { deleteLoan(it) } }; if (loans.isEmpty()) EmptyState("No loans yet", "Add a loan with +.") }
         DetailScreen.Categories -> Page("Categories", "Income and expense groups", back = { navigate(DetailScreen.More) }) { categories.forEach { DataTile(it.icon.ifBlank { "•" }, it.name, it.type.lowercase().replaceFirstChar(Char::uppercase), Emerald) { if (!it.isSystem) deleteCategory(it) } } }
         DetailScreen.People -> Page("People", "Borrowing and lending contacts", back = { navigate(DetailScreen.More) }) { persons.forEach { DataTile("•", it.name, it.phone.ifBlank { "No phone number" }, Blue) { deletePerson(it) } } }
-        DetailScreen.Settings -> Page("Settings", "FinTrack is private and offline", back = { navigate(DetailScreen.More) }) { MoreTile("Backup & Restore", "Export or import your local data", Icons.Default.Backup) { json() }; MoreTile("CSV Export", "Export transaction history", Icons.Default.ReceiptLong, csv); MoreTile("Restore JSON", "Merge a local backup", Icons.Default.Backup, restore); MoreTile("App information", "FinTrack • INR • Offline only", Icons.Default.Settings) {} }
+        DetailScreen.Settings -> Page("Settings", "FinTrack is private and offline", back = { navigate(DetailScreen.More) }) { MoreTile("Backup & Restore", "Export or import your local data", Icons.Default.Backup) { json() }; MoreTile("CSV Export", "Export transaction history", Icons.Default.ReceiptLong, csv); MoreTile("CSV Import", "Add transactions from a CSV file", Icons.Default.ReceiptLong, importCsv); MoreTile("Restore JSON", "Merge a local backup", Icons.Default.Backup, restore); MoreTile("Clear all data", "Permanently remove local records", Icons.Default.Delete, clearData); MoreTile("App information", "FinTrack • INR • Offline only", Icons.Default.Settings) {} }
     }
 }
 
@@ -334,15 +363,15 @@ private val chartColors = listOf(Emerald, Blue, Amber, Color(0xFFB88CFF), Danger
 }
 @Composable private fun SectionTitle(title: String, action: String) { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(title, color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f)); Text(action, color = Emerald, fontSize = 12.sp) } }
 @Composable private fun Metric(label: String, value: Double, color: Color, icon: androidx.compose.ui.graphics.vector.ImageVector) { Row(verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(28.dp).clip(CircleShape).background(color.copy(alpha = .15f)), Alignment.Center) { Icon(icon, null, tint = color, modifier = Modifier.size(16.dp)) }; Spacer(Modifier.width(7.dp)); Column { Text(label, color = TextMuted, fontSize = 11.sp); Text(money(value), color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp) } } }
-@Composable private fun QuickAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, onClick: () -> Unit) { Card(Modifier.weight(1f).clickable(onClick = onClick), shape = RoundedCornerShape(15.dp), colors = CardDefaults.cardColors(containerColor = CardNavy)) { Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, tint = color); Spacer(Modifier.width(8.dp)); Text(label, color = TextPrimary, fontSize = 12.sp) } } }
+@Composable private fun RowScope.QuickAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, onClick: () -> Unit) { Card(Modifier.weight(1f).clickable(onClick = onClick), shape = RoundedCornerShape(15.dp), colors = CardDefaults.cardColors(containerColor = CardNavy)) { Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, tint = color); Spacer(Modifier.width(8.dp)); Text(label, color = TextPrimary, fontSize = 12.sp) } } }
 @Composable private fun AccountRow(account: AccountEntity, amount: Double, deletable: Boolean = false) { DataTile(accountIcon(account.accountType), account.name, "${account.accountType} • ${account.currency}", Emerald, amount, deletable) {} }
 @Composable private fun DataTile(icon: String, title: String, subtitle: String, color: Color, value: Any? = null, deletable: Boolean = false, onDelete: () -> Unit = {}) { Row(Modifier.fillMaxWidth().background(CardNavy, RoundedCornerShape(15.dp)).padding(13.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(color.copy(alpha = .14f)), Alignment.Center) { Text(icon, fontSize = 18.sp) }; Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(title, color = TextPrimary, fontWeight = FontWeight.SemiBold); Text(subtitle, color = TextMuted, fontSize = 11.sp) }; if (value != null) Text(if (value is Double) money(value) else value.toString(), color = color, fontWeight = FontWeight.Bold, fontSize = 13.sp); if (deletable) IconButton(onDelete) { Icon(Icons.Default.Delete, "Delete", tint = Danger) } } }
 @Composable private fun TransactionRow(transaction: TransactionEntity, accounts: List<AccountEntity>, actions: Boolean = false, edit: () -> Unit = {}, delete: () -> Unit = {}) { val positive = transaction.type == "INCOME" || transaction.type == "TRANSFER_IN" || transaction.type == "BORROW"; Row(Modifier.fillMaxWidth().background(CardNavy, RoundedCornerShape(15.dp)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background((if (positive) Emerald else Danger).copy(alpha = .14f)), Alignment.Center) { Icon(if (positive) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward, null, tint = if (positive) Emerald else Danger) }; Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text(transaction.category, color = TextPrimary, fontWeight = FontWeight.SemiBold); Text("${accounts.firstOrNull { it.id == transaction.accountId }?.name ?: "Account"} • ${formatDate(transaction.timestamp)}", color = TextMuted, fontSize = 10.sp) }; Text("${if (positive) "+" else "-"}${money(transaction.amount)}", color = if (positive) Emerald else Danger, fontWeight = FontWeight.Bold, fontSize = 12.sp); if (actions) { IconButton(edit) { Icon(Icons.Default.Edit, "Edit", tint = Emerald) }; IconButton(delete) { Icon(Icons.Default.Delete, "Delete", tint = Danger) } } } }
 @Composable private fun ProgressTile(title: String, current: Double, target: Double, color: Color, delete: () -> Unit) { val progress by animateFloatAsState(FinancialCalculator.progress(current, target).toFloat(), label = "progress"); CardSurface(Modifier.fillMaxWidth()) { Row(verticalAlignment = Alignment.CenterVertically) { Text(title, color = TextPrimary, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f)); Text("${(progress * 100).toInt()}%", color = color, fontWeight = FontWeight.Bold); IconButton(delete) { Icon(Icons.Default.Delete, "Delete", tint = Danger) } }; Text("${money(current)} of ${money(target)}", color = TextMuted, fontSize = 12.sp); LinearProgressIndicator({ progress }, Modifier.fillMaxWidth(), color, CardRaised) } }
 @Composable private fun MoreTile(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) { Row(Modifier.fillMaxWidth().clickable(onClick = onClick).background(CardNavy, RoundedCornerShape(15.dp)).padding(16.dp), verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, tint = Emerald, modifier = Modifier.size(25.dp)); Spacer(Modifier.width(13.dp)); Column(Modifier.weight(1f)) { Text(title, color = TextPrimary, fontWeight = FontWeight.SemiBold); Text(subtitle, color = TextMuted, fontSize = 11.sp) }; Text("›", color = TextMuted, fontSize = 24.sp) } }
-@Composable private fun Summary(label: String, amount: Double, color: Color) { CardSurface(Modifier.weight(1f)) { Text(label, color = TextMuted, fontSize = 11.sp); Text(money(amount), color = color, fontWeight = FontWeight.Bold, fontSize = 13.sp) } }
+@Composable private fun RowScope.Summary(label: String, amount: Double, color: Color) { CardSurface(Modifier.weight(1f)) { Text(label, color = TextMuted, fontSize = 11.sp); Text(money(amount), color = color, fontWeight = FontWeight.Bold, fontSize = 13.sp) } }
 @Composable private fun CategoryBar(label: String, amount: Double, total: Double, color: Color) { val width = if (total == 0.0) 0f else (amount / total).toFloat().coerceIn(0f, 1f); Column { Row { Text(label, color = TextPrimary, modifier = Modifier.weight(1f)); Text(money(amount), color = TextMuted, fontSize = 12.sp) }; LinearProgressIndicator({ width }, Modifier.fillMaxWidth().padding(top = 5.dp), color, CardRaised) } }
-@Composable private fun DonutChart(total: Double, income: Double, expense: Double) { Box(Modifier.fillMaxWidth().height(170.dp), Alignment.Center) { Canvas(Modifier.size(150.dp)) { val stroke = Stroke(22f, StrokeCap.Butt); drawArc(Emerald, -90f, if (income + expense == 0.0) 360f else (income / (income + expense) * 360).toFloat(), false, style = stroke); drawArc(Danger, -90f + if (income + expense == 0.0) 0f else (income / (income + expense) * 360).toFloat(), if (income + expense == 0.0) 0f else (expense / (income + expense) * 360).toFloat(), false, style = stroke) }; Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(money(total), color = TextPrimary, fontWeight = FontWeight.Bold); Text("Expenses", color = TextMuted, fontSize = 11.sp) } } }
+@Composable private fun DonutChart(total: Double, income: Double, expense: Double) { Box(Modifier.fillMaxWidth().height(170.dp), Alignment.Center) { Canvas(Modifier.size(150.dp)) { val stroke = Stroke(width = 22f, cap = StrokeCap.Butt); drawArc(Emerald, -90f, if (income + expense == 0.0) 360f else (income / (income + expense) * 360).toFloat(), false, style = stroke); drawArc(Danger, -90f + if (income + expense == 0.0) 0f else (income / (income + expense) * 360).toFloat(), if (income + expense == 0.0) 0f else (expense / (income + expense) * 360).toFloat(), false, style = stroke) }; Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(money(total), color = TextPrimary, fontWeight = FontWeight.Bold); Text("Expenses", color = TextMuted, fontSize = 11.sp) } } }
 @Composable private fun TrendChart(transactions: List<TransactionEntity>) { Canvas(Modifier.fillMaxWidth().height(100.dp).padding(top = 10.dp)) { val values = transactions.take(12).reversed().runningFold(0.0) { total, t -> total + if (t.type == "INCOME" || t.type == "TRANSFER_IN") t.amount else -t.amount }.drop(1); if (values.size > 1) { val min = values.minOrNull() ?: 0.0; val max = values.maxOrNull() ?: 1.0; val points = values.mapIndexed { i, value -> Offset(size.width * i / (values.lastIndex).coerceAtLeast(1), size.height - ((value - min) / (max - min).coerceAtLeast(1.0) * size.height).toFloat()) }; for (i in 0 until points.lastIndex) drawLine(Emerald, points[i], points[i + 1], 4f, StrokeCap.Round) } } }
 @Composable private fun EmptyState(title: String, subtitle: String) { Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.ReceiptLong, null, tint = Emerald.copy(alpha = .7f), modifier = Modifier.size(34.dp)); Text(title, color = TextPrimary, fontWeight = FontWeight.Bold); Text(subtitle, color = TextMuted, fontSize = 12.sp) } }
 

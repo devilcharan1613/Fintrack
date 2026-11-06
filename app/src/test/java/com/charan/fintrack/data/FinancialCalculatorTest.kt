@@ -41,6 +41,12 @@ class FinancialCalculatorTest {
     }
 
     @Test
+    fun progressIsClampedToGoalBounds() {
+        assertEquals(0.0, FinancialCalculator.progress(-10.0, 100.0), 0.001)
+        assertEquals(1.0, FinancialCalculator.progress(125.0, 100.0), 0.001)
+    }
+
+    @Test
     fun borrowIncreasesBalanceAndLendDecreasesIt() {
         val account = AccountEntity(id = 7, name = "Cash", accountType = "Wallet", balance = 100.0)
         val transactions = listOf(

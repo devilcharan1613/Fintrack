@@ -31,6 +31,9 @@ interface AccountDao {
         timestamp: Long = System.currentTimeMillis()
     )
 
+    @Query("DELETE FROM accounts")
+    suspend fun deleteAll()
+
     @Query("SELECT SUM(balance) FROM accounts WHERE isArchived = 0")
     fun getTotalBalance(): Flow<Double?>
 

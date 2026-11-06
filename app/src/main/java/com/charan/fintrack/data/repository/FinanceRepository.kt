@@ -41,6 +41,8 @@ class FinanceRepository(private val database: FinTrackDatabase) {
         ).forEach { (name, type) ->
             finance.insertCategory(CategoryEntity(name = name, type = type, isSystem = true))
         }
+    }
+
     val totalBalance: Flow<Double> = accounts.getComputedTotalBalance()
     val income: Flow<Double> = finance.totalIncome()
     val expense: Flow<Double> = finance.totalExpense()
@@ -162,7 +164,56 @@ class FinanceRepository(private val database: FinTrackDatabase) {
         }
     }
 
+    suspend fun importCsv(csv: String): Int {
+        val lines = csv.lineSequence().filter { it.isNotBlank() }.toList()
+        require(lines.size > 1) { "CSV file is empty" }
+        val header = parseCsvLine(lines.first()).map { it.trim().lowercase() }
+        val required = listOf("accountid", "type", "amount", "category")
+        require(required.all { it in header }) { "CSV headers are invalid" }
+        val index = header.withIndex().associate { it.value to it.index }
+        var imported = 0
+        database.withTransaction {
+            lines.drop(1).forEach { line ->
+                val values = parseCsvLine(line)
+                fun value(name: String): String = values.getOrNull(index.getValue(name)).orEmpty()
+                val accountId = value("accountid").toLongOrNull() ?: return@forEach
+                if (accounts.getAccountById(accountId) == null) return@forEach
+                val amount = value("amount").toDoubleOrNull() ?: return@forEach
+                val type = value("type").uppercase()
+                if (amount <= 0 || type !in setOf("INCOME", "EXPENSE", "BORROW", "LEND")) return@forEach
+                finance.insertTransaction(
+                    TransactionEntity(
+                        accountId = accountId,
+                        type = type,
+                        amount = amount,
+                        category = value("category").ifBlank { "Other" },
+                        note = value("note"),
+                        timestamp = value("timestamp").toLongOrNull() ?: System.currentTimeMillis()
+                    )
+                )
+                imported++
+            }
+        }
+        require(imported > 0) { "No valid transactions found" }
+        return imported
+    }
+
+    suspend fun clearAllData() {
+        database.withTransaction {
+            finance.deleteAllLoanPayments()
+            finance.deleteAllTransactions()
+            finance.deleteAllBudgets()
+            finance.deleteAllGoals()
+            finance.deleteAllLoans()
+            finance.deleteAllCategories()
+            finance.deleteAllPersons()
+            accounts.deleteAll()
+        }
+    }
+
     suspend fun restoreJson(json: String) {
+            require(json.contains("\"accounts\":[") && json.contains("\"transactions\":["))
+                { "Invalid FinTrack backup" }
             fun section(name: String): String {
                 val start = json.indexOf("\"$name\":[")
                 if (start < 0) return ""
@@ -208,6 +259,7 @@ class FinanceRepository(private val database: FinTrackDatabase) {
                         )
                     }
                 }
+
                 objects(section("budgets")).forEach { obj ->
                     finance.insertBudget(
                         BudgetEntity(
@@ -217,6 +269,7 @@ class FinanceRepository(private val database: FinTrackDatabase) {
                         )
                     )
                 }
+
                 objects(section("goals")).forEach { obj ->
                     finance.insertGoal(GoalEntity(name = text(obj, "name"), targetAmount = number(obj, "target"), savedAmount = number(obj, "saved")))
                 }
@@ -231,5 +284,4 @@ class FinanceRepository(private val database: FinTrackDatabase) {
                 }
             }
         }
-    }
 }
