@@ -1,0 +1,7 @@
+{
+  "remoteEnv": {
+    "JAVA_HOME": "/usr/local/sdkman/candidates/java/21.0.13.0+2-ms",
+    "ANDROID_HOME": "${containerEnv:HOME}/Android/Sdk",
+    "ANDROID_SDK_ROOT": "${containerEnv:HOME}/Android/Sdk"
+  }
+}
