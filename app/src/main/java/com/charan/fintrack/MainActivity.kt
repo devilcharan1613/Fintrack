@@ -151,6 +151,7 @@ private fun FinTrackApp(context: Context) {
     var detail by remember { mutableStateOf(DetailScreen.More) }
     var dialog by remember { mutableStateOf<DialogKind?>(null) }
     var confirmClear by remember { mutableStateOf(false) }
+    var accountToArchive by remember { mutableStateOf<AccountEntity?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { repo.seedDefaultCategories() }
@@ -214,7 +215,7 @@ private fun FinTrackApp(context: Context) {
             AnimatedContent(tab, label = "tab", modifier = Modifier.padding(padding)) { selected ->
                 when (selected) {
                     MainTab.Home -> DashboardScreen(accounts, transactions, balance, income, expense, { add() }, { dialog = DialogKind.Transfer })
-                    MainTab.Accounts -> AccountsScreen(accounts, transactions, balance, { dialog = DialogKind.Account })
+                    MainTab.Accounts -> AccountsScreen(accounts, transactions, balance, { dialog = DialogKind.Account }, { dialog = DialogKind.EditAccount(it) }, { accountToArchive = it })
                     MainTab.Transactions -> TransactionsScreen(accounts, transactions, categories, { dialog = DialogKind.Transaction }, { transaction -> scope.launch { repo.deleteTransaction(transaction) } }, { transaction -> dialog = DialogKind.EditTransaction(transaction) })
                     MainTab.Reports -> ReportsScreen(balance, income, expense, transactions)
                     MainTab.More -> MoreScreen(detail, budgets, goals, loans, categories, persons, transactions, { detail = it }, { scope.launch { repo.deleteBudget(it) } }, { scope.launch { repo.deleteGoal(it) } }, { scope.launch { repo.deleteLoan(it) } }, { scope.launch { repo.deleteCategory(it) } }, { scope.launch { repo.deletePerson(it) } }, { exportCsv.launch("fintrack-transactions.csv") }, { exportJson.launch("fintrack-backup.json") }, { restore.launch(arrayOf("application/json", "text/*")) }, { importCsv.launch(arrayOf("text/csv", "text/*")) }, { confirmClear = true })
@@ -225,6 +226,7 @@ private fun FinTrackApp(context: Context) {
     dialog?.let { kind ->
         when (kind) {
             DialogKind.Account -> AccountForm({ dialog = null }) { scope.launch { repo.addAccount(it); dialog = null; notify("Account added") } }
+            is DialogKind.EditAccount -> AccountForm({ dialog = null }, kind.account) { scope.launch { repo.updateAccount(it); dialog = null; notify("Account updated") } }
             DialogKind.Transaction -> TransactionForm(accounts, categories, null, { dialog = null }) { scope.launch { repo.saveTransaction(it); dialog = null; notify("Transaction saved") } }
             is DialogKind.EditTransaction -> TransactionForm(accounts, categories, kind.transaction, { dialog = null }) { scope.launch { repo.updateTransaction(it); dialog = null; notify("Transaction updated") } }
             DialogKind.Transfer -> TransferForm(accounts, { dialog = null }) { from, to, amount, note -> scope.launch { runCatching { repo.addTransfer(from, to, amount, note) }.onSuccess { dialog = null; notify("Transfer completed") }.onFailure { notify(it.message ?: "Transfer failed") } } }
@@ -253,10 +255,28 @@ private fun FinTrackApp(context: Context) {
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } }
         )
     }
+    accountToArchive?.let { account ->
+        AlertDialog(
+            onDismissRequest = { accountToArchive = null },
+            title = { Text("Archive ${account.name}?") },
+            text = { Text("Existing transactions will remain in your history, but this account will no longer appear in active accounts.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        repo.archiveAccount(account)
+                        accountToArchive = null
+                        notify("Account archived")
+                    }
+                }) { Text("Archive", color = Danger) }
+            },
+            dismissButton = { TextButton(onClick = { accountToArchive = null }) { Text("Cancel") } }
+        )
+    }
 }
 
 private sealed interface DialogKind {
     data object Account : DialogKind
+    data class EditAccount(val account: AccountEntity) : DialogKind
     data object Transaction : DialogKind
     data class EditTransaction(val transaction: TransactionEntity) : DialogKind
     data object Transfer : DialogKind
@@ -292,10 +312,10 @@ private fun DashboardScreen(accounts: List<AccountEntity>, transactions: List<Tr
 }
 
 @Composable
-private fun AccountsScreen(accounts: List<AccountEntity>, transactions: List<TransactionEntity>, balance: Double, add: () -> Unit) {
+private fun AccountsScreen(accounts: List<AccountEntity>, transactions: List<TransactionEntity>, balance: Double, add: () -> Unit, edit: (AccountEntity) -> Unit, archive: (AccountEntity) -> Unit) {
     Page("Accounts", "Manage your wallets and cards", "Add account", add) {
         CardSurface(Modifier.fillMaxWidth(), gradient = true) { Text("Total Assets", color = TextMuted); AnimatedMoney(balance, 26); Text("${accounts.size} active accounts", color = Emerald, fontSize = 12.sp) }
-        accounts.forEach { AccountRow(it, accountBalance(it, transactions), true) }
+        accounts.forEach { AccountRow(it, accountBalance(it, transactions), edit = { edit(it) }, archive = { archive(it) }) }
         if (accounts.isEmpty()) EmptyState("No accounts yet", "Add a bank account, wallet or card.")
     }
 }
@@ -364,7 +384,7 @@ private val chartColors = listOf(Emerald, Blue, Amber, Color(0xFFB88CFF), Danger
 @Composable private fun SectionTitle(title: String, action: String) { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(title, color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f)); Text(action, color = Emerald, fontSize = 12.sp) } }
 @Composable private fun Metric(label: String, value: Double, color: Color, icon: androidx.compose.ui.graphics.vector.ImageVector) { Row(verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(28.dp).clip(CircleShape).background(color.copy(alpha = .15f)), Alignment.Center) { Icon(icon, null, tint = color, modifier = Modifier.size(16.dp)) }; Spacer(Modifier.width(7.dp)); Column { Text(label, color = TextMuted, fontSize = 11.sp); Text(money(value), color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp) } } }
 @Composable private fun RowScope.QuickAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, onClick: () -> Unit) { Card(Modifier.weight(1f).clickable(onClick = onClick), shape = RoundedCornerShape(15.dp), colors = CardDefaults.cardColors(containerColor = CardNavy)) { Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, tint = color); Spacer(Modifier.width(8.dp)); Text(label, color = TextPrimary, fontSize = 12.sp) } } }
-@Composable private fun AccountRow(account: AccountEntity, amount: Double, deletable: Boolean = false) { DataTile(accountIcon(account.accountType), account.name, "${account.accountType} • ${account.currency}", Emerald, amount, deletable) {} }
+@Composable private fun AccountRow(account: AccountEntity, amount: Double, edit: (() -> Unit)? = null, archive: (() -> Unit)? = null) { Row(Modifier.fillMaxWidth().background(CardNavy, RoundedCornerShape(15.dp)).padding(8.dp), verticalAlignment = Alignment.CenterVertically) { DataTile(accountIcon(account.accountType), account.name, "${account.accountType} • ${account.currency}", Emerald, amount); if (edit != null) IconButton(edit) { Icon(Icons.Default.Edit, "Edit", tint = Emerald) }; if (archive != null) IconButton(archive) { Icon(Icons.Default.Delete, "Archive", tint = Danger) } } }
 @Composable private fun DataTile(icon: String, title: String, subtitle: String, color: Color, value: Any? = null, deletable: Boolean = false, onDelete: () -> Unit = {}) { Row(Modifier.fillMaxWidth().background(CardNavy, RoundedCornerShape(15.dp)).padding(13.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(color.copy(alpha = .14f)), Alignment.Center) { Text(icon, fontSize = 18.sp) }; Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(title, color = TextPrimary, fontWeight = FontWeight.SemiBold); Text(subtitle, color = TextMuted, fontSize = 11.sp) }; if (value != null) Text(if (value is Double) money(value) else value.toString(), color = color, fontWeight = FontWeight.Bold, fontSize = 13.sp); if (deletable) IconButton(onDelete) { Icon(Icons.Default.Delete, "Delete", tint = Danger) } } }
 @Composable private fun TransactionRow(transaction: TransactionEntity, accounts: List<AccountEntity>, actions: Boolean = false, edit: () -> Unit = {}, delete: () -> Unit = {}) { val positive = transaction.type == "INCOME" || transaction.type == "TRANSFER_IN" || transaction.type == "BORROW"; Row(Modifier.fillMaxWidth().background(CardNavy, RoundedCornerShape(15.dp)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background((if (positive) Emerald else Danger).copy(alpha = .14f)), Alignment.Center) { Icon(if (positive) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward, null, tint = if (positive) Emerald else Danger) }; Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text(transaction.category, color = TextPrimary, fontWeight = FontWeight.SemiBold); Text("${accounts.firstOrNull { it.id == transaction.accountId }?.name ?: "Account"} • ${formatDate(transaction.timestamp)}", color = TextMuted, fontSize = 10.sp) }; Text("${if (positive) "+" else "-"}${money(transaction.amount)}", color = if (positive) Emerald else Danger, fontWeight = FontWeight.Bold, fontSize = 12.sp); if (actions) { IconButton(edit) { Icon(Icons.Default.Edit, "Edit", tint = Emerald) }; IconButton(delete) { Icon(Icons.Default.Delete, "Delete", tint = Danger) } } } }
 @Composable private fun ProgressTile(title: String, current: Double, target: Double, color: Color, delete: () -> Unit) { val progress by animateFloatAsState(FinancialCalculator.progress(current, target).toFloat(), label = "progress"); CardSurface(Modifier.fillMaxWidth()) { Row(verticalAlignment = Alignment.CenterVertically) { Text(title, color = TextPrimary, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f)); Text("${(progress * 100).toInt()}%", color = color, fontWeight = FontWeight.Bold); IconButton(delete) { Icon(Icons.Default.Delete, "Delete", tint = Danger) } }; Text("${money(current)} of ${money(target)}", color = TextMuted, fontSize = 12.sp); LinearProgressIndicator({ progress }, Modifier.fillMaxWidth(), color, CardRaised) } }
@@ -389,7 +409,7 @@ private fun monthKey() = SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
 @Composable private fun Field(value: String, change: (String) -> Unit, label: String) { OutlinedTextField(value, change, label = { Text(label) }, singleLine = true, modifier = Modifier.fillMaxWidth()) }
 @Composable private fun SaveButtons(error: String, dismiss: () -> Unit, save: () -> Unit) { if (error.isNotBlank()) Text(error, color = Danger, fontSize = 12.sp); Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { TextButton(dismiss) { Text("Cancel") }; Button(save, colors = ButtonDefaults.buttonColors(containerColor = Emerald)) { Text("Save", color = Ink) } } }
 
-@Composable private fun AccountForm(dismiss: () -> Unit, save: (AccountEntity) -> Unit) { var name by remember { mutableStateOf("") }; var type by remember { mutableStateOf("Bank account") }; var amount by remember { mutableStateOf("") }; var error by remember { mutableStateOf("") }; FormDialog("Add account", dismiss) { Field(name, { name = it }, "Account name"); Field(type, { type = it }, "Type"); Field(amount, { amount = it }, "Starting balance"); SaveButtons(error, dismiss) { val parsed = amount.toDoubleOrNull(); if (name.isBlank() || parsed == null || parsed < 0) error = "Enter a name and valid balance" else save(AccountEntity(name = name.trim(), accountType = type.trim(), balance = parsed)) } } }
+@Composable private fun AccountForm(dismiss: () -> Unit, existing: AccountEntity? = null, save: (AccountEntity) -> Unit) { var name by remember { mutableStateOf(existing?.name ?: "") }; var type by remember { mutableStateOf(existing?.accountType ?: "Bank account") }; var amount by remember { mutableStateOf(existing?.balance?.toString() ?: "") }; var error by remember { mutableStateOf("") }; FormDialog(if (existing == null) "Add account" else "Edit account", dismiss) { Field(name, { name = it }, "Account name"); Field(type, { type = it }, "Type"); Field(amount, { amount = it }, "Starting balance"); SaveButtons(error, dismiss) { val parsed = amount.toDoubleOrNull(); if (name.isBlank() || parsed == null || parsed < 0) error = "Enter a name and valid balance" else save(AccountEntity(id = existing?.id ?: 0L, name = name.trim(), accountType = type.trim(), balance = parsed, currency = existing?.currency ?: "INR", institution = existing?.institution ?: "", accountNumber = existing?.accountNumber ?: "", notes = existing?.notes ?: "", isArchived = existing?.isArchived ?: false, createdAt = existing?.createdAt ?: System.currentTimeMillis())) } } }
 @Composable private fun TransactionForm(accounts: List<AccountEntity>, categories: List<CategoryEntity>, existing: TransactionEntity?, dismiss: () -> Unit, save: (TransactionEntity) -> Unit) { var type by remember { mutableStateOf(existing?.type ?: "EXPENSE") }; var account by remember { mutableStateOf(existing?.accountId ?: accounts.firstOrNull()?.id ?: 0L) }; var amount by remember { mutableStateOf(existing?.amount?.toString() ?: "") }; var category by remember { mutableStateOf(existing?.category ?: categories.firstOrNull()?.name ?: "") }; var subcategory by remember { mutableStateOf(existing?.subcategory ?: "") }; var note by remember { mutableStateOf(existing?.note ?: "") }; var error by remember { mutableStateOf("") }; FormDialog(if (existing == null) "Add transaction" else "Edit transaction", dismiss) { Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { listOf("EXPENSE", "INCOME", "BORROW", "LEND").forEach { value -> FilterChip(type == value, { type = value }, label = { Text(value.lowercase().replaceFirstChar(Char::uppercase), fontSize = 10.sp) }) } }; Field(account.toString(), { account = it.toLongOrNull() ?: account }, "Account ID"); Field(amount, { amount = it }, "Amount"); Field(category, { category = it }, "Category"); Field(subcategory, { subcategory = it }, "Subcategory (optional)"); Field(note, { note = it }, "Note"); SaveButtons(error, dismiss) { val parsed = amount.toDoubleOrNull(); if (account == 0L || parsed == null || parsed <= 0 || category.isBlank()) error = "Enter an account, category and positive amount" else save(TransactionEntity(existing?.id ?: 0, account, type, parsed, category.trim(), note.trim(), existing?.timestamp ?: System.currentTimeMillis(), existing?.transferAccountId, existing?.transferId, subcategory.trim(), existing?.personId)) } } }
 @Composable private fun TransferForm(accounts: List<AccountEntity>, dismiss: () -> Unit, save: (Long, Long, Double, String) -> Unit) { var from by remember { mutableStateOf(accounts.firstOrNull()?.id ?: 0L) }; var to by remember { mutableStateOf(accounts.getOrNull(1)?.id ?: 0L) }; var amount by remember { mutableStateOf("") }; var note by remember { mutableStateOf("") }; var error by remember { mutableStateOf("") }; FormDialog("Transfer money", dismiss) { Field(from.toString(), { from = it.toLongOrNull() ?: from }, "From account ID"); Field(to.toString(), { to = it.toLongOrNull() ?: to }, "To account ID"); Field(amount, { amount = it }, "Amount"); Field(note, { note = it }, "Note"); SaveButtons(error, dismiss) { val parsed = amount.toDoubleOrNull(); if (from == 0L || to == 0L || from == to || parsed == null || parsed <= 0) error = "Choose two accounts and a positive amount" else save(from, to, parsed, note.trim()) } } }
 @Composable private fun BudgetForm(dismiss: () -> Unit, save: (BudgetEntity) -> Unit) { var category by remember { mutableStateOf("") }; var amount by remember { mutableStateOf("") }; var error by remember { mutableStateOf("") }; FormDialog("Create budget", dismiss) { Field(category, { category = it }, "Category"); Field(amount, { amount = it }, "Monthly limit"); SaveButtons(error, dismiss) { val parsed = amount.toDoubleOrNull(); if (category.isBlank() || parsed == null || parsed <= 0) error = "Enter a category and positive limit" else save(BudgetEntity(category = category.trim(), limitAmount = parsed, month = monthKey())) } } }
