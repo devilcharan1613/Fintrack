@@ -1,33 +1,43 @@
 # FinTrack
 
-## Included
-- Kotlin + Jetpack Compose + Material 3 foundation
-- Dark navy and emerald theme
-- Three-step onboarding with animated progress
-- Animated navigation transitions
-- Offline SQLite persistence for accounts and financial records
-- Dashboard with balance, income/expense summary, quick actions and empty states
-- Account, transaction, budget, savings goal and loan entry forms
-- Reports for income, expenses, net cash flow and current balance
-- Bottom navigation: Home, Accounts, Transactions, Reports, More
-- Placeholder destinations for later milestones
-- No login, cloud sync, INTERNET permission, or demo finance records
+FinTrack is an offline-first personal finance tracker for Android. The Android package embeds the supplied FinTrack HTML application as a local asset, so the interface and finance data work without a server or internet connection.
 
-## Open
-1. Extract this ZIP.
-2. Open the `FinTrackFree` folder in Android Studio.
-3. Use JDK 17 and install Android SDK Platform 35.
-4. Allow Gradle sync to download dependencies.
-5. Run on an API 23+ emulator or Android device.
+## Included screens and tools
+
+- Dashboard with total balance, income, expenses, quick stats, accounts and recent transactions
+- Accounts and wallets with account management and balance actions
+- Transactions for income, expenses, transfers, borrowing and lending
+- Budgets with category limits and spending progress
+- Savings goals with target and saved amounts
+- Loans with principal, repayments and EMI tracking
+- Reports with time filters, category breakdowns and charts
+- More menu for people, settings, backup and privacy
+- Local JSON backup export and restore through Android's document picker
+- Animated screen and card transitions with a dark navy and emerald interface
+
+## Privacy and storage
+
+- No `INTERNET` permission, login, cloud sync, ads or analytics.
+- The web interface stores data in the app's local WebView storage.
+- On first launch, existing records from the previous `fintrack.db` SQLite database are read and migrated into the new local data store. The old database is not modified or deleted.
+- A clean installation starts with empty accounts and transactions. There are no pre-filled sample balances.
+- Export backups regularly. Clearing app storage or uninstalling the app can remove local records.
 
 ## Build
-Run `gradle :app:assembleDebug` from the project root, or use Android Studio's Build APK action.
-Expected output: `app/build/outputs/apk/debug/app-debug.apk`.
 
-## Scope
-FinTrack is an offline personal finance tracker. It does not require login, cloud sync,
-or the `INTERNET` permission. Records are stored locally in the app's SQLite database.
+The repository includes a GitHub Actions workflow at `.github/workflows/android-apk.yml`.
 
-## Verification
-The debug APK builds with `./gradlew assembleDebug` and is written to
-`app/build/outputs/apk/debug/app-debug.apk`.
+1. Open the **Actions** tab in this repository.
+2. Select **Build FinTrack APK**.
+3. Open the latest successful run.
+4. Download the `FinTrack-debug-apk` artifact.
+
+The APK inside the artifact is named `app-debug.apk`.
+
+## Application identity
+
+- Application ID: `com.charan.fintrack`
+- App label: `FinTrack`
+- Minimum Android SDK: 23
+- Target Android SDK: 35
+- Offline local application, no sign-in required.

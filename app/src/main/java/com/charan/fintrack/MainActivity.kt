@@ -1,351 +1,374 @@
 package com.charan.fintrack
 
-import android.content.ContentValues
-import android.content.Context
+import android.app.Activity
+import android.app.AlertDialog
+import android.content.Intent
+import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteOpenHelper
+import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
+import android.view.View
+import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.EditText
+import android.widget.Toast
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val Navy = Color(0xFF071521)
-private val Panel = Color(0xFF102535)
-private val Green = Color(0xFF19D99A)
-private val Muted = Color(0xFF9CB2C1)
-private val White = Color(0xFFF4FAFC)
-private val Red = Color(0xFFFF6B75)
-
-class FinDatabase(context: Context) : SQLiteOpenHelper(context, "fintrack.db", null, 1) {
-    override fun onCreate(db: SQLiteDatabase) {
-        db.execSQL("CREATE TABLE accounts(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, type TEXT NOT NULL, opening REAL NOT NULL DEFAULT 0)")
-        db.execSQL("CREATE TABLE transactions(id INTEGER PRIMARY KEY AUTOINCREMENT, accountId INTEGER NOT NULL, type TEXT NOT NULL, amount REAL NOT NULL, category TEXT NOT NULL, note TEXT, date INTEGER NOT NULL)")
-        db.execSQL("CREATE TABLE budgets(id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT NOT NULL, amount REAL NOT NULL, month TEXT NOT NULL)")
-        db.execSQL("CREATE TABLE goals(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, target REAL NOT NULL, saved REAL NOT NULL DEFAULT 0)")
-        db.execSQL("CREATE TABLE loans(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, principal REAL NOT NULL, emi REAL NOT NULL, paid REAL NOT NULL DEFAULT 0)")
+/**
+ * Offline Android host for the bundled FinTrack finance interface.
+ * The UI is loaded from assets and persists locally in WebView storage.
+ * On first launch it reads the previous fintrack.db without changing or deleting it.
+ */
+class MainActivity : Activity() {
+    companion object {
+        private const val CREATE_BACKUP = 4101
+        private const val OPEN_BACKUP = 4102
+        private const val LEGACY_DB = "fintrack.db"
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    private lateinit var webView: WebView
+    private var pendingBackup: String? = null
 
-    private fun insert(table: String, values: ContentValues) {
-        writableDatabase.insertOrThrow(table, null, values)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        window.statusBarColor = Color.rgb(7, 17, 25)
+        window.navigationBarColor = Color.rgb(15, 23, 32)
+        window.decorView.systemUiVisibility = 0
+
+        webView = WebView(this).apply {
+            setBackgroundColor(Color.rgb(13, 17, 23))
+            overScrollMode = View.OVER_SCROLL_NEVER
+            isVerticalScrollBarEnabled = false
+            isHorizontalScrollBarEnabled = false
+            settings.apply {
+                javaScriptEnabled = true
+                domStorageEnabled = true
+                allowFileAccess = true
+                allowContentAccess = true
+                javaScriptCanOpenWindowsAutomatically = false
+                setSupportMultipleWindows(false)
+                setSupportZoom(false)
+                builtInZoomControls = false
+                displayZoomControls = false
+                defaultTextEncodingName = "UTF-8"
+                allowFileAccessFromFileURLs = false
+                allowUniversalAccessFromFileURLs = false
+            }
+            webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                    return !request?.url?.toString().orEmpty().startsWith("file:///android_asset/")
+                }
+            }
+            webChromeClient = object : WebChromeClient() {
+                override fun onJsAlert(view: WebView, url: String, message: String, result: android.webkit.JsResult): Boolean {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setMessage(message)
+                        .setPositiveButton("OK") { _, _ -> result.confirm() }
+                        .setOnCancelListener { result.cancel() }
+                        .show()
+                    return true
+                }
+
+                override fun onJsConfirm(view: WebView, url: String, message: String, result: android.webkit.JsResult): Boolean {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setMessage(message)
+                        .setPositiveButton("Continue") { _, _ -> result.confirm() }
+                        .setNegativeButton("Cancel") { _, _ -> result.cancel() }
+                        .setOnCancelListener { result.cancel() }
+                        .show()
+                    return true
+                }
+
+                override fun onJsPrompt(
+                    view: WebView,
+                    url: String,
+                    message: String,
+                    defaultValue: String?,
+                    result: android.webkit.JsPromptResult
+                ): Boolean {
+                    val field = EditText(this@MainActivity).apply { setText(defaultValue.orEmpty()) }
+                    AlertDialog.Builder(this@MainActivity)
+                        .setMessage(message)
+                        .setView(field)
+                        .setPositiveButton("OK") { _, _ -> result.confirm(field.text.toString()) }
+                        .setNegativeButton("Cancel") { _, _ -> result.cancel() }
+                        .setOnCancelListener { result.cancel() }
+                        .show()
+                    return true
+                }
+            }
+            addJavascriptInterface(FinTrackBridge(), "FinTrackBridge")
+        }
+        setContentView(webView)
+        webView.loadUrl("file:///android_asset/index.html")
     }
 
-    fun addAccount(name: String, type: String, opening: Double) = insert("accounts", ContentValues().apply {
-        put("name", name); put("type", type); put("opening", opening)
-    })
+    private inner class FinTrackBridge {
+        @JavascriptInterface
+        fun getLegacyData(): String = try {
+            readLegacyDatabase()
+        } catch (_: Exception) {
+            emptyState().toString()
+        }
 
-    fun addTransaction(accountId: Long, type: String, amount: Double, category: String, note: String) {
-        insert("transactions", ContentValues().apply {
-            put("accountId", accountId); put("type", type); put("amount", amount)
-            put("category", category); put("note", note); put("date", System.currentTimeMillis())
-        })
-    }
+        @JavascriptInterface
+        fun exportBackup(json: String, filename: String?) {
+            runOnUiThread {
+                pendingBackup = json
+                val safeName = filename?.takeIf { it.isNotBlank() }
+                    ?.replace(Regex("[^A-Za-z0-9._-]"), "_") ?: "fintrack_backup.json"
+                val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "application/json"
+                    putExtra(Intent.EXTRA_TITLE, safeName)
+                }
+                startActivityForResult(intent, CREATE_BACKUP)
+            }
+        }
 
-    fun addBudget(category: String, amount: Double) = insert("budgets", ContentValues().apply {
-        put("category", category); put("amount", amount)
-        put("month", SimpleDateFormat("yyyy-MM", Locale.US).format(Date()))
-    })
-
-    fun addGoal(name: String, target: Double) = insert("goals", ContentValues().apply {
-        put("name", name); put("target", target)
-    })
-
-    fun addLoan(name: String, principal: Double) = insert("loans", ContentValues().apply {
-        put("name", name); put("principal", principal); put("emi", 0.0)
-    })
-
-    fun rows(table: String): List<Map<String, String>> {
-        require(table in setOf("accounts", "transactions", "budgets", "goals", "loans"))
-        return buildList {
-            readableDatabase.rawQuery("SELECT * FROM $table ORDER BY id DESC", null).use { cursor ->
-                while (cursor.moveToNext()) add(buildMap {
-                    for (index in 0 until cursor.columnCount) {
-                        put(cursor.getColumnName(index), cursor.getString(index).orEmpty())
-                    }
-                })
+        @JavascriptInterface
+        fun importBackup() {
+            runOnUiThread {
+                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "application/json"
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivityForResult(intent, OPEN_BACKUP)
             }
         }
     }
 
-    fun balance(accountId: Long): Double {
-        var result = 0.0
-        readableDatabase.rawQuery("SELECT opening FROM accounts WHERE id=?", arrayOf(accountId.toString())).use {
-            if (it.moveToFirst()) result = it.getDouble(0)
-        }
-        readableDatabase.rawQuery("SELECT type, amount FROM transactions WHERE accountId=?", arrayOf(accountId.toString())).use {
-            while (it.moveToNext()) result += if (it.getString(0) == "Income") it.getDouble(1) else -it.getDouble(1)
-        }
-        return result
+    private fun emptyState() = JSONObject().apply {
+        put("accounts", JSONArray())
+        put("transactions", JSONArray())
+        put("persons", JSONArray())
+        put("budgets", JSONArray())
+        put("goals", JSONArray())
+        put("loans", JSONArray())
+        put("categories", JSONArray())
+        put("settings", JSONObject().put("currency", "₹").put("name", "FinTrack").put("version", "4.0"))
     }
 
-    fun totalBalance() = rows("accounts").sumOf { balance(it["id"]?.toLongOrNull() ?: 0) }
-
-    fun totals(): Pair<Double, Double> {
-        var income = 0.0
-        var expense = 0.0
-        readableDatabase.rawQuery("SELECT type, SUM(amount) FROM transactions GROUP BY type", null).use {
-            while (it.moveToNext()) {
-                if (it.getString(0) == "Income") income = it.getDouble(1)
-                if (it.getString(0) == "Expense") expense = it.getDouble(1)
-            }
-        }
-        return income to expense
-    }
-}
-
-class MainActivity : ComponentActivity() {
-    override fun onCreate(state: Bundle?) {
-        super.onCreate(state)
-        setContent { FinTrackApp(FinDatabase(this)) }
-    }
-}
-
-private enum class Page(val title: String) { Home("Home"), Accounts("Accounts"), Activity("Activity"), Reports("Reports"), More("More") }
-
-@Composable
-private fun FinTrackApp(db: FinDatabase) {
-    var page by remember { mutableStateOf(Page.Home) }
-    var dialog by remember { mutableStateOf<String?>(null) }
-    var refresh by remember { mutableIntStateOf(0) }
-    MaterialTheme(colorScheme = darkColorScheme(primary = Green, background = Navy, surface = Panel, onSurface = White)) {
-        Scaffold(
-            containerColor = Navy,
-            bottomBar = {
-                NavigationBar(containerColor = Panel) {
-                    Page.entries.forEach { item ->
-                        val icon = when (item) {
-                            Page.Home -> Icons.Default.Home
-                            Page.Accounts -> Icons.Default.AccountBalanceWallet
-                            Page.Activity -> Icons.Default.ReceiptLong
-                            Page.Reports -> Icons.Default.BarChart
-                            Page.More -> Icons.Default.MoreHoriz
+    /** Read old SQLite records only; the legacy database file is never modified. */
+    private fun readLegacyDatabase(): String {
+        val file = getDatabasePath(LEGACY_DB)
+        if (!file.exists() || file.length() == 0L) return emptyState().toString()
+        val db = SQLiteDatabase.openDatabase(file.absolutePath, null, SQLiteDatabase.OPEN_READONLY)
+        try {
+            val result = emptyState()
+            val accounts = JSONArray()
+            val accountById = linkedMapOf<Long, JSONObject>()
+            if (hasTable(db, "accounts")) {
+                db.rawQuery("SELECT * FROM accounts ORDER BY id ASC", null).use { c ->
+                    while (c.moveToNext()) {
+                        val id = c.longValue("id")
+                        val item = JSONObject().apply {
+                            put("id", id.toString())
+                            put("name", c.stringValue("name", "Account"))
+                            put("type", c.stringValue("type", "wallet").lowercase(Locale.ROOT))
+                            put("balance", c.doubleValue("opening", c.doubleValue("balance", 0.0)))
+                            put("creditLimit", c.doubleValue("creditLimit"))
+                            put("createdAt", isoDateTime(c.longValue("createdAt", System.currentTimeMillis())))
                         }
-                        NavigationBarItem(page == item, { page = item }, { Icon(icon, item.title) }, label = { Text(item.title, fontSize = 10.sp) },
-                            colors = NavigationBarItemDefaults.colors(selectedIconColor = Green, selectedTextColor = Green,
-                                indicatorColor = Navy, unselectedIconColor = Muted, unselectedTextColor = Muted))
+                        accounts.put(item)
+                        accountById[id] = item
                     }
                 }
-            },
-            floatingActionButton = { FloatingActionButton({ dialog = "Transaction" }, containerColor = Green, contentColor = Navy) { Icon(Icons.Default.Add, "Add transaction") } }
-        ) { padding ->
-            Column(Modifier.padding(padding).fillMaxSize()) {
-                when (page) {
-                    Page.Home -> HomeScreen(db, refresh) { dialog = it }
-                    Page.Accounts -> AccountsScreen(db, refresh) { dialog = it }
-                    Page.Activity -> ActivityScreen(db, refresh)
-                    Page.Reports -> ReportsScreen(db, refresh)
-                    Page.More -> MoreScreen { dialog = it }
-                }
             }
-        }
-        dialog?.let { type ->
-            EntryDialog(type, db) { dialog = null; refresh++ }
-        }
-    }
-}
 
-private fun money(value: Double) = "₹" + String.format(Locale("en", "IN"), "%,.2f", value)
-
-@Composable
-private fun Header(title: String, subtitle: String) {
-    Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
-        Text(title, color = White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-        Text(subtitle, color = Muted, fontSize = 13.sp)
-    }
-}
-
-@Composable
-private fun Card(title: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier.background(Panel, RoundedCornerShape(20.dp)).padding(18.dp)) {
-        Text(title, color = Muted, fontSize = 13.sp)
-        Spacer(Modifier.height(8.dp))
-        Text(value, color = White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun HomeScreen(db: FinDatabase, refresh: Int, add: (String) -> Unit) {
-    Header("FinTrack", "Your money, clearly managed")
-    val balance = remember(refresh) { db.totalBalance() }
-    val totals = remember(refresh) { db.totals() }
-    val transactions = remember(refresh) { db.rows("transactions") }
-    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item {
-            Column(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Color(0xFF123D3B), Panel)), RoundedCornerShape(24.dp)).padding(22.dp)) {
-                Text("TOTAL BALANCE", color = Muted, fontSize = 12.sp)
-                Text(money(balance), color = Green, fontSize = 32.sp, fontWeight = FontWeight.Bold)
-                Text("Across your active accounts", color = Muted, fontSize = 12.sp)
-            }
-        }
-        item { Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { Card("Income", money(totals.first), Modifier.weight(1f)); Card("Expenses", money(totals.second), Modifier.weight(1f)) } }
-        item { Text("Quick actions", color = White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold) }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                QuickButton("Income", Icons.Default.AddCircle, Modifier.weight(1f)) { add("Transaction") }
-                QuickButton("Expense", Icons.Default.RemoveCircle, Modifier.weight(1f)) { add("Transaction") }
-                QuickButton("Account", Icons.Default.AccountBalance, Modifier.weight(1f)) { add("Account") }
-            }
-        }
-        item { Text("Recent transactions", color = White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold) }
-        items(transactions.take(5)) { TransactionRow(it) }
-        if (transactions.isEmpty()) item { EmptyState("No transactions yet", "Tap + to add your first transaction.") }
-    }
-}
-
-@Composable
-private fun QuickButton(label: String, icon: ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Column(modifier.background(Panel, RoundedCornerShape(16.dp)).clickable(onClick = onClick).padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(icon, label, tint = Green); Spacer(Modifier.height(6.dp)); Text(label, color = White, fontSize = 11.sp)
-    }
-}
-
-@Composable
-private fun AccountsScreen(db: FinDatabase, refresh: Int, add: (String) -> Unit) {
-    Header("Accounts", "Manage your money")
-    val accounts = remember(refresh) { db.rows("accounts") }
-    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Card("Total account balance", money(db.totalBalance()), Modifier.fillMaxWidth()) }
-        item { Button({ add("Account") }, colors = ButtonDefaults.buttonColors(containerColor = Green)) { Text("+ Add account", color = Navy) } }
-        items(accounts) { account ->
-            val id = account["id"]?.toLongOrNull() ?: 0
-            Column(Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(16.dp)).padding(18.dp)) {
-                Text("${account["name"]}  (ID $id)", color = White, fontWeight = FontWeight.Bold)
-                Text(account["type"].orEmpty(), color = Muted, fontSize = 12.sp)
-                Text(money(db.balance(id)), color = Green, fontSize = 20.sp)
-            }
-        }
-        if (accounts.isEmpty()) item { EmptyState("No accounts", "Add your bank, cash or wallet account.") }
-    }
-}
-
-@Composable
-private fun ActivityScreen(db: FinDatabase, refresh: Int) {
-    Header("Transactions", "Your financial activity")
-    val transactions = remember(refresh) { db.rows("transactions") }
-    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        items(transactions) { TransactionRow(it) }
-        if (transactions.isEmpty()) item { EmptyState("No transactions", "Your transactions will appear here.") }
-    }
-}
-
-@Composable
-private fun TransactionRow(row: Map<String, String>) {
-    val income = row["type"] == "Income"
-    Row(Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(15.dp)).padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(if (income) Icons.Default.TrendingUp else Icons.Default.TrendingDown, null, tint = if (income) Green else Red)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) { Text(row["category"].orEmpty(), color = White, fontWeight = FontWeight.Medium); Text(row["note"].orEmpty(), color = Muted, fontSize = 12.sp) }
-        Text((if (income) "+" else "-") + money(row["amount"]?.toDoubleOrNull() ?: 0.0), color = if (income) Green else Red, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun ReportsScreen(db: FinDatabase, refresh: Int) {
-    Header("Reports", "Understand your finances")
-    val totals = remember(refresh) { db.totals() }
-    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Card("Total income", money(totals.first), Modifier.fillMaxWidth()) }
-        item { Card("Total expenses", money(totals.second), Modifier.fillMaxWidth()) }
-        item { Card("Net cash flow", money(totals.first - totals.second), Modifier.fillMaxWidth()) }
-        item { Card("Current balance", money(db.totalBalance()), Modifier.fillMaxWidth()) }
-    }
-}
-
-@Composable
-private fun MoreScreen(add: (String) -> Unit) {
-    Header("More", "Planning and settings")
-    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        listOf("Budgets" to "Set monthly category limits", "Savings goals" to "Track your savings targets", "Loans" to "Track outstanding loans and EMI", "Backup" to "Export transaction CSV").forEach { (name, description) ->
-            item {
-                Column(
-                    Modifier.fillMaxWidth()
-                        .background(Panel, RoundedCornerShape(16.dp))
-                        .clickable { add(if (name == "Budgets") "Budget" else if (name == "Savings goals") "Goal" else if (name == "Loans") "Loan" else "Export") }
-                        .padding(18.dp)
-                ) {
-                    Text(name, color = White, fontWeight = FontWeight.Bold); Text(description, color = Muted, fontSize = 12.sp)
-                }
-            }
-        }
-        item { Text("FinTrack • Offline personal finance tracker", color = Muted, fontSize = 12.sp) }
-    }
-}
-
-@Composable
-private fun EntryDialog(type: String, db: FinDatabase, onClose: () -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var amount by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("General") }
-    var note by remember { mutableStateOf("") }
-    var accountId by remember { mutableStateOf("") }
-    var selectedType by remember { mutableStateOf("Expense") }
-    var error by remember { mutableStateOf("") }
-    if (type == "Export") {
-        AlertDialog(onDismissRequest = onClose, title = { Text("CSV export") }, text = { Text("Export is available from the local database.") }, confirmButton = { TextButton(onClick = onClose) { Text("Close") } })
-        return
-    }
-    Dialog(onDismissRequest = onClose) {
-        Column(Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(22.dp)).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Add $type", color = White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-            if (type == "Transaction") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("Expense", "Income").forEach { value -> FilterChip(selectedType == value, { selectedType = value }, label = { Text(value) }) } }
-                Field(accountId, { accountId = it }, "Account ID")
-                Field(category, { category = it }, "Category")
-                Field(note, { note = it }, "Note")
-            }
-            if (type == "Account") { Field(name, { name = it }, "Account name"); Field(category, { category = it }, "Account type") }
-            if (type == "Budget") Field(category, { category = it }, "Category")
-            if (type == "Goal" || type == "Loan") Field(name, { name = it }, "Name")
-            Field(amount, { amount = it }, if (type == "Goal") "Target amount" else "Amount (₹)")
-            if (error.isNotEmpty()) Text(error, color = Red)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onClose) { Text("Cancel") }
-                Button(onClick = {
-                    val value = amount.toDoubleOrNull()
-                    when (type) {
-                        "Account" -> if (name.isBlank() || value == null || value < 0) error = "Enter a name and valid opening balance" else { db.addAccount(name, category, value); onClose() }
-                        "Transaction" -> if (accountId.toLongOrNull() == null || value == null || value <= 0 || category.isBlank()) error = "Enter a valid account ID, amount and category" else { db.addTransaction(accountId.toLong(), selectedType, value, category, note); onClose() }
-                        "Budget" -> if (category.isBlank() || value == null || value <= 0) error = "Enter a category and valid budget" else { db.addBudget(category, value); onClose() }
-                        "Goal" -> if (name.isBlank() || value == null || value <= 0) error = "Enter a name and target" else { db.addGoal(name, value); onClose() }
-                        "Loan" -> if (name.isBlank() || value == null || value <= 0) error = "Enter a name and principal" else { db.addLoan(name, value); onClose() }
+            val transactions = JSONArray()
+            if (hasTable(db, "transactions")) {
+                db.rawQuery("SELECT * FROM transactions ORDER BY id ASC", null).use { c ->
+                    while (c.moveToNext()) {
+                        val type = c.stringValue("type", "expense").lowercase(Locale.ROOT)
+                        val amount = c.doubleValue("amount")
+                        val fromId = c.longValue("accountId")
+                        val toId = c.longValue("toAccountId")
+                        transactions.put(JSONObject().apply {
+                            put("id", c.longValue("id").toString())
+                            put("type", type)
+                            put("amount", amount)
+                            put("accountId", fromId.toString())
+                            put("toAccountId", if (toId == 0L) "" else toId.toString())
+                            put("category", c.stringValue("category", "other"))
+                            put("subcategory", c.stringValue("subcategory"))
+                            put("personId", c.stringValue("personId"))
+                            put("notes", c.stringValue("note", c.stringValue("notes")))
+                            put("date", isoDate(c.longValue("date", System.currentTimeMillis())))
+                            put("createdAt", isoDateTime(c.longValue("createdAt", System.currentTimeMillis())))
+                        })
+                        when (type) {
+                            "income", "borrow" -> changeBalance(accountById[fromId], amount)
+                            "expense", "lend" -> changeBalance(accountById[fromId], -amount)
+                            "transfer" -> {
+                                changeBalance(accountById[fromId], -amount)
+                                changeBalance(accountById[toId], amount)
+                            }
+                        }
                     }
-                }, colors = ButtonDefaults.buttonColors(containerColor = Green)) { Text("Save", color = Navy) }
+                }
+            }
+
+            val persons = JSONArray()
+            if (hasTable(db, "persons")) {
+                db.rawQuery("SELECT * FROM persons ORDER BY id ASC", null).use { c ->
+                    while (c.moveToNext()) persons.put(JSONObject().apply {
+                        put("id", c.stringValue("id"))
+                        put("name", c.stringValue("name", "Person"))
+                        put("phone", c.stringValue("phone"))
+                        put("note", c.stringValue("note"))
+                        put("createdAt", isoDateTime(c.longValue("createdAt", System.currentTimeMillis())))
+                    })
+                }
+            }
+
+            val budgets = JSONArray()
+            if (hasTable(db, "budgets")) {
+                db.rawQuery("SELECT * FROM budgets ORDER BY id ASC", null).use { c ->
+                    while (c.moveToNext()) budgets.put(JSONObject().apply {
+                        val category = c.stringValue("category", "Budget")
+                        put("id", c.longValue("id").toString())
+                        put("name", category)
+                        put("category", category)
+                        put("amount", c.doubleValue("amount"))
+                        put("spent", c.doubleValue("spent"))
+                        put("period", c.stringValue("month", "Monthly"))
+                    })
+                }
+            }
+
+            val goals = JSONArray()
+            if (hasTable(db, "goals")) {
+                db.rawQuery("SELECT * FROM goals ORDER BY id ASC", null).use { c ->
+                    while (c.moveToNext()) goals.put(JSONObject().apply {
+                        put("id", c.longValue("id").toString())
+                        put("name", c.stringValue("name", "Savings goal"))
+                        put("target", c.doubleValue("target"))
+                        put("saved", c.doubleValue("saved"))
+                    })
+                }
+            }
+
+            val loans = JSONArray()
+            if (hasTable(db, "loans")) {
+                db.rawQuery("SELECT * FROM loans ORDER BY id ASC", null).use { c ->
+                    while (c.moveToNext()) loans.put(JSONObject().apply {
+                        put("id", c.longValue("id").toString())
+                        put("name", c.stringValue("name", "Loan"))
+                        put("principal", c.doubleValue("principal"))
+                        put("emi", c.doubleValue("emi"))
+                        put("paid", c.doubleValue("paid"))
+                    })
+                }
+            }
+
+            result.put("accounts", accounts)
+            result.put("transactions", transactions)
+            result.put("persons", persons)
+            result.put("budgets", budgets)
+            result.put("goals", goals)
+            result.put("loans", loans)
+            return result.toString()
+        } finally {
+            db.close()
+        }
+    }
+
+    private fun changeBalance(account: JSONObject?, delta: Double) {
+        if (account != null) account.put("balance", account.optDouble("balance") + delta)
+    }
+
+    private fun hasTable(db: SQLiteDatabase, name: String): Boolean =
+        db.rawQuery("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", arrayOf(name)).use { it.moveToFirst() }
+
+    private fun Cursor.stringValue(name: String, fallback: String = ""): String {
+        val index = getColumnIndex(name)
+        return if (index >= 0 && !isNull(index)) getString(index).orEmpty() else fallback
+    }
+
+    private fun Cursor.longValue(name: String, fallback: Long = 0L): Long {
+        val index = getColumnIndex(name)
+        return if (index >= 0 && !isNull(index)) getLong(index) else fallback
+    }
+
+    private fun Cursor.doubleValue(name: String, fallback: Double = 0.0): Double {
+        val index = getColumnIndex(name)
+        return if (index >= 0 && !isNull(index)) getDouble(index) else fallback
+    }
+
+    private fun isoDate(value: Long) = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(value))
+    private fun isoDateTime(value: Long) = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(Date(value))
+
+    @Deprecated("Deprecated in Android API; retained for compatibility with minimum SDK")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == CREATE_BACKUP) {
+            val json = pendingBackup
+            val uri = data?.data
+            if (resultCode == RESULT_OK && uri != null && json != null) {
+                try {
+                    contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(StandardCharsets.UTF_8)) }
+                        ?: throw IllegalStateException("Could not open backup destination")
+                    Toast.makeText(this, "FinTrack backup saved", Toast.LENGTH_SHORT).show()
+                } catch (_: Exception) {
+                    Toast.makeText(this, "Could not save backup", Toast.LENGTH_LONG).show()
+                }
+            }
+            pendingBackup = null
+        } else if (requestCode == OPEN_BACKUP && resultCode == RESULT_OK) {
+            val uri: Uri? = data?.data
+            if (uri != null) {
+                try {
+                    val json = contentResolver.openInputStream(uri)?.use { input ->
+                        val output = ByteArrayOutputStream()
+                        val buffer = ByteArray(8192)
+                        while (true) {
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            output.write(buffer, 0, count)
+                        }
+                        output.toString("UTF-8")
+                    } ?: throw IllegalStateException("Could not read backup")
+                    webView.evaluateJavascript(
+                        "window.__importBackupFromAndroid && window.__importBackupFromAndroid(${JSONObject.quote(json)})",
+                        null
+                    )
+                } catch (_: Exception) {
+                    Toast.makeText(this, "Could not read backup file", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
-}
 
-@Composable
-private fun Field(value: String, onValueChange: (String) -> Unit, label: String) {
-    OutlinedTextField(value, onValueChange, label = { Text(label) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-}
+    @Deprecated("Deprecated in Android API; retained for compatibility with minimum SDK")
+    override fun onBackPressed() {
+        if (!::webView.isInitialized) {
+            super.onBackPressed()
+            return
+        }
+        webView.evaluateJavascript("window.handleAndroidBack ? window.handleAndroidBack() : false") { handled ->
+            if (handled != "true") finish()
+        }
+    }
 
-@Composable
-private fun EmptyState(title: String, subtitle: String) {
-    Column(Modifier.fillMaxWidth().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(Icons.Default.AccountBalanceWallet, null, tint = Muted, modifier = Modifier.size(35.dp))
-        Spacer(Modifier.height(8.dp)); Text(title, color = White, fontWeight = FontWeight.Bold); Text(subtitle, color = Muted, fontSize = 12.sp)
+    override fun onDestroy() {
+        if (::webView.isInitialized) {
+            webView.removeJavascriptInterface("FinTrackBridge")
+            webView.stopLoading()
+            webView.loadUrl("about:blank")
+            webView.destroy()
+        }
+        super.onDestroy()
     }
 }
