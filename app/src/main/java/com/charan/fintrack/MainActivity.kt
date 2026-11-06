@@ -289,6 +289,7 @@ private fun DashboardScreen(accounts: List<AccountEntity>, transactions: List<Tr
         transactions.take(4).forEach { TransactionRow(it, accounts) }
         if (transactions.isEmpty()) EmptyState("No transactions yet", "Your recent activity will appear here.")
     }
+}
 
 @Composable
 private fun AccountsScreen(accounts: List<AccountEntity>, transactions: List<TransactionEntity>, balance: Double, add: () -> Unit) {
