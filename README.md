@@ -28,6 +28,8 @@
 - More menu for people, settings, backup and privacy
 - Local JSON backup export and restore through Android's document picker
 - Animated screen and card transitions with a dark navy and emerald interface
+- Adaptive edge-to-edge safe areas for status bars, cutouts, navigation modes, and IME
+- Liquid Glass surfaces with blur fallbacks, responsive spacing, and reduced-motion support
 
 ## Privacy and storage
 
@@ -49,3 +51,11 @@ category, and people data; CSV export contains transaction history.
 ## Verification
 The debug APK builds with `./gradlew assembleDebug` and is written to
 `app/build/outputs/apk/debug/app-debug.apk`.
+
+## UI system
+
+The Android shell uses `WindowInsetsCompat` with edge-to-edge rendering and passes
+system-bar, display-cutout, and IME insets to the offline WebView as CSS variables.
+The web UI consumes those values alongside `env(safe-area-inset-*)`, avoiding
+double-applied padding across gesture and three-button navigation. Glass surfaces
+use CSS backdrop blur where available and opaque translucent fallbacks otherwise.

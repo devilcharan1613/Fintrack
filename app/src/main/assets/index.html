@@ -6,28 +6,32 @@
 <title>FinTrack — Personal Finance & Budget Tracker</title>
 <style>
   :root{
-    --bg:#0d1117; --bg2:#161b27; --bg3:#1e2535; --border:#2a3347;
-    --primary:#00c896; --primary-dim:rgba(0,200,150,0.12);
+    --bg:#090d14; --bg2:rgba(255,255,255,.065); --bg3:rgba(255,255,255,.09); --border:rgba(255,255,255,.14);
+    --primary:#00d6a3; --primary-dim:rgba(0,214,163,.14);
     --gold:#f5a623; --gold-dim:rgba(245,166,35,0.12);
     --red:#ef4444; --red-dim:rgba(239,68,68,0.12);
     --blue:#3b82f6; --blue-dim:rgba(59,130,246,0.12);
     --purple:#a855f7; --purple-dim:rgba(168,85,247,0.12);
     --orange:#f97316; --orange-dim:rgba(249,115,22,0.12);
-    --text:#f0f6fc; --text2:#8b949e; --text3:#4a5568;
-    --shadow:0 4px 24px rgba(0,0,0,0.4);
+    --text:#f5f7fa; --text2:#929baa; --text3:#5c6677;
+    --shadow:0 14px 36px rgba(0,0,0,.28);
     --radius:16px; --radius-sm:10px; --nav-h:68px;
+    --safe-top:0px; --safe-right:0px; --safe-bottom:0px; --ime-bottom:0px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;}
   body{
     font-family:'Nunito',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    background:#000; color:var(--text);
+    background:#030509; color:var(--text);
     -webkit-font-smoothing:antialiased;
   }
   #shell{
-    background:var(--bg); width:100%; height:100vh; height:100dvh; position:relative;
+    background:
+      radial-gradient(circle at 88% -8%, rgba(0,214,163,.16), transparent 30%),
+      radial-gradient(circle at -10% 45%, rgba(0,169,199,.10), transparent 34%),
+      var(--bg); width:100%; height:100vh; height:100dvh; position:relative;
     display:flex; flex-direction:column; overflow:hidden;
-    padding-bottom:env(safe-area-inset-bottom);
+    padding-bottom:max(env(safe-area-inset-bottom),var(--safe-bottom));
   }
   @media (min-width:520px){
     body{display:flex; justify-content:center; align-items:center; padding:clamp(12px,4vh,24px) 0;}
@@ -41,31 +45,33 @@
   /* ===== Top bar ===== */
   .topbar{
     display:flex; align-items:center; justify-content:space-between;
-    padding:calc(18px + env(safe-area-inset-top)) 20px 6px; position:sticky; top:0; z-index:5;
-    background:var(--bg);
+    padding:calc(18px + max(env(safe-area-inset-top),var(--safe-top))) 20px 10px; position:sticky; top:0; z-index:5;
+    background:rgba(9,13,20,.78); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   }
   .brand-head{display:flex;align-items:center;gap:10px;}
   .brand-mark{width:34px;height:34px;flex-shrink:0;filter:drop-shadow(0 3px 8px rgba(0,200,150,.18));}
   .topbar h1{font-size:22px; font-weight:900; margin:0; letter-spacing:-0.02em;}
   .topbar .sub{font-size:13px; color:var(--text2); font-weight:600; margin-top:2px;}
   .pill-btn{
-    background:var(--primary-dim); color:var(--primary); border:1px solid rgba(0,200,150,0.35);
+    background:linear-gradient(135deg,rgba(0,214,163,.20),rgba(0,169,199,.12)); color:var(--primary); border:1px solid rgba(0,214,163,.34);
     padding:9px 14px; border-radius:20px; font-weight:800; font-size:13px; white-space:nowrap;
   }
 
   /* ===== Page container ===== */
-  .page{display:none; min-width:0; padding:8px clamp(14px,5vw,20px) calc(var(--nav-h) + 100px + env(safe-area-inset-bottom)); flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;}
+  .page{display:none; min-width:0; padding:8px clamp(14px,5vw,20px) calc(var(--nav-h) + 100px + max(env(safe-area-inset-bottom),var(--safe-bottom))); flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;}
   .page.active{display:block;}
 
   /* ===== Cards ===== */
-  .card{background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow);}
+  .card{background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);}
   .section-title{font-size:13px; font-weight:800; color:var(--text2); text-transform:uppercase; letter-spacing:0.06em; margin:22px 0 10px;}
   .section-title:first-child{margin-top:0;}
 
   /* ===== Hero balance card ===== */
   .hero{
-    background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
-    border-radius:20px; padding:22px 20px; position:relative; overflow:hidden;
+    background:linear-gradient(135deg,rgba(0,214,163,.22),rgba(0,169,199,.14) 48%,rgba(255,255,255,.06));
+    border:1px solid rgba(255,255,255,.18); border-radius:24px; padding:22px 20px; position:relative; overflow:hidden;
+    box-shadow:0 18px 45px rgba(0,214,163,.12), inset 0 1px 0 rgba(255,255,255,.16);
+    backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px);
   }
   .hero::after{content:"";position:absolute;top:-40px;right:-40px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(0,200,150,0.25),transparent 70%);}
   .hero .label{font-size:12px;font-weight:800;letter-spacing:0.08em;color:rgba(255,255,255,0.65);}
@@ -77,7 +83,7 @@
 
   /* ===== Quick stats grid ===== */
   .qs-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
-  .qs-card{background:var(--bg2); border:1px solid var(--border); border-radius:16px; padding:14px;}
+  .qs-card{background:var(--bg2); border:1px solid var(--border); border-radius:18px; padding:14px; box-shadow:var(--shadow); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);}
   .qs-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;margin-bottom:8px;}
   .qs-val{font-size:17px;font-weight:900;}
   .qs-label{font-size:11px;color:var(--text2);font-weight:700;margin-top:2px;}
@@ -161,23 +167,24 @@
 
   /* ===== FAB ===== */
   .fab{
-    position:fixed; bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom)); right:max(16px, calc((100vw - 560px) / 2 + 16px)); width:52px;height:52px;border-radius:50%;
-    background:var(--primary); color:#0d1117; font-size:26px; font-weight:900; border:none;
-    display:flex;align-items:center;justify-content:center; box-shadow:0 6px 20px rgba(0,200,150,0.4); z-index:20;
+    position:fixed; bottom:calc(var(--nav-h) + 16px + max(env(safe-area-inset-bottom),var(--safe-bottom))); right:max(16px, calc((100vw - 560px) / 2 + 16px)); width:52px;height:52px;border-radius:50%;
+    background:linear-gradient(145deg,#35f0c2,#00a9c7); color:#04141b; font-size:26px; font-weight:900; border:1px solid rgba(255,255,255,.35);
+    display:flex;align-items:center;justify-content:center; box-shadow:0 8px 26px rgba(0,214,163,.38), inset 0 1px 0 rgba(255,255,255,.5); z-index:20;
   }
 
   /* ===== Bottom nav ===== */
   .bottomnav{
-    position:fixed; bottom:0; left:0; right:0; height:calc(var(--nav-h) + env(safe-area-inset-bottom)); padding:0 6px env(safe-area-inset-bottom);
-    background:var(--bg2); border-top:1px solid var(--border);
+    position:fixed; bottom:0; left:0; right:0; height:calc(var(--nav-h) + max(env(safe-area-inset-bottom),var(--safe-bottom))); padding:0 6px max(env(safe-area-inset-bottom),var(--safe-bottom));
+    background:rgba(18,25,36,.78); border:1px solid rgba(255,255,255,.14); border-bottom:0; border-radius:24px 24px 0 0;
+    box-shadow:0 -12px 32px rgba(0,0,0,.24); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
     display:flex; z-index:30;
   }
   @media (min-width:520px){ .bottomnav{ max-width:560px; left:50%; transform:translateX(-50%);} }
-  .nav-add{align-self:center;flex:0 0 48px;width:48px;height:48px;border:0;border-radius:50%;background:var(--primary);color:#06151b;font-size:31px;font-weight:900;box-shadow:0 4px 16px rgba(0,200,150,.35);margin:0 4px;}
+  .nav-add{align-self:center;flex:0 0 50px;width:50px;height:50px;border:1px solid rgba(255,255,255,.35);border-radius:50%;background:linear-gradient(145deg,#35f0c2,#00a9c7);color:#06151b;font-size:31px;font-weight:900;box-shadow:0 7px 22px rgba(0,214,163,.4),inset 0 1px 0 rgba(255,255,255,.55);margin:0 4px;transform:translateY(-10px);}
   .nav-item{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:none; border:none; color:var(--text2); position:relative;}
   .nav-item .ic{font-size:21px; line-height:1; transition:transform .15s;}
   .nav-item .lb{font-size:10px; font-weight:800;}
-  .nav-item.active{color:var(--primary);}
+  .nav-item.active{color:var(--primary); text-shadow:0 0 14px rgba(0,214,163,.35);}
   .nav-item.active .ic{transform:translateY(-2px);}
   .nav-item.active .dot{position:absolute; top:2px; width:4px;height:4px;border-radius:50%;background:var(--primary);}
 
@@ -189,7 +196,7 @@
   .overlay.show{display:flex;}
   .sheet{
     background:var(--bg2); width:min(100%,560px); max-height:calc(100dvh - 8px); overflow-y:auto;
-    border-radius:24px 24px 0 0; padding:10px clamp(14px,5vw,20px) calc(24px + env(safe-area-inset-bottom));
+    border-radius:24px 24px 0 0; padding:10px clamp(14px,5vw,20px) calc(24px + max(env(safe-area-inset-bottom),var(--safe-bottom),var(--ime-bottom)));
     transform:translateY(100%); transition:transform .28s cubic-bezier(.2,.9,.3,1);
   }
   .overlay.show .sheet{transform:translateY(0);}
@@ -304,7 +311,34 @@
     .page{padding-top:6px;padding-bottom:calc(var(--nav-h) + 72px + env(safe-area-inset-bottom));}
     .sheet{max-height:100dvh;}
   }
+
+  /* Liquid glass surfaces share one readable, low-cost treatment. */
+  .chart-card,.planner-card,.more-tile,.acc-card,.person-card,.planner-metric{
+    background:var(--bg2); border-color:var(--border); box-shadow:var(--shadow);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  }
+  .acc-mini{background:linear-gradient(145deg,rgba(0,214,163,.22),rgba(0,169,199,.12)); border:1px solid rgba(255,255,255,.16); box-shadow:var(--shadow);}
+  .add-acc-mini{border-color:rgba(255,255,255,.2); background:rgba(255,255,255,.035);}
+  .txn-row,.cat-row,.set-item,.info-row{border-color:rgba(255,255,255,.10);}
+  .field input,.field select,.field textarea{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.14);}
+  .sheet{background:rgba(18,25,36,.94);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);}
+  @supports not ((backdrop-filter: blur(1px))){
+    .topbar,.bottomnav,.card,.hero,.qs-card,.chart-card,.planner-card,.more-tile,.sheet{background:var(--bg2);}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .hero{animation:none;}
+  }
 </style>
+<script>
+  window.finTrackApplyInsets = function(left, top, right, bottom, imeBottom) {
+    var root = document.documentElement;
+    root.style.setProperty('--safe-top', top + 'px');
+    root.style.setProperty('--safe-right', right + 'px');
+    root.style.setProperty('--safe-bottom', bottom + 'px');
+    root.style.setProperty('--ime-bottom', imeBottom + 'px');
+    root.classList.toggle('keyboard-open', imeBottom > bottom);
+  };
+</script>
 </head>
 <body>
 <div id="shell">
