@@ -18,20 +18,20 @@
     --radius:16px; --radius-sm:10px; --nav-h:68px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;padding:0;height:100%;}
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;}
   body{
     font-family:'Nunito',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     background:#000; color:var(--text);
     -webkit-font-smoothing:antialiased;
   }
   #shell{
-    background:var(--bg); min-height:100vh; min-height:100dvh; position:relative;
-    display:flex; flex-direction:column; overflow-x:hidden;
+    background:var(--bg); width:100%; height:100vh; height:100dvh; position:relative;
+    display:flex; flex-direction:column; overflow:hidden;
     padding-bottom:env(safe-area-inset-bottom);
   }
   @media (min-width:520px){
-    body{display:flex; justify-content:center; align-items:flex-start; padding:24px 0;}
-    #shell{max-width:480px; border:1px solid var(--border); box-shadow:0 0 60px rgba(0,0,0,0.6); border-radius:28px; overflow:hidden; min-height:calc(100vh - 48px);}
+    body{display:flex; justify-content:center; align-items:center; padding:clamp(12px,4vh,24px) 0;}
+    #shell{width:min(100%,560px); height:min(calc(100vh - 48px),calc(100dvh - 48px)); border:1px solid var(--border); box-shadow:0 0 60px rgba(0,0,0,0.6); border-radius:28px;}
   }
   ::-webkit-scrollbar{width:0;height:0;}
   a{color:inherit; text-decoration:none;}
@@ -41,7 +41,7 @@
   /* ===== Top bar ===== */
   .topbar{
     display:flex; align-items:center; justify-content:space-between;
-    padding:18px 20px 6px; position:sticky; top:0; z-index:5;
+    padding:calc(18px + env(safe-area-inset-top)) 20px 6px; position:sticky; top:0; z-index:5;
     background:var(--bg);
   }
   .brand-head{display:flex;align-items:center;gap:10px;}
@@ -54,7 +54,7 @@
   }
 
   /* ===== Page container ===== */
-  .page{display:none; padding:8px 20px calc(var(--nav-h) + 100px); flex:1;}
+  .page{display:none; min-width:0; padding:8px clamp(14px,5vw,20px) calc(var(--nav-h) + 100px + env(safe-area-inset-bottom)); flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;}
   .page.active{display:block;}
 
   /* ===== Cards ===== */
@@ -161,22 +161,21 @@
 
   /* ===== FAB ===== */
   .fab{
-    position:fixed; bottom:calc(var(--nav-h) + 16px); right:16px; width:52px;height:52px;border-radius:50%;
+    position:fixed; bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom)); right:max(16px, calc((100vw - 560px) / 2 + 16px)); width:52px;height:52px;border-radius:50%;
     background:var(--primary); color:#0d1117; font-size:26px; font-weight:900; border:none;
     display:flex;align-items:center;justify-content:center; box-shadow:0 6px 20px rgba(0,200,150,0.4); z-index:20;
   }
-  @media (min-width:520px){ .fab{ right:calc(50% - 240px + 16px); } }
 
   /* ===== Bottom nav ===== */
   .bottomnav{
-    position:fixed; bottom:0; left:0; right:0; height:var(--nav-h);
+    position:fixed; bottom:0; left:0; right:0; height:calc(var(--nav-h) + env(safe-area-inset-bottom)); padding:0 6px env(safe-area-inset-bottom);
     background:var(--bg2); border-top:1px solid var(--border);
-    display:flex; z-index:30; padding-bottom:env(safe-area-inset-bottom);
+    display:flex; z-index:30;
   }
-  @media (min-width:520px){ .bottomnav{ max-width:480px; left:50%; transform:translateX(-50%);} }
+  @media (min-width:520px){ .bottomnav{ max-width:560px; left:50%; transform:translateX(-50%);} }
   .nav-add{align-self:center;flex:0 0 48px;width:48px;height:48px;border:0;border-radius:50%;background:var(--primary);color:#06151b;font-size:31px;font-weight:900;box-shadow:0 4px 16px rgba(0,200,150,.35);margin:0 4px;}
   .nav-item{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:none; border:none; color:var(--text2); position:relative;}
-  .nav-item .ic{font-size:20px; transition:transform .15s;}
+  .nav-item .ic{font-size:21px; line-height:1; transition:transform .15s;}
   .nav-item .lb{font-size:10px; font-weight:800;}
   .nav-item.active{color:var(--primary);}
   .nav-item.active .ic{transform:translateY(-2px);}
@@ -189,8 +188,8 @@
   }
   .overlay.show{display:flex;}
   .sheet{
-    background:var(--bg2); width:100%; max-width:480px; max-height:92vh; overflow-y:auto;
-    border-radius:24px 24px 0 0; padding:10px 20px calc(24px + env(safe-area-inset-bottom));
+    background:var(--bg2); width:min(100%,560px); max-height:calc(100dvh - 8px); overflow-y:auto;
+    border-radius:24px 24px 0 0; padding:10px clamp(14px,5vw,20px) calc(24px + env(safe-area-inset-bottom));
     transform:translateY(100%); transition:transform .28s cubic-bezier(.2,.9,.3,1);
   }
   .overlay.show .sheet{transform:translateY(0);}
@@ -279,6 +278,32 @@
   .hidden{display:none !important;}
   .muted{color:var(--text2);}
   ::placeholder{color:var(--text3);}
+
+  @media (max-width:360px){
+    :root{--nav-h:64px;}
+    .topbar{padding-left:14px;padding-right:14px;}
+    .topbar h1{font-size:19px;}
+    .topbar .sub{font-size:11px;}
+    .brand-mark{width:30px;height:30px;}
+    .hero{padding:18px 16px;}
+    .hero .amount{font-size:29px;}
+    .card,.chart-card{padding:13px;}
+    .row2{grid-template-columns:1fr;gap:0;}
+    .type-grid{grid-template-columns:repeat(3,1fr);}
+    .nav-item .lb{font-size:9px;}
+    .nav-item .ic{font-size:20px;}
+    .nav-add{flex-basis:44px;width:44px;height:44px;font-size:28px;}
+  }
+
+  @media (min-width:700px){
+    .page{padding-left:24px;padding-right:24px;}
+  }
+
+  @media (orientation:landscape) and (max-height:520px){
+    .topbar{padding-top:8px;}
+    .page{padding-top:6px;padding-bottom:calc(var(--nav-h) + 72px + env(safe-area-inset-bottom));}
+    .sheet{max-height:100dvh;}
+  }
 </style>
 </head>
 <body>
@@ -463,10 +488,10 @@
 
   <!-- ================= BOTTOM NAV ================= -->
   <div class="bottomnav">
-    <button class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><span class="ic">⌂</span><span class="lb">Home</span></button>
-    <button class="nav-item" data-page="accounts" onclick="showPage('accounts')"><span class="ic">▣</span><span class="lb">Accounts</span></button>
+    <button class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><span class="ic">🏠</span><span class="lb">Home</span></button>
+    <button class="nav-item" data-page="accounts" onclick="showPage('accounts')"><span class="ic">💳</span><span class="lb">Accounts</span></button>
     <button class="nav-add" aria-label="Add transaction" onclick="openModal('txn')">+</button>
-    <button class="nav-item" data-page="reports" onclick="showPage('reports')"><span class="ic">▥</span><span class="lb">Reports</span></button>
+    <button class="nav-item" data-page="reports" onclick="showPage('reports')"><span class="ic">📊</span><span class="lb">Reports</span></button>
     <button class="nav-item" data-page="more" onclick="showPage('more')"><span class="ic">☰</span><span class="lb">More</span></button>
   </div>
 
@@ -1177,8 +1202,6 @@ function drawBarChart(){
   canvas.width = cssW*ratio; canvas.height = cssH*ratio;
   canvas.style.width = cssW+'px'; canvas.style.height = cssH+'px';
   ctx.setTransform(ratio,0,0,ratio,0,0);
-  ctx.clearRect(0,0,cssW,cssH);
-
   var months = [];
   var now = new Date();
   for(var i=5;i>=0;i--){
@@ -1209,16 +1232,19 @@ function drawBarChart(){
   ctx.fillStyle = textColor;
   ctx.textAlign = 'center';
 
-  data.forEach(function(d,i){
-    var cx = groupW*i + groupW/2;
-    var incH = (d.inc/maxVal)*chartH;
-    var expH = (d.exp/maxVal)*chartH;
-    ctx.fillStyle = green;
-    roundRect(ctx, cx-barW-2, padTop+chartH-incH, barW, incH, 3);
-    ctx.fillStyle = red;
-    roundRect(ctx, cx+2, padTop+chartH-expH, barW, expH, 3);
-    ctx.fillStyle = textColor;
-    ctx.fillText(d.label, cx, cssH-8);
+  animateCanvas(canvas,function(progress){
+    ctx.clearRect(0,0,cssW,cssH);
+    data.forEach(function(d,i){
+      var cx = groupW*i + groupW/2;
+      var incH = (d.inc/maxVal)*chartH*progress;
+      var expH = (d.exp/maxVal)*chartH*progress;
+      ctx.fillStyle = green;
+      roundRect(ctx, cx-barW-2, padTop+chartH-incH, barW, incH, 3);
+      ctx.fillStyle = red;
+      roundRect(ctx, cx+2, padTop+chartH-expH, barW, expH, 3);
+      ctx.fillStyle = textColor;
+      ctx.fillText(d.label, cx, cssH-8);
+    });
   });
 }
 function roundRect(ctx,x,y,w,h,r){
@@ -1256,6 +1282,7 @@ function drawDoughnutChart(periodTxns){
   var cx = cssW/2, cy = cssH/2, rOuter = Math.min(cssW,cssH)/2 - 12, rInner = rOuter*0.6;
 
   if(total===0){
+    ctx.clearRect(0,0,cssW,cssH);
     ctx.fillStyle = resolveColor('--text3');
     ctx.beginPath(); ctx.arc(cx,cy,rOuter,0,Math.PI*2); ctx.fill();
     ctx.fillStyle = resolveColor('--bg2');
@@ -1267,31 +1294,52 @@ function drawDoughnutChart(periodTxns){
     return;
   }
 
-  var start = -Math.PI/2;
   var legendHtml = '';
-  entries.forEach(function(e,i){
-    var slice = (e.val/total)*Math.PI*2;
+  var slices = entries.map(function(e,i){
     var colorVar = DOUGHNUT_COLORS[i % DOUGHNUT_COLORS.length];
-    ctx.fillStyle = resolveColor(colorVar);
-    ctx.beginPath();
-    ctx.moveTo(cx,cy);
-    ctx.arc(cx,cy,rOuter,start,start+slice);
-    ctx.closePath();
-    ctx.fill();
-    start += slice;
+    return {entry:e, slice:(e.val/total)*Math.PI*2, color:resolveColor(colorVar), colorVar:colorVar};
+  });
+  slices.forEach(function(item){
+    var e = item.entry;
     var cat = getCat(e.cat);
     var pct = ((e.val/total)*100).toFixed(0);
-    legendHtml += '<div class="legend-item"><span class="legend-dot" style="background:var('+colorVar+')"></span>'+(cat.icon||'📦')+' '+escHtml(cat.name)+' · '+pct+'%</div>';
+    legendHtml += '<div class="legend-item"><span class="legend-dot" style="background:var('+item.colorVar+')"></span>'+(cat.icon||'📦')+' '+escHtml(cat.name)+' · '+pct+'%</div>';
   });
-  ctx.fillStyle = resolveColor('--bg2');
-  ctx.beginPath(); ctx.arc(cx,cy,rInner,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = resolveColor('--text');
-  ctx.font = 'bold 15px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(fmt(total), cx, cy-6);
-  ctx.font = '10px sans-serif'; ctx.fillStyle = resolveColor('--text2');
-  ctx.fillText('Total Expense', cx, cy+12);
-
   document.getElementById('doughnutLegend').innerHTML = legendHtml;
+  animateCanvas(canvas,function(progress){
+    ctx.clearRect(0,0,cssW,cssH);
+    var start = -Math.PI/2;
+    slices.forEach(function(item){
+      ctx.fillStyle = item.color;
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.arc(cx,cy,rOuter,start,start+item.slice*progress);
+      ctx.closePath();
+      ctx.fill();
+      start += item.slice;
+    });
+    ctx.fillStyle = resolveColor('--bg2');
+    ctx.beginPath(); ctx.arc(cx,cy,rInner,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = resolveColor('--text');
+    ctx.font = 'bold 15px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(fmt(total), cx, cy-6);
+    ctx.font = '10px sans-serif'; ctx.fillStyle = resolveColor('--text2');
+    ctx.fillText('Total Expense', cx, cy+12);
+  });
+}
+
+function animateCanvas(canvas,draw){
+  var startedAt = null;
+  var frame = (canvas._animationFrame || 0) + 1;
+  canvas._animationFrame = frame;
+  function step(timestamp){
+    if(frame !== canvas._animationFrame) return;
+    if(startedAt === null) startedAt = timestamp;
+    var progress = Math.min((timestamp-startedAt)/650, 1);
+    draw(1-Math.pow(1-progress, 3));
+    if(progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
 }
 
 function renderCatBreakdown(periodTxns){
