@@ -1360,7 +1360,7 @@ function buildTransactionExportPayload(){
   txns.sort(function(a,b){return (b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||'');});
   var income=0,expense=0,borrow=0,lend=0;
   var accountMap={},categoryMap={},monthMap={};
-  state.accounts.forEach(function(a){accountMap[a.id]={id:a.id,name:a.name||'Account',type:a.type||'',income:0,expense:0,borrow:0,lend:0,transferIn:0,transferOut:0,netFlow:0};});
+  state.accounts.forEach(function(a){accountMap[a.id]={id:a.id,name:a.name||'Account',type:a.type||'',balance:Number(a.balance)||0,income:0,expense:0,borrow:0,lend:0,transferIn:0,transferOut:0,netFlow:0};});
   txns.forEach(function(t){
     var amount=Number(t.amount)||0;
     var account=accountMap[t.accountId];
@@ -1400,7 +1400,7 @@ function buildTransactionExportPayload(){
     title:'FinTrack Transaction Statement',
     generatedAt:new Date().toLocaleString('en-IN'),
     startDate:startDate,endDate:endDate,currency:currency,
-    summary:{income:income,expense:expense,netSavings:income-expense,borrowed:borrow,lent:lend,transactionCount:txns.length},
+    summary:{income:income,expense:expense,netSavings:income-expense,currentBalance:state.accounts.reduce(function(sum,a){return sum+(Number(a.balance)||0);},0),borrowed:borrow,lent:lend,transactionCount:txns.length},
     chart:chart,accounts:accounts,categories:categories,
     transactions:txns.map(function(t){
       var acc=state.accounts.find(function(a){return a.id===t.accountId;});
