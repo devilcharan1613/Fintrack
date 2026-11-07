@@ -1,0 +1,64 @@
+package com.charan.fintrack
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.webkit.JavascriptInterface
+import androidx.core.content.ContextCompat
+import org.json.JSONObject
+
+class FinTrackBridge(private val activity: MainActivity) {
+    @JavascriptInterface
+    fun getReminderSettings(): String = ReminderPrefs.config(activity).toString()
+
+    @JavascriptInterface
+    fun saveReminderSettings(raw: String): Boolean {
+        return try {
+            val config = JSONObject(raw)
+            if (!ReminderPrefs.save(activity, config)) {
+                false
+            } else {
+                ReminderScheduler.scheduleAll(activity)
+                if (config.optBoolean("enabled", false)) {
+                    activity.runOnUiThread { activity.requestReminderPermission() }
+                }
+                true
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    @JavascriptInterface
+    fun exportTransactionReport(raw: String, format: String, filename: String) {
+        activity.runOnUiThread { activity.exportTransactionReport(raw, format, filename) }
+    }
+
+    @JavascriptInterface
+    fun exportBackup(json: String, filename: String) {
+        activity.runOnUiThread { activity.exportBackup(json, filename) }
+    }
+
+    @JavascriptInterface
+    fun importBackup() {
+        activity.runOnUiThread { activity.importBackup() }
+    }
+
+    @JavascriptInterface
+    fun requestNotificationPermission() {
+        activity.runOnUiThread { activity.requestReminderPermission() }
+    }
+
+    @JavascriptInterface
+    fun testReminder(): Boolean {
+        val config = ReminderPrefs.config(activity)
+        if (!ReminderNotifications.canPost(activity, config.optBoolean("sound", true))) {
+            if (Build.VERSION.SDK_INT >= 33 &&
+                ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                activity.runOnUiThread { activity.requestReminderPermission() }
+            }
+            return false
+        }
+        return ReminderNotifications.show(activity, "test-${System.currentTimeMillis()}", "night")
+    }
+}
