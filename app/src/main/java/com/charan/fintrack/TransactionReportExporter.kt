@@ -194,7 +194,7 @@ object TransactionReportExporter {
         heading("TRANSACTION LEDGER")
         val ledgerRows = (0 until transactions.length()).map { transactions.getJSONObject(it) }.map {
             val type = it.optString("type").replaceFirstChar { ch -> ch.uppercase() }
-            val detail = listOf(it.optString("category"), it.optString("account"), it.optString("notes"))
+            val detail = listOf(it.optString("category"), it.optString("account"), it.optString("toAccount"), it.optString("notes"))
                 .filter { s -> s.isNotBlank() && s != "—" }.joinToString(" · ")
             listOf(it.optString("date"), type, it.optString("account"), it.optString("category"),
                 value(it.optDouble("amount")), detail)
@@ -265,7 +265,7 @@ object TransactionReportExporter {
         body.append(p("Complete Transaction Ledger", "Heading1"))
         val txnRows = (0 until transactions.length()).map { transactions.getJSONObject(it) }.map {
             listOf(it.optString("date"), it.optString("type"), it.optString("account"), it.optString("category"),
-                money(it.optDouble("amount")), listOf(it.optString("notes"), it.optString("person")).filter { s -> s.isNotBlank() }.joinToString(" · "))
+                money(it.optDouble("amount")), listOf(it.optString("toAccount"), it.optString("notes"), it.optString("person")).filter { s -> s.isNotBlank() }.joinToString(" · "))
         }
         body.append(table(listOf("Date", "Type", "Account", "Category", "Amount", "Notes / Person"), txnRows))
         body.append("<w:sectPr><w:pgSz w:w=\"11906\" w:h=\"16838\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\"/></w:sectPr>")
