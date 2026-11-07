@@ -24,11 +24,44 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import java.io.ByteArrayInputStream
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private var pageReady = false
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    private var pendingBackupJson: String? = null
+    private val exportBackupLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        val payload = pendingBackupJson
+        pendingBackupJson = null
+        if (uri != null && payload != null) {
+            runCatching {
+                contentResolver.openOutputStream(uri)?.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+                    ?: error("Unable to open the selected backup file")
+            }.onSuccess {
+                if (::webView.isInitialized) webView.evaluateJavascript("showToast('Backup saved successfully','success');", null)
+            }.onFailure {
+                if (::webView.isInitialized) webView.evaluateJavascript("showToast('Backup export failed','error');", null)
+            }
+        }
+    }
+    private val importBackupLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            val payload = runCatching {
+                contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                    ?: error("Unable to read the selected backup file")
+            }.getOrNull()
+            if (payload != null && ::webView.isInitialized) {
+                webView.evaluateJavascript("window.importBackupText(${JSONObject.quote(payload)});", null)
+            } else if (::webView.isInitialized) {
+                webView.evaluateJavascript("showToast('Backup import failed','error');", null)
+            }
+        }
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -118,6 +151,15 @@ class MainActivity : ComponentActivity() {
             runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)) }
         }
         return true
+    }
+
+    fun exportBackup(json: String, filename: String) {
+        pendingBackupJson = json
+        exportBackupLauncher.launch(filename.ifBlank { "fintrack_backup.json" })
+    }
+
+    fun importBackup() {
+        importBackupLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
     }
 
     fun requestReminderPermission() {
