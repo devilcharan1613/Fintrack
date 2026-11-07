@@ -154,7 +154,7 @@ class MainActivity : ComponentActivity() {
                 webView.evaluateJavascript(
                     "(function(){return window.handleAndroidBack && window.handleAndroidBack() ? 'handled' : 'none';})()"
                 ) { result ->
-                    if (result != "\\\"handled\\\"") {
+                    if (result != "\"handled\"") {
                         if (webView.canGoBack()) webView.goBack()
                         else (this@MainActivity as Activity).finish()
                     }
