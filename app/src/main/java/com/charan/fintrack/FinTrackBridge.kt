@@ -12,14 +12,21 @@ class FinTrackBridge(private val activity: MainActivity) {
     fun getReminderSettings(): String = ReminderPrefs.config(activity).toString()
 
     @JavascriptInterface
-    fun saveReminderSettings(raw: String): Boolean = try {
-        val config = JSONObject(raw)
-        if (!ReminderPrefs.save(activity, config)) return false
-        ReminderScheduler.scheduleAll(activity)
-        if (config.optBoolean("enabled", false)) activity.runOnUiThread { activity.requestReminderPermission() }
-        true
-    } catch (_: Exception) {
-        false
+    fun saveReminderSettings(raw: String): Boolean {
+        return try {
+            val config = JSONObject(raw)
+            if (!ReminderPrefs.save(activity, config)) {
+                false
+            } else {
+                ReminderScheduler.scheduleAll(activity)
+                if (config.optBoolean("enabled", false)) {
+                    activity.runOnUiThread { activity.requestReminderPermission() }
+                }
+                true
+            }
+        } catch (_: Exception) {
+            false
+        }
     }
 
     @JavascriptInterface
