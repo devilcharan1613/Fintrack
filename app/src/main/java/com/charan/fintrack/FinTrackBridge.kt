@@ -30,6 +30,16 @@ class FinTrackBridge(private val activity: MainActivity) {
     }
 
     @JavascriptInterface
+    fun exportBackup(json: String, filename: String) {
+        activity.runOnUiThread { activity.exportBackup(json, filename) }
+    }
+
+    @JavascriptInterface
+    fun importBackup() {
+        activity.runOnUiThread { activity.importBackup() }
+    }
+
+    @JavascriptInterface
     fun requestNotificationPermission() {
         activity.runOnUiThread { activity.requestReminderPermission() }
     }
