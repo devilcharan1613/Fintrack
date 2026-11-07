@@ -8,31 +8,65 @@ object ReminderPrefs {
     private const val FILE = "fintrack_smart_reminders"
     private const val KEY_CONFIG = "config"
     private val defaults = JSONArray().apply {
-        put(JSONObject().put("id","morning").put("label","Morning").put("time","09:00").put("enabled",true))
-        put(JSONObject().put("id","afternoon").put("label","Afternoon").put("time","13:30").put("enabled",true))
-        put(JSONObject().put("id","evening").put("label","Evening").put("time","18:30").put("enabled",true))
-        put(JSONObject().put("id","night").put("label","Night").put("time","21:00").put("enabled",true))
+        put(JSONObject().put("id", "morning").put("label", "Morning").put("time", "09:00").put("enabled", true))
+        put(JSONObject().put("id", "afternoon").put("label", "Afternoon").put("time", "13:30").put("enabled", true))
+        put(JSONObject().put("id", "evening").put("label", "Evening").put("time", "18:30").put("enabled", true))
+        put(JSONObject().put("id", "night").put("label", "Night").put("time", "21:00").put("enabled", true))
     }
 
     fun prefs(context: Context) = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+
     fun config(context: Context): JSONObject {
-        val raw = prefs(context).getString(KEY_CONFIG, null) ?: return JSONObject().put("enabled",false)
-            .put("memeMode",true).put("weekends",true).put("sound",true).put("reminders",defaults)
-        return try { JSONObject(raw) } catch (_: Exception) {
-            JSONObject().put("enabled",false).put("memeMode",true).put("weekends",true).put("sound",true).put("reminders",defaults)
+        val raw = prefs(context).getString(KEY_CONFIG, null)
+            ?: return defaultConfig()
+        return try {
+            JSONObject(raw)
+        } catch (_: Exception) {
+            defaultConfig()
         }
     }
-    fun save(context: Context, config: JSONObject) {
-        prefs(context).edit().putString(KEY_CONFIG, config.toString()).apply()
+
+    private fun defaultConfig() = JSONObject()
+        .put("enabled", false)
+        .put("memeMode", true)
+        .put("weekends", true)
+        .put("sound", true)
+        .put("reminders", JSONArray(defaults.toString()))
+
+    fun save(context: Context, config: JSONObject): Boolean {
+        val reminders = config.optJSONArray("reminders") ?: return false
+        if (reminders.length() > 32) return false
+        val ids = mutableSetOf<String>()
+        val times = mutableSetOf<String>()
+        val timePattern = Regex("^(?:[01]\\d|2[0-3]):[0-5]\\d$")
+        for (index in 0 until reminders.length()) {
+            val item = reminders.optJSONObject(index) ?: return false
+            val id = item.optString("id")
+            val time = item.optString("time")
+            if (!Regex("^[A-Za-z0-9_-]{1,80}$").matches(id)) return false
+            if (!timePattern.matches(time)) return false
+            if (!ids.add(id) || !times.add(time)) return false
+        }
+        val messages = config.optJSONArray("memeMessages")
+        if (messages != null) {
+            if (messages.length() > 100) return false
+            for (index in 0 until messages.length()) {
+                if (messages.optString(index).length > 180) return false
+            }
+        }
+        return prefs(context).edit().putString(KEY_CONFIG, config.toString()).commit()
     }
-    fun reminders(context: Context): JSONArray = config(context).optJSONArray("reminders") ?: JSONArray()
+
+    fun reminders(context: Context): JSONArray =
+        config(context).optJSONArray("reminders") ?: JSONArray()
+
     fun isEnabled(context: Context, id: String): Boolean {
-        val c=config(context)
-        if (!c.optBoolean("enabled", false)) return false
-        val arr=c.optJSONArray("reminders") ?: return false
-        for(i in 0 until arr.length()) {
-            val item=arr.optJSONObject(i) ?: continue
-            if(item.optString("id")==id) return item.optBoolean("enabled",true)
+        val config = config(context)
+        if (!config.optBoolean("enabled", false)) return false
+        val reminders = config.optJSONArray("reminders") ?: return false
+        for (index in 0 until reminders.length()) {
+            val item = reminders.optJSONObject(index) ?: continue
+            if (item.optString("id") == id) return item.optBoolean("enabled", true)
         }
         return false
     }
