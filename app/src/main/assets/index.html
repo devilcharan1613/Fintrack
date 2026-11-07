@@ -2155,8 +2155,8 @@ function openPersonDetail(id){
 function exportData(){
   try{
     var dataStr=JSON.stringify(state,null,2), filename='fintrack_backup_'+today()+'.json';
-    if(window.FinTrackBridge && typeof window.FinTrackBridge.exportBackup==='function'){
-      window.FinTrackBridge.exportBackup(dataStr,filename);
+    if(window.FinTrackNative && typeof window.FinTrackNative.exportBackup==='function'){
+      window.FinTrackNative.exportBackup(dataStr,filename);
       showToast('Choose where to save your backup','success');
       return;
     }
@@ -2179,8 +2179,8 @@ function importBackupText(text){
   }catch(e){showToast('Invalid backup file','error');}
 }
 function triggerImport(){
-  if(window.FinTrackBridge && typeof window.FinTrackBridge.importBackup==='function'){
-    window.FinTrackBridge.importBackup();return;
+  if(window.FinTrackNative && typeof window.FinTrackNative.importBackup==='function'){
+    window.FinTrackNative.importBackup();return;
   }
   document.getElementById('importFileInput').click();
 }
