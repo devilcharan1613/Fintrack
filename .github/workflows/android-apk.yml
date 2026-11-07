@@ -50,6 +50,9 @@ jobs:
           scripts = re.findall(r'<script[^>]*>(.*?)</script>', html, flags=re.S | re.I)
           if not scripts:
               raise SystemExit('No inline JavaScript blocks found')
+          # Catch over-escaped digit classes in the Smart Reminders time validator.
+          if r"/^([01]\d|2[0-3]):[0-5]\d$/" not in html:
+              raise SystemExit('Smart Reminders time validator must accept valid HH:MM values')
           for index, script in enumerate(scripts):
               pathlib.Path(f'/tmp/fintrack-inline-{index}.js').write_text(script, encoding='utf-8')
           print(f'Extracted {len(scripts)} JavaScript block(s)')
@@ -61,6 +64,17 @@ jobs:
           chmod +x ./gradlew
           ./gradlew --no-daemon --stacktrace testDebugUnitTest assembleDebug
 
+      - name: Enable KVM access for Android emulator
+        run: |
+          if [ ! -e /dev/kvm ]; then
+            echo "::error:: /dev/kvm is unavailable on this runner; hardware-accelerated emulator tests cannot start."
+            exit 1
+          fi
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+          echo "KVM is accessible to the GitHub Actions runner."
+
       - name: Run Android instrumentation tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -68,53 +82,36 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          cores: 2
-          ram-size: 2048M
-          heap-size: 512M
-          emulator-boot-timeout: 900
-          disable-animations: true
+          cores: 4
+          ram-size: 4096M
+          heap-size: 1024M
+          emulator-boot-timeout: 600
+          disable-linux-hw-accel: false
+          disable-animations: false
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -camera-back none
           script: |
             set +e
             mkdir -p app/build/ci-diagnostics
-            echo "ADB devices before test:" > app/build/ci-diagnostics/emulator-preflight.txt
-            adb devices -l >> app/build/ci-diagnostics/emulator-preflight.txt 2>&1
-            # The hosted emulator can briefly appear as "offline" while booting.
-            # Reconnect it and wait for Android's boot-completed property before Gradle.
-            adb reconnect offline >> app/build/ci-diagnostics/emulator-preflight.txt 2>&1
-            adb wait-for-device
-            booted=0
-            for attempt in $(seq 1 180); do
-              state=$(adb get-state 2>/dev/null)
-              if [ "$state" = "device" ]; then
-                completed=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
-                if [ "$completed" = "1" ]; then
-                  booted=1
-                  break
-                fi
-              else
-                adb reconnect offline >/dev/null 2>&1 || true
-              fi
-              sleep 5
-            done
-            if [ "$booted" -ne 1 ]; then
-              echo "Emulator did not reach sys.boot_completed=1" | tee -a app/build/ci-diagnostics/emulator-preflight.txt
-              adb devices -l >> app/build/ci-diagnostics/emulator-preflight.txt 2>&1
-              adb logcat -d -v threadtime > app/build/ci-diagnostics/logcat.txt 2>&1
-              exit 1
+            device="emulator-\${EMULATOR_PORT:-5554}"
+            echo "ADB devices before tests:"
+            adb devices -l > app/build/ci-diagnostics/adb-devices-before.txt 2>&1
+            adb -s "$device" get-state > app/build/ci-diagnostics/adb-state.txt 2>&1
+            booted=$(adb -s "$device" shell getprop sys.boot_completed 2>&1 | tr -d '\r')
+            echo "sys.boot_completed=$booted" | tee app/build/ci-diagnostics/emulator-preflight.txt
+
+            if [ "$booted" != "1" ]; then
+              echo "Emulator reported ready but sys.boot_completed is not 1."
+              test_status=1
+            else
+              adb logcat -c
+              ./gradlew --no-daemon --stacktrace connectedDebugAndroidTest
+              test_status=$?
             fi
-            echo "Emulator boot completed after preflight." | tee -a app/build/ci-diagnostics/emulator-preflight.txt
-            adb shell settings put global window_animation_scale 0 || true
-            adb shell settings put global transition_animation_scale 0 || true
-            adb shell settings put global animator_duration_scale 0 || true
 
-            ./gradlew --no-daemon --stacktrace connectedDebugAndroidTest
-            test_status=$?
-
-            adb devices -l > app/build/ci-diagnostics/adb-devices.txt 2>&1
-            adb logcat -d -v threadtime > app/build/ci-diagnostics/logcat.txt 2>&1
-            adb shell dumpsys activity instrumentation > app/build/ci-diagnostics/instrumentation.txt 2>&1
-            adb shell getprop > app/build/ci-diagnostics/device-properties.txt 2>&1
+            adb devices -l > app/build/ci-diagnostics/adb-devices-after.txt 2>&1 || true
+            adb logcat -d -v threadtime > app/build/ci-diagnostics/logcat.txt 2>&1 || true
+            adb -s "$device" shell dumpsys activity instrumentation > app/build/ci-diagnostics/instrumentation.txt 2>&1 || true
+            adb -s "$device" shell getprop > app/build/ci-diagnostics/device-properties.txt 2>&1 || true
             if [ "$test_status" -ne 0 ]; then
               echo "Instrumentation tests failed; crash diagnostics:"
               grep -E -i 'FATAL EXCEPTION|AndroidRuntime|INSTRUMENTATION_RESULT|Process.*died|crash|Exception|am_crash' app/build/ci-diagnostics/logcat.txt | tail -n 250 || true
