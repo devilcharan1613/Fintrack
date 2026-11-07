@@ -3,12 +3,16 @@ package com.charan.fintrack
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
@@ -19,6 +23,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import java.io.ByteArrayInputStream
 
 class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
@@ -41,7 +46,9 @@ class MainActivity : ComponentActivity() {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.allowFileAccess = true
-            settings.allowContentAccess = true
+            settings.allowContentAccess = false
+            settings.allowFileAccessFromFileURLs = false
+            settings.allowUniversalAccessFromFileURLs = false
             settings.setSupportZoom(false)
             addJavascriptInterface(FinTrackBridge(this@MainActivity), "FinTrackNative")
             webViewClient = object : WebViewClient() {
@@ -50,10 +57,31 @@ class MainActivity : ComponentActivity() {
                     ViewCompat.requestApplyInsets(view)
                     handleNotificationIntent(intent)
                 }
+
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                    return handleNavigation(request.url)
+                }
+
+                @Suppress("DEPRECATION")
+                override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                    return handleNavigation(Uri.parse(url))
+                }
+
+                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                    return if (isBundledAsset(request.url) || request.url.toString() == "about:blank") {
+                        null
+                    } else {
+                        WebResourceResponse(
+                            "text/plain", "UTF-8", ByteArrayInputStream(ByteArray(0))
+                        )
+                    }
+                }
             }
             webChromeClient = WebChromeClient()
             ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
-                val safe = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+                val safe = insets.getInsets(
+                    WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+                )
                 val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
                 val density = view.resources.displayMetrics.density.coerceAtLeast(1f)
                 fun cssPx(px: Int) = "%.2f".format(java.util.Locale.US, px / density)
@@ -74,20 +102,33 @@ class MainActivity : ComponentActivity() {
         })
     }
 
+    private fun isBundledAsset(uri: Uri): Boolean =
+        uri.scheme == "file" && uri.host.isNullOrEmpty() &&
+            uri.path?.startsWith("/android_asset/") == true
+
+    private fun handleNavigation(uri: Uri): Boolean {
+        if (isBundledAsset(uri) || uri.toString() == "about:blank") return false
+        if (uri.scheme == "https" || uri.scheme == "http" || uri.scheme == "mailto" || uri.scheme == "tel") {
+            runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)) }
+        }
+        return true
+    }
+
     fun requestReminderPermission() {
         if (Build.VERSION.SDK_INT >= 33 &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
             permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
-    override fun onNewIntent(intent: android.content.Intent) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         handleNotificationIntent(intent)
     }
 
-    private fun handleNotificationIntent(source: android.content.Intent?) {
+    private fun handleNotificationIntent(source: Intent?) {
         val type = source?.getStringExtra("fintrack_open_transaction") ?: return
         if (!pageReady) return
         val safeType = if (type == "income") "income" else "expense"
@@ -101,7 +142,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        webView.destroy()
+        if (::webView.isInitialized) webView.destroy()
         super.onDestroy()
     }
 }
