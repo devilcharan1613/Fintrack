@@ -52,6 +52,8 @@ class TransactionReportExporterTest {
         }
         assertTrue(entries.containsKey("[Content_Types].xml"))
         assertTrue(entries.containsKey("word/document.xml"))
+        assertTrue(entries.containsKey("word/_rels/document.xml.rels"))
+        assertTrue(entries["word/_rels/document.xml.rels"]?.contains("relationships/styles") == true)
         val document = entries["word/document.xml"] ?: ""
         listOf("Financial Summary", "Charts and Trends", "Category Breakdown",
             "Account Breakdown", "Complete Transaction Ledger", "Main Bank", "Groceries")
