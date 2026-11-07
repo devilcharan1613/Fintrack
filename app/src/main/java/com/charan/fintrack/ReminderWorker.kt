@@ -6,7 +6,10 @@ import java.util.Calendar
 class ReminderWorker(context:Context,params:WorkerParameters):CoroutineWorker(context,params){
  override suspend fun doWork():Result{
   val id=inputData.getString("reminderId");val snooze=inputData.getBoolean("snooze",false)
-  if(snooze){ReminderNotifications.show(applicationContext,"snooze","night");return Result.success()}
+  if(snooze){
+   if(ReminderPrefs.config(applicationContext).optBoolean("enabled",false))ReminderNotifications.show(applicationContext,"snooze","night")
+   return Result.success()
+  }
   if(id.isNullOrBlank()||!ReminderPrefs.isEnabled(applicationContext,id))return Result.success()
   val day=Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
   val cfg=ReminderPrefs.config(applicationContext)
