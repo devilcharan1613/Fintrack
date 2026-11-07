@@ -2535,8 +2535,8 @@ function saveReminderConfigDirect(cfg){
 }
 function testSmartReminder(){
   if(!window.FinTrackNative || !window.FinTrackNative.testReminder){showToast('Test notifications are available in the Android app','error');return;}
-  window.FinTrackNative.testReminder();
-  showToast('Test notification requested','success');
+  var posted=window.FinTrackNative.testReminder();
+  showToast(posted?'Test notification sent':'Notifications are blocked. Allow FinTrack notifications in Android settings.','error');
 }
 </script>
 </body>
