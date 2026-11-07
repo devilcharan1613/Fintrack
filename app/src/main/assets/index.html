@@ -2709,7 +2709,10 @@ function addSmartReminder(){
   saveReminderConfigDirect(cfg);
 }
 function removeSmartReminder(id){
-  var cfg=getReminderConfig();cfg.reminders=(cfg.reminders||[]).filter(function(r){return r.id!==id;});
+  // Preserve pending edits in the visible controls instead of discarding them.
+  var cfg=collectSmartReminderConfig();
+  cfg.reminders=(cfg.reminders||[]).filter(function(r){return r.id!==id;});
+  if(!validateReminderTimes(cfg))return;
   saveReminderConfigDirect(cfg);
 }
 function saveReminderConfigDirect(cfg){
