@@ -134,6 +134,9 @@ object TransactionReportExporter {
             canvas.drawText(if (item.first == "Transactions") item.second.toInt().toString() else value(item.second), left + 9f, top + 12f, bold)
         }
         y += 92f
+        ensure(18f)
+        canvas.drawText("Current account balance: " + value(summary.optDouble("currentBalance")), margin, y, bold)
+        y += 18f
 
         heading("INCOME VS EXPENSE CHART")
         if (chart.length() == 0) {
@@ -177,10 +180,10 @@ object TransactionReportExporter {
 
         heading("ACCOUNT BREAKDOWN")
         val accountRows = (0 until accounts.length()).map { accounts.getJSONObject(it) }.map {
-            listOf(it.optString("name"), value(it.optDouble("income")), value(it.optDouble("expense")),
+            listOf(it.optString("name"), value(it.optDouble("balance")), value(it.optDouble("income")), value(it.optDouble("expense")),
                 value(it.optDouble("transferIn") + it.optDouble("transferOut")), value(it.optDouble("netFlow")))
         }
-        table(listOf("Account", "Income", "Expense", "Transfers", "Net flow"), accountRows, listOf(145f, 85f, 85f, 90f, 110f))
+        table(listOf("Account", "Balance", "Income", "Expense", "Transfers", "Net flow"), accountRows, listOf(105f, 82f, 78f, 78f, 82f, 90f))
 
         heading("CATEGORY TOTALS")
         val categoryRows = (0 until categories.length()).map { categories.getJSONObject(it) }.map {
@@ -239,6 +242,7 @@ object TransactionReportExporter {
             listOf("Income", money(summary.optDouble("income"))),
             listOf("Expenses", money(summary.optDouble("expense"))),
             listOf("Net savings", money(summary.optDouble("netSavings"))),
+            listOf("Current account balance", money(summary.optDouble("currentBalance"))),
             listOf("Transactions", summary.optInt("transactionCount").toString())
         )))
         body.append(p("Charts and Trends", "Heading1"))
@@ -254,10 +258,10 @@ object TransactionReportExporter {
         body.append(table(listOf("Category", "Income", "Expense", "Chart", "Count"), catRows))
         body.append(p("Account Breakdown", "Heading1"))
         val accountRows = (0 until accounts.length()).map { accounts.getJSONObject(it) }.map {
-            listOf(it.optString("name"), it.optString("type"), money(it.optDouble("income")), money(it.optDouble("expense")),
+            listOf(it.optString("name"), it.optString("type"), money(it.optDouble("balance")), money(it.optDouble("income")), money(it.optDouble("expense")),
                 money(it.optDouble("transferIn") + it.optDouble("transferOut")), money(it.optDouble("netFlow")))
         }
-        body.append(table(listOf("Account", "Type", "Income", "Expense", "Transfers", "Net flow"), accountRows))
+        body.append(table(listOf("Account", "Type", "Balance", "Income", "Expense", "Transfers", "Net flow"), accountRows))
         body.append(p("Complete Transaction Ledger", "Heading1"))
         val txnRows = (0 until transactions.length()).map { transactions.getJSONObject(it) }.map {
             listOf(it.optString("date"), it.optString("type"), it.optString("account"), it.optString("category"),
