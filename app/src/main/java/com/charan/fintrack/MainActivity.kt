@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
     private var pageReady = false
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private var pendingBackupJson: String? = null
+    private var pendingImportJson: String? = null
     private val exportBackupLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
@@ -55,9 +56,10 @@ class MainActivity : ComponentActivity() {
                 contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
                     ?: error("Unable to read the selected backup file")
             }.getOrNull()
-            if (payload != null && ::webView.isInitialized) {
-                webView.evaluateJavascript("window.importBackupText(${JSONObject.quote(payload)});", null)
-            } else if (::webView.isInitialized) {
+            if (payload != null) {
+                pendingImportJson = payload
+                deliverPendingImport()
+            } else if (::webView.isInitialized && pageReady) {
                 webView.evaluateJavascript("showToast('Backup import failed','error');", null)
             }
         }
@@ -66,6 +68,7 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pendingBackupJson = savedInstanceState?.getString("pendingBackupJson")
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
@@ -93,6 +96,7 @@ class MainActivity : ComponentActivity() {
                     pageReady = true
                     ViewCompat.requestApplyInsets(view)
                     handleNotificationIntent(intent)
+                    deliverPendingImport()
                 }
 
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -160,6 +164,20 @@ class MainActivity : ComponentActivity() {
 
     fun importBackup() {
         importBackupLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+    }
+
+    private fun deliverPendingImport() {
+        val payload = pendingImportJson ?: return
+        if (!pageReady || !::webView.isInitialized) return
+        pendingImportJson = null
+        webView.post {
+            webView.evaluateJavascript("window.importBackupText(${JSONObject.quote(payload)});", null)
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("pendingBackupJson", pendingBackupJson)
+        super.onSaveInstanceState(outState)
     }
 
     fun requestReminderPermission() {
