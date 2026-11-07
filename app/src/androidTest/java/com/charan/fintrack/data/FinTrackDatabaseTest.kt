@@ -30,6 +30,28 @@ class FinTrackDatabaseTest {
     }
 
     @Test
+    fun computedTotalBalanceIncludesTransactionsFromEveryActiveAccount() = runBlocking {
+        val cashId = database.accountDao().insertAccount(
+            AccountEntity(name = "Cash", accountType = "Wallet", balance = 100.0)
+        )
+        val bankId = database.accountDao().insertAccount(
+            AccountEntity(name = "Bank", accountType = "Bank", balance = 200.0)
+        )
+        database.financeDao().insertTransaction(
+            com.charan.fintrack.data.local.TransactionEntity(
+                accountId = cashId, type = "EXPENSE", amount = 10.0, category = "Food"
+            )
+        )
+        database.financeDao().insertTransaction(
+            com.charan.fintrack.data.local.TransactionEntity(
+                accountId = bankId, type = "INCOME", amount = 30.0, category = "Salary"
+            )
+        )
+
+        assertEquals(320.0, database.accountDao().getComputedTotalBalance().first(), 0.001)
+    }
+
+    @Test
     fun accountAndTransactionArePersisted() = runBlocking {
         val accountId = database.accountDao().insertAccount(
             AccountEntity(name = "Cash", accountType = "Wallet", balance = 50.0)
