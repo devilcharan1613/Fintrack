@@ -38,7 +38,10 @@ object ReminderNotifications {
   if(!NotificationManagerCompat.from(context).areNotificationsEnabled())return
   if(Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return
   val cfg=ReminderPrefs.config(context);val meme=cfg.optBoolean("memeMode",true)
-  val messages=if(category=="night")night else expense
+  val defaultMessages=if(category=="night")night else expense
+  val custom=cfg.optJSONArray("memeMessages")
+  val customMessages=if(custom==null) emptyList() else (0 until custom.length()).mapNotNull{custom.optString(it).takeIf{value->value.isNotBlank()}}
+  val messages=if(customMessages.isNotEmpty())customMessages else defaultMessages.toList()
   val title=when(category){"morning"->"Morning money check";"afternoon"->"Afternoon money check";"evening"->"Evening money check";else->"FinTrack daily review"}
   val message=if(!meme)standard[category]?:standard["night"]!! else{
    val prefs=ReminderPrefs.prefs(context);val key="last_message_$category";val previous=prefs.getInt(key,-1)
