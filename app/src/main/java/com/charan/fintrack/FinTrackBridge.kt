@@ -14,7 +14,7 @@ class FinTrackBridge(private val activity: MainActivity) {
     @JavascriptInterface
     fun saveReminderSettings(raw: String): Boolean = try {
         val config = JSONObject(raw)
-        ReminderPrefs.save(activity, config)
+        if (!ReminderPrefs.save(activity, config)) return false
         ReminderScheduler.scheduleAll(activity)
         if (config.optBoolean("enabled", false)) activity.runOnUiThread { activity.requestReminderPermission() }
         true
