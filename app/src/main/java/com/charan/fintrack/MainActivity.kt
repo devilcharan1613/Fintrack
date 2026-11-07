@@ -106,9 +106,11 @@ class MainActivity : ComponentActivity() {
         })
     }
 
-    private fun isBundledAsset(uri: Uri): Boolean =
-        uri.scheme == "file" && uri.host.isNullOrEmpty() &&
-            uri.path?.startsWith("/android_asset/") == true
+    private fun isBundledAsset(uri: Uri): Boolean {
+        val path = uri.path ?: return false
+        return uri.scheme == "file" && uri.host.isNullOrEmpty() &&
+            path.startsWith("/android_asset/") && path.split('/').none { it == ".." }
+    }
 
     private fun handleNavigation(uri: Uri): Boolean {
         if (isBundledAsset(uri) || uri.toString() == "about:blank") return false
