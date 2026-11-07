@@ -50,7 +50,7 @@ class MainActivity : ComponentActivity() {
         }
         pendingBackupFile.delete()
     }
-    private var pendingReportBytes: ByteArray? = null
+    private val pendingReportFile get() = java.io.File(cacheDir, "fintrack_pending_report.bin")
     private val exportPdfLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/pdf")
     ) { uri -> savePendingReport(uri) }
@@ -181,16 +181,19 @@ class MainActivity : ComponentActivity() {
         Thread({
             val generated = runCatching {
                 val report = JSONObject(raw)
-                when (format.lowercase()) {
+                val bytes = when (format.lowercase()) {
                     "pdf" -> TransactionReportExporter.createPdf(report)
                     "docx" -> TransactionReportExporter.createDocx(report)
-                    else -> error("Unsupported report format")
+                    else -> error("Unsupported report format: $format")
                 }
+                // Keep the pending export on disk while the system save picker is open.
+                // This survives Activity recreation and process recreation.
+                pendingReportFile.writeBytes(bytes)
+                pendingReportFile
             }
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
-                generated.onSuccess { bytes ->
-                    pendingReportBytes = bytes
+                generated.onSuccess {
                     try {
                         if (format.equals("pdf", ignoreCase = true)) {
                             exportPdfLauncher.launch(filename.ifBlank { "FinTrack_Statement.pdf" })
@@ -198,11 +201,11 @@ class MainActivity : ComponentActivity() {
                             exportDocxLauncher.launch(filename.ifBlank { "FinTrack_Statement.docx" })
                         }
                     } catch (error: Exception) {
-                        pendingReportBytes = null
+                        pendingReportFile.delete()
                         notifyReportExport("Could not open the save dialog: ${error.localizedMessage ?: "unknown error"}", false)
                     }
                 }.onFailure { error ->
-                    pendingReportBytes = null
+                    pendingReportFile.delete()
                     notifyReportExport("Report generation failed: ${error.localizedMessage ?: "unknown error"}", false)
                 }
             }
@@ -210,17 +213,26 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun savePendingReport(uri: Uri?) {
-        val bytes = pendingReportBytes
-        pendingReportBytes = null
-        if (uri == null || bytes == null) return
+        if (uri == null) {
+            pendingReportFile.delete()
+            notifyReportExport("Report export cancelled. No file was saved.", false)
+            return
+        }
         runCatching {
-            contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
-                ?: error("Unable to open the selected destination")
+            check(pendingReportFile.isFile) { "The generated report is no longer available. Please export again." }
+            val output = contentResolver.openOutputStream(uri)
+                ?: error("Android could not open the selected save location.")
+            output.use { stream ->
+                pendingReportFile.inputStream().use { input -> input.copyTo(stream) }
+                stream.flush()
+            }
+            check(pendingReportFile.length() > 0L) { "The generated report is empty." }
         }.onSuccess {
             notifyReportExport("Transaction report saved successfully.", true)
-        }.onFailure {
-            notifyReportExport("Report export failed. Choose another location and try again.", false)
+        }.onFailure { error ->
+            notifyReportExport("Report export failed: ${error.localizedMessage ?: "unknown file error"}", false)
         }
+        pendingReportFile.delete()
     }
 
     private fun notifyReportExport(message: String, success: Boolean) {
