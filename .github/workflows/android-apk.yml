@@ -34,6 +34,25 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses || true
 
+      - name: Set up Node.js for embedded JavaScript validation
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate embedded JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          import pathlib, re
+          html = pathlib.Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script[^>]*>(.*?)</script>', html, flags=re.S | re.I)
+          if not scripts:
+              raise SystemExit('No inline JavaScript blocks found')
+          for index, script in enumerate(scripts):
+              pathlib.Path(f'/tmp/fintrack-inline-{index}.js').write_text(script, encoding='utf-8')
+          print(f'Extracted {len(scripts)} JavaScript block(s)')
+          PY
+          for script in /tmp/fintrack-inline-*.js; do node --check "$script"; done
+
       - name: Build debug APK
         run: |
           chmod +x ./gradlew
