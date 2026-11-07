@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>FinTrack — Personal Finance & Budget Tracker · v2.3.1</title>
+<title>FinTrack — Personal Finance & Budget Tracker · v2.4.1</title>
 <style>
   :root{
     --bg:#090d14; --bg2:rgba(255,255,255,.065); --bg3:rgba(255,255,255,.09); --border:rgba(255,255,255,.14);
@@ -2536,7 +2536,7 @@ function saveReminderConfigDirect(cfg){
 function testSmartReminder(){
   if(!window.FinTrackNative || !window.FinTrackNative.testReminder){showToast('Test notifications are available in the Android app','error');return;}
   var posted=window.FinTrackNative.testReminder();
-  showToast(posted?'Test notification sent':'Notifications are blocked. Allow FinTrack notifications in Android settings.','error');
+  showToast(posted?'Test notification sent':'Notifications are blocked. Allow FinTrack notifications in Android settings.',posted?'success':'error');
 }
 </script>
 </body>
