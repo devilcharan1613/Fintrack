@@ -44,7 +44,7 @@ class TransactionReportExporterTest {
         ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
-                if (entry.name.endsWith(".xml")) {
+                if (entry.name.endsWith(".xml") || entry.name.endsWith(".rels")) {
                     entries[entry.name] = zip.readBytes().toString(Charsets.UTF_8)
                 }
                 zip.closeEntry()
