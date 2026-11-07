@@ -98,34 +98,7 @@ jobs:
           disable-linux-hw-accel: false
           disable-animations: false
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -camera-back none
-          script: |
-            set +e
-            mkdir -p app/build/ci-diagnostics
-            device="emulator-\${EMULATOR_PORT:-5554}"
-            echo "ADB devices before tests:"
-            adb devices -l > app/build/ci-diagnostics/adb-devices-before.txt 2>&1
-            adb -s "$device" get-state > app/build/ci-diagnostics/adb-state.txt 2>&1
-            booted=$(adb -s "$device" shell getprop sys.boot_completed 2>&1 | tr -d '\r')
-            echo "sys.boot_completed=$booted" | tee app/build/ci-diagnostics/emulator-preflight.txt
-
-            if [ "$booted" != "1" ]; then
-              echo "Emulator reported ready but sys.boot_completed is not 1."
-              test_status=1
-            else
-              adb logcat -c
-              ./gradlew --no-daemon --stacktrace connectedDebugAndroidTest
-              test_status=$?
-            fi
-
-            adb devices -l > app/build/ci-diagnostics/adb-devices-after.txt 2>&1 || true
-            adb logcat -d -v threadtime > app/build/ci-diagnostics/logcat.txt 2>&1 || true
-            adb -s "$device" shell dumpsys activity instrumentation > app/build/ci-diagnostics/instrumentation.txt 2>&1 || true
-            adb -s "$device" shell getprop > app/build/ci-diagnostics/device-properties.txt 2>&1 || true
-            if [ "$test_status" -ne 0 ]; then
-              echo "Instrumentation tests failed; crash diagnostics:"
-              grep -E -i 'FATAL EXCEPTION|AndroidRuntime|INSTRUMENTATION_RESULT|Process.*died|crash|Exception|am_crash' app/build/ci-diagnostics/logcat.txt | tail -n 250 || true
-            fi
-            exit "$test_status"
+          script: ./gradlew --no-daemon --stacktrace connectedDebugAndroidTest
 
       - name: Upload test reports and emulator diagnostics
         if: always()
