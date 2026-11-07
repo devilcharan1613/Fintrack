@@ -167,23 +167,30 @@ class MainActivity : ComponentActivity() {
     }
 
     fun exportTransactionReport(raw: String, format: String, filename: String) {
-        runCatching {
-            val report = JSONObject(raw)
-            when (format.lowercase()) {
-                "pdf" -> {
-                    pendingReportBytes = TransactionReportExporter.createPdf(report)
-                    exportPdfLauncher.launch(filename.ifBlank { "FinTrack_Statement.pdf" })
+        Thread({
+            val generated = runCatching {
+                val report = JSONObject(raw)
+                when (format.lowercase()) {
+                    "pdf" -> TransactionReportExporter.createPdf(report)
+                    "docx" -> TransactionReportExporter.createDocx(report)
+                    else -> error("Unsupported report format")
                 }
-                "docx" -> {
-                    pendingReportBytes = TransactionReportExporter.createDocx(report)
-                    exportDocxLauncher.launch(filename.ifBlank { "FinTrack_Statement.docx" })
-                }
-                else -> error("Unsupported report format")
             }
-        }.onFailure {
-            pendingReportBytes = null
-            notifyReportExport("Could not prepare the report. Please try again.", false)
-        }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                generated.onSuccess { bytes ->
+                    pendingReportBytes = bytes
+                    if (format.equals("pdf", ignoreCase = true)) {
+                        exportPdfLauncher.launch(filename.ifBlank { "FinTrack_Statement.pdf" })
+                    } else {
+                        exportDocxLauncher.launch(filename.ifBlank { "FinTrack_Statement.docx" })
+                    }
+                }.onFailure {
+                    pendingReportBytes = null
+                    notifyReportExport("Could not prepare the report. Please try again.", false)
+                }
+            }
+        }, "FinTrack-report-export").start()
     }
 
     private fun savePendingReport(uri: Uri?) {
