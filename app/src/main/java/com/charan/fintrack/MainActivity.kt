@@ -191,14 +191,19 @@ class MainActivity : ComponentActivity() {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 generated.onSuccess { bytes ->
                     pendingReportBytes = bytes
-                    if (format.equals("pdf", ignoreCase = true)) {
-                        exportPdfLauncher.launch(filename.ifBlank { "FinTrack_Statement.pdf" })
-                    } else {
-                        exportDocxLauncher.launch(filename.ifBlank { "FinTrack_Statement.docx" })
+                    try {
+                        if (format.equals("pdf", ignoreCase = true)) {
+                            exportPdfLauncher.launch(filename.ifBlank { "FinTrack_Statement.pdf" })
+                        } else {
+                            exportDocxLauncher.launch(filename.ifBlank { "FinTrack_Statement.docx" })
+                        }
+                    } catch (error: Exception) {
+                        pendingReportBytes = null
+                        notifyReportExport("Could not open the save dialog: ${error.localizedMessage ?: "unknown error"}", false)
                     }
-                }.onFailure {
+                }.onFailure { error ->
                     pendingReportBytes = null
-                    notifyReportExport("Could not prepare the report. Please try again.", false)
+                    notifyReportExport("Report generation failed: ${error.localizedMessage ?: "unknown error"}", false)
                 }
             }
         }, "FinTrack-report-export").start()
