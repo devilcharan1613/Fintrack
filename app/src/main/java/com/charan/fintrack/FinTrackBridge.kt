@@ -30,6 +30,11 @@ class FinTrackBridge(private val activity: MainActivity) {
     }
 
     @JavascriptInterface
+    fun exportTransactionReport(raw: String, format: String, filename: String) {
+        activity.runOnUiThread { activity.exportTransactionReport(raw, format, filename) }
+    }
+
+    @JavascriptInterface
     fun exportBackup(json: String, filename: String) {
         activity.runOnUiThread { activity.exportBackup(json, filename) }
     }
