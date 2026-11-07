@@ -479,6 +479,20 @@
   <div class="page" id="page-reports">
     <div class="period-tabs" id="reportPeriodTabs"></div>
 
+    <div class="card" id="reportExportCard" style="margin-bottom:16px;">
+      <div class="section-title" style="margin-top:0;">Export Transactions</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div class="field" style="margin:0;"><label for="reportStartDate">Start date</label><input id="reportStartDate" type="date" aria-label="Report start date"></div>
+        <div class="field" style="margin:0;"><label for="reportEndDate">End date</label><input id="reportEndDate" type="date" aria-label="Report end date"></div>
+      </div>
+      <button class="btn" style="width:100%;margin-bottom:10px;" onclick="applyCustomReportRange()">Apply custom date range</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button class="btn btn-primary" onclick="exportTransactionReport('pdf')">↓ Export PDF</button>
+        <button class="btn" onclick="exportTransactionReport('docx')">↓ Export DOCX</button>
+      </div>
+      <div class="muted" style="font-size:11px;line-height:1.5;margin-top:9px;">Exports include the selected date range, summary, charts, account and category breakdowns, and the complete matching ledger. Files are generated locally on this device.</div>
+    </div>
+
     <div class="card" style="margin-bottom:16px;">
       <div class="section-title" style="margin-top:0;">Summary</div>
       <div class="info-row"><span class="l">Income</span><span class="v" style="color:var(--primary)" id="repIncome">₹0</span></div>
@@ -883,7 +897,10 @@ function fmt(n){
   var v = Math.abs(n).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:2});
   return (neg?'-':'') + '₹' + v;
 }
-function today(){ return new Date().toISOString().split('T')[0]; }
+function today(){
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 function fmtDate(d){
   try{
     return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
@@ -1263,7 +1280,9 @@ function renderPersons(){
 /* ============================================================
    RENDER: REPORTS
 ============================================================ */
-var REPORT_PERIODS = ['Daily','Weekly','Monthly','Yearly'];
+var REPORT_PERIODS = ['Daily','Weekly','Monthly','Yearly','Custom'];
+var customReportStart = new Date(new Date().getFullYear(),new Date().getMonth(),1);
+var customReportEnd = new Date();
 function periodRange(period, ref){
   ref = ref || new Date();
   var start, end;
@@ -1277,9 +1296,12 @@ function periodRange(period, ref){
   } else if(period==='Monthly'){
     start = new Date(ref.getFullYear(), ref.getMonth(), 1);
     end = new Date(ref.getFullYear(), ref.getMonth()+1, 1);
-  } else {
+  } else if(period==='Yearly') {
     start = new Date(ref.getFullYear(), 0, 1);
     end = new Date(ref.getFullYear()+1, 0, 1);
+  } else {
+    start = new Date(customReportStart.getFullYear(),customReportStart.getMonth(),customReportStart.getDate());
+    end = new Date(customReportEnd.getFullYear(),customReportEnd.getMonth(),customReportEnd.getDate()+1);
   }
   return {start:start, end:end};
 }
@@ -1295,6 +1317,10 @@ function renderReports(){
   }).join('');
 
   var range = periodRange(reportPeriod);
+  var startInput=document.getElementById('reportStartDate');
+  var endInput=document.getElementById('reportEndDate');
+  if(startInput && !startInput.value) startInput.value=toDateInputValue(customReportStart);
+  if(endInput && !endInput.value) endInput.value=toDateInputValue(customReportEnd);
   var periodTxns = state.transactions.filter(function(t){ return inRange(t.date, range); });
 
   var income = periodTxns.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+Number(t.amount);},0);
@@ -1312,6 +1338,92 @@ function renderReports(){
   renderAccBalances();
 }
 function setReportPeriod(p){ reportPeriod=p; renderReports(); }
+function toDateInputValue(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function applyCustomReportRange(){
+  var start=document.getElementById('reportStartDate');
+  var end=document.getElementById('reportEndDate');
+  if(!start||!end||!start.value||!end.value){showToast('Select both start and end dates','error');return;}
+  if(start.value>end.value){showToast('Start date must be before or equal to end date','error');return;}
+  customReportStart=new Date(start.value+'T00:00:00');
+  customReportEnd=new Date(end.value+'T00:00:00');
+  reportPeriod='Custom';
+  renderReports();
+  showToast('Custom report range applied','success');
+}
+function buildTransactionExportPayload(){
+  var range=periodRange(reportPeriod);
+  var startDate=toDateInputValue(range.start);
+  var endDate=toDateInputValue(new Date(range.end.getFullYear(),range.end.getMonth(),range.end.getDate()-1));
+  var txns=state.transactions.filter(function(t){return typeof t.date==='string'&&t.date>=startDate&&t.date<=endDate;});
+  txns.sort(function(a,b){return (b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||'');});
+  var income=0,expense=0,borrow=0,lend=0;
+  var accountMap={},categoryMap={},monthMap={};
+  state.accounts.forEach(function(a){accountMap[a.id]={id:a.id,name:a.name||'Account',type:a.type||'',income:0,expense:0,borrow:0,lend:0,transferIn:0,transferOut:0,netFlow:0};});
+  txns.forEach(function(t){
+    var amount=Number(t.amount)||0;
+    var account=accountMap[t.accountId];
+    var category=getCat(t.category);
+    if(t.type==='income'){income+=amount;if(account)account.income+=amount;}
+    else if(t.type==='expense'){expense+=amount;if(account)account.expense+=amount;}
+    else if(t.type==='borrow'){borrow+=amount;if(account)account.borrow+=amount;}
+    else if(t.type==='lend'){lend+=amount;if(account)account.lend+=amount;}
+    else if(t.type==='transfer'){
+      if(account)account.transferOut+=amount;
+      if(accountMap[t.toAccountId])accountMap[t.toAccountId].transferIn+=amount;
+    }
+    if(t.category){
+      var key=String(t.category);
+      if(!categoryMap[key])categoryMap[key]={id:key,name:category.name||key,income:0,expense:0,count:0};
+      if(t.type==='income'||t.type==='expense'){
+        categoryMap[key][t.type]+=amount;
+        categoryMap[key].count++;
+      }
+    }
+    var month=(t.date||'').slice(0,7);
+    if(month){
+      if(!monthMap[month])monthMap[month]={month:month,income:0,expense:0};
+      if(t.type==='income')monthMap[month].income+=amount;
+      if(t.type==='expense')monthMap[month].expense+=amount;
+    }
+  });
+  Object.keys(accountMap).forEach(function(id){
+    var a=accountMap[id];
+    a.netFlow=a.income+a.borrow+a.transferIn-a.expense-a.lend-a.transferOut;
+  });
+  var categories=Object.keys(categoryMap).map(function(k){return categoryMap[k];}).sort(function(a,b){return b.expense-a.expense;});
+  var accounts=Object.keys(accountMap).map(function(k){return accountMap[k];});
+  var chart=Object.keys(monthMap).sort().map(function(k){return monthMap[k];});
+  var currency=(state.settings&&state.settings.currency)||'₹';
+  return {
+    title:'FinTrack Transaction Statement',
+    generatedAt:new Date().toLocaleString('en-IN'),
+    startDate:startDate,endDate:endDate,currency:currency,
+    summary:{income:income,expense:expense,netSavings:income-expense,borrowed:borrow,lent:lend,transactionCount:txns.length},
+    chart:chart,accounts:accounts,categories:categories,
+    transactions:txns.map(function(t){
+      var acc=state.accounts.find(function(a){return a.id===t.accountId;});
+      var toAcc=state.accounts.find(function(a){return a.id===t.toAccountId;});
+      var person=state.persons.find(function(p){return p.id===t.personId;});
+      var cat=getCat(t.category);
+      return {date:t.date||'',type:t.type||'',amount:Number(t.amount)||0,account:acc?acc.name:'—',toAccount:toAcc?toAcc.name:'',category:cat.name||t.category||'—',subcategory:t.subcategory||'',person:person?person.name:'',notes:t.notes||''};
+    })
+  };
+}
+function exportTransactionReport(format){
+  try{
+    var payload=buildTransactionExportPayload();
+    if(!payload.transactions.length){showToast('No transactions found in the selected date range','error');return;}
+    if(!window.FinTrackNative||typeof window.FinTrackNative.exportTransactionReport!=='function'){
+      showToast('Document export is available in the FinTrack Android app','error');return;
+    }
+    var safeDate=payload.startDate+'_to_'+payload.endDate;
+    var filename='FinTrack_Statement_'+safeDate+(format==='docx'?'.docx':'.pdf');
+    window.FinTrackNative.exportTransactionReport(JSON.stringify(payload),format,filename);
+    showToast('Preparing '+format.toUpperCase()+' statement…','success');
+  }catch(e){showToast('Could not prepare the transaction report','error');}
+}
 
 function resolveColor(cssVar){
   var probe = document.createElement('div');
