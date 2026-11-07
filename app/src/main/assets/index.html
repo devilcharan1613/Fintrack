@@ -2517,7 +2517,7 @@ function renderSmartReminders(){
       '<div class="set-mid"><div class="set-name">'+escHtml(r.label||'Reminder')+'</div><div class="set-desc">'+(r.id&&r.id.indexOf('custom-')===0?'Custom schedule':'Daily reminder')+'</div></div>'+
       '<input aria-label="'+escHtml(r.label||'Reminder')+' time" type="time" value="'+escHtml(r.time||'09:00')+'" data-reminder-time="'+escHtml(r.id)+'" style="width:112px;padding:8px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text);">'+
       '<label style="display:flex;align-items:center;gap:5px;color:var(--text2);font-size:12px;"><input type="checkbox" data-reminder-enabled="'+escHtml(r.id)+'" '+(r.enabled!==false?'checked':'')+'> On</label>'+
-      (r.id&&r.id.indexOf('custom-')===0?'<button class="pill-btn" style="padding:6px 9px;" onclick="removeSmartReminder(\''+escHtml(r.id)+'\')">✕</button>':'')+
+      '<button class="pill-btn" aria-label="Remove '+escHtml(r.label||'reminder')+'" style="padding:6px 9px;" onclick="removeSmartReminder(\''+escHtml(r.id)+'\')">✕</button>'+
     '</div>';
   }).join('');
   host.innerHTML=
@@ -2526,7 +2526,10 @@ function renderSmartReminders(){
       '<input id="smartMaster" type="checkbox" '+(cfg.enabled?'checked':'')+' aria-label="Enable smart reminders">'+
     '</div>'+
     '<div style="font-size:12px;color:var(--text2);margin:4px 0 8px;">REMINDER TIMES</div>'+rows+
-    '<button class="pill-btn" style="margin-top:12px;" onclick="addSmartReminder()">＋ Add custom time</button>'+
+    '<div style="display:flex;gap:8px;align-items:center;margin-top:12px;">'+
+      '<input id="newReminderTime" type="time" value="20:00" aria-label="New reminder time" style="flex:1;min-width:0;padding:9px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text);">'+
+      '<button class="pill-btn" onclick="addSmartReminder()">＋ Add custom time</button>'+
+    '</div>'+
     '<div style="height:1px;background:var(--border);margin:14px 0;"></div>'+
     '<div class="set-item" style="padding:8px 0;"><div class="set-icon">😂</div><div class="set-mid"><div class="set-name">Meme Mode</div><div class="set-desc">Funny, friendly money reminders</div></div><input id="smartMeme" type="checkbox" '+(cfg.memeMode!==false?'checked':'')+'></div>'+
     '<div class="set-item" style="padding:8px 0;"><div class="set-icon">📅</div><div class="set-mid"><div class="set-name">Reminder frequency</div><div class="set-desc">Choose daily or weekdays only</div></div><select id="smartFrequency" style="max-width:130px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:8px;"><option value="daily" '+(cfg.frequency!=="weekdays"?'selected':'')+'>Every day</option><option value="weekdays" '+(cfg.frequency==="weekdays"?'selected':'')+'>Weekdays</option></select></div>'+
@@ -2567,8 +2570,9 @@ function saveSmartReminders(){
   else showToast('Could not save reminder settings','error');
 }
 function addSmartReminder(){
-  var value=prompt('Enter a reminder time (24-hour format, HH:MM)','20:00');
-  if(!value) return;
+  var timeInput=document.getElementById('newReminderTime');
+  var value=timeInput?timeInput.value:'';
+  if(!value){showToast('Choose a reminder time first','error');return;}
   if(!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(value)){showToast('Use a valid time such as 20:00','error');return;}
   var cfg=getReminderConfig();cfg.reminders=cfg.reminders||[];
   var normalized=value.length===4?'0'+value:value;
