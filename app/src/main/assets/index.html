@@ -2676,7 +2676,7 @@ function validateReminderTimes(config){
   var reminders=Array.isArray(config.reminders)?config.reminders:[];
   for(var i=0;i<reminders.length;i++){
     var reminder=reminders[i];
-    if(reminder.enabled!==false && !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(String(reminder.time||''))){
+    if(reminder.enabled!==false && !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(reminder.time||''))){
       showToast('Set a valid time for '+(reminder.label||'each enabled reminder'),'error');
       var input=document.querySelector('[data-reminder-time="'+reminder.id+'"]');
       if(input){input.focus();if(input.reportValidity)input.reportValidity();}
