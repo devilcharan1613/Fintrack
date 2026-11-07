@@ -1413,16 +1413,20 @@ function buildTransactionExportPayload(){
 }
 function exportTransactionReport(format){
   try{
+    if(format!=='pdf'&&format!=='docx'){showToast('Unsupported report format','error');return;}
     var payload=buildTransactionExportPayload();
     if(!payload.transactions.length){showToast('No transactions found in the selected date range','error');return;}
     if(!window.FinTrackNative||typeof window.FinTrackNative.exportTransactionReport!=='function'){
-      showToast('Document export is available in the FinTrack Android app','error');return;
+      showToast('Report export requires the installed FinTrack Android app','error');return;
     }
     var safeDate=payload.startDate+'_to_'+payload.endDate;
     var filename='FinTrack_Statement_'+safeDate+(format==='docx'?'.docx':'.pdf');
     window.FinTrackNative.exportTransactionReport(JSON.stringify(payload),format,filename);
-    showToast('Preparing '+format.toUpperCase()+' statement…','success');
-  }catch(e){showToast('Could not prepare the transaction report','error');}
+    showToast('Preparing '+format.toUpperCase()+' statement. Choose a save location when prompted.','success');
+  }catch(e){
+    console.error('FinTrack report export request failed',e);
+    showToast('Could not start report export: '+(e&&e.message?e.message:'unknown error'),'error');
+  }
 }
 
 function resolveColor(cssVar){
@@ -1681,9 +1685,15 @@ function savePlannerItem(){
   if(plannerType==='budgets')Object.assign(item,{amount:amount,spent:progress,period:document.getElementById('plannerPeriod').value});
   else if(plannerType==='goals')Object.assign(item,{target:amount,saved:progress});
   else Object.assign(item,{principal:amount,paid:progress,emi:emi});
+  var previousItems=state[plannerType].slice();
   var index=state[plannerType].findIndex(function(x){return String(x.id)===String(item.id);});
   if(index>=0)state[plannerType][index]=item;else state[plannerType].push(item);
-  save();closePlannerModal();renderCurrentPage();showToast('Saved successfully','success');
+  if(!save()){
+    state[plannerType]=previousItems;
+    showToast('Could not save. Your changes are still here. Check device storage and try again.','error');
+    return;
+  }
+  closePlannerModal();renderCurrentPage();showToast('Saved successfully','success');
 }
 function editPlannerItem(type,id){openPlannerModal(type,id);}
 function deletePlannerItem(type,id){
@@ -1719,6 +1729,21 @@ function openModal(type){
     var focused = sheet && sheet.querySelector('input:focus,select:focus,textarea:focus');
     if(focused && focused.blur) focused.blur();
   });
+}
+function handleAndroidBack(){
+  var visible=Array.prototype.slice.call(document.querySelectorAll('.overlay.show'));
+  if(!visible.length) return false;
+  visible.sort(function(a,b){
+    return (parseInt(getComputedStyle(a).zIndex,10)||0)-(parseInt(getComputedStyle(b).zIndex,10)||0);
+  });
+  var top=visible[visible.length-1];
+  if(top.id==='overlay-planner') closePlannerModal();
+  else if(top.id==='overlay-quickcat') closeQuickCategory();
+  else if(top.id==='overlay-quicksubcat') closeQuickSubcategory();
+  else if(top.id==='overlay-quickwallet') closeQuickWallet();
+  else if(top.id==='overlay-quickadd') closeModal('quickadd');
+  else closeModal(top.id.replace('overlay-',''));
+  return true;
 }
 function closeModal(type){
   var overlay = document.getElementById('overlay-'+type);
