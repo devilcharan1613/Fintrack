@@ -69,6 +69,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         pendingBackupJson = savedInstanceState?.getString("pendingBackupJson")
+        pendingImportJson = savedInstanceState?.getString("pendingImportJson")
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
@@ -177,6 +178,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString("pendingBackupJson", pendingBackupJson)
+        outState.putString("pendingImportJson", pendingImportJson)
         super.onSaveInstanceState(outState)
     }
 
