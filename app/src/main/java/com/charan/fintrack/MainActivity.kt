@@ -9,6 +9,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.core.view.ViewCompat
@@ -23,6 +24,10 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
+        }
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         webView = WebView(this).apply {
             settings.javaScriptEnabled = true
@@ -30,7 +35,11 @@ class MainActivity : ComponentActivity() {
             settings.allowFileAccess = true
             settings.allowContentAccess = true
             settings.setSupportZoom(false)
-            webViewClient = WebViewClient()
+            webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView, url: String) {
+                    ViewCompat.requestApplyInsets(view)
+                }
+            }
             webChromeClient = WebChromeClient()
             ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
                 val safe = insets.getInsets(
@@ -38,11 +47,14 @@ class MainActivity : ComponentActivity() {
                         WindowInsetsCompat.Type.displayCutout()
                 )
                 val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+                // Native WindowInsets are physical pixels; WebView CSS layout uses CSS pixels.
+                val density = view.resources.displayMetrics.density.coerceAtLeast(1f)
+                fun cssPx(px: Int): String = "%.2f".format(java.util.Locale.US, px / density)
                 evaluateJavascript(
-                    "window.finTrackApplyInsets(${safe.left},${safe.top},${safe.right},${safe.bottom},${ime.bottom});",
+                    "window.finTrackApplyInsets(${cssPx(safe.left)},${cssPx(safe.top)},${cssPx(safe.right)},${cssPx(safe.bottom)},${cssPx(ime.bottom)});",
                     null
                 )
-                // Insets are consumed by CSS so the WebView and CSS do not both add them.
+                // Insets are applied by the HTML/CSS layout exactly once.
                 view.setPadding(0, 0, 0, 0)
                 insets
             }
