@@ -362,7 +362,15 @@
     root.style.setProperty('--safe-top', safeTop + 'px');
     root.style.setProperty('--safe-right', safeRight + 'px');
     root.style.setProperty('--safe-bottom', safeBottom + 'px');
-    root.style.setProperty('--ime-bottom', Math.max(0, keyboard - safeBottom) + 'px');
+    // Some WebView/Android combinations resize the CSS viewport for ADJUST_RESIZE;
+    // others keep it edge-to-edge. Only offset the sheet when the viewport was not resized.
+    var viewportHeight = window.innerHeight || root.clientHeight;
+    var screenHeight = (window.screen && window.screen.height) || viewportHeight;
+    var expectedAppHeight = Math.max(0, screenHeight - safeTop - safeBottom);
+    var viewportAlreadyResized = keyboard > safeBottom + 80 &&
+      viewportHeight < expectedAppHeight - 80;
+    var imeOffset = viewportAlreadyResized ? 0 : Math.max(0, keyboard - safeBottom);
+    root.style.setProperty('--ime-bottom', imeOffset + 'px');
     root.classList.toggle('keyboard-open', keyboard > safeBottom + 80);
     root.classList.toggle('has-safe-top', safeTop > 0);
     root.classList.toggle('has-safe-bottom', safeBottom > 0);
