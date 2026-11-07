@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
         }
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         ReminderNotifications.createChannel(this)
+        ReminderScheduler.scheduleAll(this)
         webView = WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
