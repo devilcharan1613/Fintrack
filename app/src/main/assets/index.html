@@ -1745,6 +1745,7 @@ function handleAndroidBack(){
   else closeModal(top.id.replace('overlay-',''));
   return true;
 }
+window.handleAndroidBack=handleAndroidBack;
 function closeModal(type){
   var overlay = document.getElementById('overlay-'+type);
   if(!overlay) return;
