@@ -2477,8 +2477,11 @@ function renderSmartReminders(){
     '<button class="pill-btn" style="margin-top:12px;" onclick="addSmartReminder()">＋ Add custom time</button>'+
     '<div style="height:1px;background:var(--border);margin:14px 0;"></div>'+
     '<div class="set-item" style="padding:8px 0;"><div class="set-icon">😂</div><div class="set-mid"><div class="set-name">Meme Mode</div><div class="set-desc">Funny, friendly money reminders</div></div><input id="smartMeme" type="checkbox" '+(cfg.memeMode!==false?'checked':'')+'></div>'+
+    '<div class="set-item" style="padding:8px 0;"><div class="set-icon">📅</div><div class="set-mid"><div class="set-name">Reminder frequency</div><div class="set-desc">Choose daily or weekdays only</div></div><select id="smartFrequency" style="max-width:130px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:8px;"><option value="daily" '+(cfg.frequency!=="weekdays"?'selected':'')+'>Every day</option><option value="weekdays" '+(cfg.frequency==="weekdays"?'selected':'')+'>Weekdays</option></select></div>'+
     '<div class="set-item" style="padding:8px 0;"><div class="set-icon">📅</div><div class="set-mid"><div class="set-name">Weekend reminders</div><div class="set-desc">Include Saturday and Sunday</div></div><input id="smartWeekends" type="checkbox" '+(cfg.weekends!==false?'checked':'')+'></div>'+
-    '<div class="set-item" style="padding:8px 0;"><div class="set-icon">🔊</div><div class="set-mid"><div class="set-name">Notification sound</div><div class="set-desc">Follow Android notification channel settings</div></div><input id="smartSound" type="checkbox" '+(cfg.sound!==false?'checked':'')+'></div>'+
+    '<div class="set-item" style="padding:8px 0;"><div class="set-icon">🔊</div><div class="set-mid"><div class="set-name">Notification tone</div><div class="set-desc">System default sound or silent</div></div><select id="smartSound" style="max-width:125px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:8px;"><option value="on" '+(cfg.sound!==false?'selected':'')+'>Default</option><option value="off" '+(cfg.sound===false?'selected':'')+'>Silent</option></select></div>'+
+    '<div style="font-size:12px;color:var(--text2);margin:12px 0 6px;">CUSTOM MEME MESSAGES (ONE PER LINE)</div>'+
+    '<textarea id="smartMemeLibrary" rows="3" placeholder="Add your own friendly finance reminders…" style="width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px;">'+escHtml((cfg.memeMessages||[]).join("\n"))+'</textarea>'+
     '<div style="display:flex;gap:8px;margin-top:14px;">'+
       '<button class="btn btn-primary" style="flex:1;" onclick="saveSmartReminders()">Save reminders</button>'+
       '<button class="btn" style="flex:1;" onclick="testSmartReminder()">Test notification</button>'+
@@ -2495,8 +2498,10 @@ function collectSmartReminderConfig(){
   return {
     enabled:!!document.getElementById('smartMaster').checked,
     memeMode:!!document.getElementById('smartMeme').checked,
-    weekends:!!document.getElementById('smartWeekends').checked,
-    sound:!!document.getElementById('smartSound').checked,
+    weekends:document.getElementById('smartFrequency').value==='weekdays'?false:!!document.getElementById('smartWeekends').checked,
+    frequency:document.getElementById('smartFrequency').value,
+    sound:document.getElementById('smartSound').value==='on',
+    memeMessages:document.getElementById('smartMemeLibrary').value.split("\n").map(function(s){return s.trim();}).filter(Boolean),
     reminders:reminders
   };
 }
