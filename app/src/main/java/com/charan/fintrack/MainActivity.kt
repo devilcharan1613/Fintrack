@@ -42,7 +42,10 @@ class MainActivity : ComponentActivity() {
         }
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         ReminderNotifications.createChannel(this)
-        ReminderScheduler.scheduleAll(this)
+        // One-time migration for reminder work created before schedule revisions existed.
+        if (ReminderPrefs.config(this).optBoolean("enabled", false) && ReminderPrefs.scheduleRevision(this) == 0L) {
+            ReminderScheduler.scheduleAll(this)
+        }
         webView = WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
