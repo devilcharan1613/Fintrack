@@ -31,7 +31,7 @@
       radial-gradient(circle at -10% 45%, rgba(0,169,199,.10), transparent 34%),
       var(--bg); width:100%; height:100vh; height:100dvh; position:relative;
     display:flex; flex-direction:column; overflow:hidden;
-    padding-bottom:max(env(safe-area-inset-bottom),var(--safe-bottom));
+    padding-bottom:0;
   }
   @media (min-width:520px){
     body{display:flex; justify-content:center; align-items:center; padding:clamp(12px,4vh,24px) 0;}
@@ -45,7 +45,7 @@
   /* ===== Top bar ===== */
   .topbar{
     display:flex; align-items:center; justify-content:space-between;
-    padding:calc(18px + max(env(safe-area-inset-top),var(--safe-top))) 20px 10px; position:sticky; top:0; z-index:5;
+    padding:calc(10px + max(env(safe-area-inset-top),var(--safe-top))) 20px 10px; position:sticky; top:0; z-index:5;
     background:rgba(9,13,20,.78); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   }
   .brand-head{display:flex;align-items:center;gap:10px;}
@@ -58,7 +58,7 @@
   }
 
   /* ===== Page container ===== */
-  .page{display:none; min-width:0; padding:8px clamp(14px,5vw,20px) calc(var(--nav-h) + 100px + max(env(safe-area-inset-bottom),var(--safe-bottom))); flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;}
+  .page{display:none; min-width:0; padding:8px clamp(14px,5vw,20px) calc(var(--nav-h) + 22px + max(env(safe-area-inset-bottom),var(--safe-bottom))); flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
   .page.active{display:block;}
 
   /* ===== Cards ===== */
@@ -174,7 +174,7 @@
 
   /* ===== Bottom nav ===== */
   .bottomnav{
-    position:fixed; bottom:0; left:0; right:0; height:calc(var(--nav-h) + max(env(safe-area-inset-bottom),var(--safe-bottom))); padding:0 6px max(env(safe-area-inset-bottom),var(--safe-bottom));
+    position:fixed; bottom:0; left:0; right:0; height:calc(var(--nav-h) + env(safe-area-inset-bottom)); padding:0 6px env(safe-area-inset-bottom);
     background:rgba(18,25,36,.78); border:1px solid rgba(255,255,255,.14); border-bottom:0; border-radius:24px 24px 0 0;
     box-shadow:0 -12px 32px rgba(0,0,0,.24); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
     display:flex; z-index:30;
@@ -195,9 +195,13 @@
   }
   .overlay.show{display:flex;}
   .sheet{
-    background:var(--bg2); width:min(100%,560px); max-height:calc(100dvh - 8px); overflow-y:auto;
-    border-radius:24px 24px 0 0; padding:10px clamp(14px,5vw,20px) calc(24px + max(env(safe-area-inset-bottom),var(--safe-bottom),var(--ime-bottom)));
+    background:var(--bg2); width:min(100%,560px);
+    max-height:calc(100dvh - max(env(safe-area-inset-top),var(--safe-top)) - 6px);
+    overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+    border-radius:24px 24px 0 0;
+    padding:10px clamp(14px,5vw,20px) calc(20px + max(env(safe-area-inset-bottom),var(--safe-bottom)) + var(--ime-bottom));
     transform:translateY(100%); transition:transform .28s cubic-bezier(.2,.9,.3,1);
+    will-change:transform;
   }
   .overlay.show .sheet{transform:translateY(0);}
   .sheet-handle{width:40px;height:4px;background:var(--border);border-radius:4px;margin:6px auto 14px;}
@@ -332,11 +336,17 @@
 <script>
   window.finTrackApplyInsets = function(left, top, right, bottom, imeBottom) {
     var root = document.documentElement;
-    root.style.setProperty('--safe-top', top + 'px');
-    root.style.setProperty('--safe-right', right + 'px');
-    root.style.setProperty('--safe-bottom', bottom + 'px');
-    root.style.setProperty('--ime-bottom', imeBottom + 'px');
-    root.classList.toggle('keyboard-open', imeBottom > bottom);
+    var safeTop = Math.max(0, Number(top) || 0);
+    var safeRight = Math.max(0, Number(right) || 0);
+    var safeBottom = Math.max(0, Number(bottom) || 0);
+    var keyboard = Math.max(0, Number(imeBottom) || 0);
+    root.style.setProperty('--safe-top', safeTop + 'px');
+    root.style.setProperty('--safe-right', safeRight + 'px');
+    root.style.setProperty('--safe-bottom', safeBottom + 'px');
+    root.style.setProperty('--ime-bottom', Math.max(0, keyboard - safeBottom) + 'px');
+    root.classList.toggle('keyboard-open', keyboard > safeBottom + 80);
+    root.classList.toggle('has-safe-top', safeTop > 0);
+    root.classList.toggle('has-safe-bottom', safeBottom > 0);
   };
 </script>
 </head>
@@ -1499,14 +1509,33 @@ function renderSettings(){
    MODALS: GENERIC
 ============================================================ */
 function openModal(type){
-  document.getElementById('overlay-'+type).classList.add('show');
+  var overlay = document.getElementById('overlay-'+type);
+  if(!overlay) return;
+  overlay.classList.add('show');
   document.body.style.overflow = 'hidden';
+  requestAnimationFrame(function(){
+    var sheet = overlay.querySelector('.sheet');
+    if(sheet) sheet.scrollTop = 0;
+    var focused = sheet && sheet.querySelector('input:focus,select:focus,textarea:focus');
+    if(focused && focused.blur) focused.blur();
+  });
 }
 function closeModal(type){
-  document.getElementById('overlay-'+type).classList.remove('show');
-  if(!document.querySelector('.overlay.show')){
-    document.body.style.overflow = '';
-  }
+  var overlay = document.getElementById('overlay-'+type);
+  if(!overlay) return;
+  var active = document.activeElement;
+  if(active && overlay.contains(active) && typeof active.blur === 'function') active.blur();
+  overlay.classList.remove('show');
+  var sheet = overlay.querySelector('.sheet');
+  if(sheet) sheet.scrollTop = 0;
+  if(!document.querySelector('.overlay.show')) document.body.style.overflow = '';
+  var root = document.documentElement;
+  root.style.setProperty('--ime-bottom','0px');
+  root.classList.remove('keyboard-open');
+  requestAnimationFrame(function(){
+    var focused = document.activeElement;
+    if(focused && focused.blur) focused.blur();
+  });
 }
 
 /* ============================================================
