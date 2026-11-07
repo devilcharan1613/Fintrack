@@ -515,7 +515,13 @@
 
   <!-- ================= SETTINGS ================= -->
   <div class="page" id="page-settings">
-    <div class="section-title" style="margin-top:0;">Data Management</div>
+    <div class="section-title" style="margin-top:0;">SMART REMINDERS</div>
+    <div class="card" id="smartReminderCard" style="margin-bottom:16px;">
+      <div id="smartReminderControls">
+        <div style="color:var(--text2);font-size:13px;">Loading reminder preferences…</div>
+      </div>
+    </div>
+    <div class="section-title">Data Management</div>
     <div class="card">
       <div class="set-item" onclick="exportData()" style="cursor:pointer;">
         <div class="set-icon">📤</div>
@@ -1548,6 +1554,7 @@ function renderSettings(){
   document.getElementById('infoAccCount').textContent = state.accounts.length;
   document.getElementById('infoTxnCount').textContent = state.transactions.length;
   document.getElementById('infoPersonCount').textContent = state.persons.length;
+  renderSmartReminders();
 }
 
 /* ============================================================
@@ -2429,6 +2436,103 @@ document.addEventListener('focusin', function(event){
     init();
   }
 })();
+
+/* ============================================================
+   SMART REMINDERS - native Android notification bridge
+============================================================ */
+function getReminderConfig(){
+  var fallback={enabled:false,memeMode:true,weekends:true,sound:true,reminders:[
+    {id:'morning',label:'Morning',time:'09:00',enabled:true},
+    {id:'afternoon',label:'Afternoon',time:'13:30',enabled:true},
+    {id:'evening',label:'Evening',time:'18:30',enabled:true},
+    {id:'night',label:'Night',time:'21:00',enabled:true}
+  ]};
+  try{
+    if(window.FinTrackNative && window.FinTrackNative.getReminderSettings){
+      var raw=window.FinTrackNative.getReminderSettings();
+      if(raw) return JSON.parse(raw);
+    }
+  }catch(e){console.warn('Reminder settings unavailable',e);}
+  return fallback;
+}
+function renderSmartReminders(){
+  var host=document.getElementById('smartReminderControls');
+  if(!host) return;
+  var cfg=getReminderConfig();
+  var reminders=Array.isArray(cfg.reminders)?cfg.reminders:[];
+  var rows=reminders.map(function(r){
+    return '<div class="set-item" style="gap:10px;padding:12px 0;border-bottom:1px solid var(--border);">'+
+      '<div class="set-mid"><div class="set-name">'+escHtml(r.label||'Reminder')+'</div><div class="set-desc">'+(r.id&&r.id.indexOf('custom-')===0?'Custom schedule':'Daily reminder')+'</div></div>'+
+      '<input aria-label="'+escHtml(r.label||'Reminder')+' time" type="time" value="'+escHtml(r.time||'09:00')+'" data-reminder-time="'+escHtml(r.id)+'" style="width:112px;padding:8px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text);">'+
+      '<label style="display:flex;align-items:center;gap:5px;color:var(--text2);font-size:12px;"><input type="checkbox" data-reminder-enabled="'+escHtml(r.id)+'" '+(r.enabled!==false?'checked':'')+'> On</label>'+
+      (r.id&&r.id.indexOf('custom-')===0?'<button class="pill-btn" style="padding:6px 9px;" onclick="removeSmartReminder(\''+escHtml(r.id)+'\')">✕</button>':'')+
+    '</div>';
+  }).join('');
+  host.innerHTML=
+    '<div class="set-item" style="padding:4px 0 14px;">'+
+      '<div class="set-icon">🔔</div><div class="set-mid"><div class="set-name">Enable Smart Reminders</div><div class="set-desc">Daily prompts to record income and expenses</div></div>'+
+      '<input id="smartMaster" type="checkbox" '+(cfg.enabled?'checked':'')+' aria-label="Enable smart reminders">'+
+    '</div>'+
+    '<div style="font-size:12px;color:var(--text2);margin:4px 0 8px;">REMINDER TIMES</div>'+rows+
+    '<button class="pill-btn" style="margin-top:12px;" onclick="addSmartReminder()">＋ Add custom time</button>'+
+    '<div style="height:1px;background:var(--border);margin:14px 0;"></div>'+
+    '<div class="set-item" style="padding:8px 0;"><div class="set-icon">😂</div><div class="set-mid"><div class="set-name">Meme Mode</div><div class="set-desc">Funny, friendly money reminders</div></div><input id="smartMeme" type="checkbox" '+(cfg.memeMode!==false?'checked':'')+'></div>'+
+    '<div class="set-item" style="padding:8px 0;"><div class="set-icon">📅</div><div class="set-mid"><div class="set-name">Weekend reminders</div><div class="set-desc">Include Saturday and Sunday</div></div><input id="smartWeekends" type="checkbox" '+(cfg.weekends!==false?'checked':'')+'></div>'+
+    '<div class="set-item" style="padding:8px 0;"><div class="set-icon">🔊</div><div class="set-mid"><div class="set-name">Notification sound</div><div class="set-desc">Follow Android notification channel settings</div></div><input id="smartSound" type="checkbox" '+(cfg.sound!==false?'checked':'')+'></div>'+
+    '<div style="display:flex;gap:8px;margin-top:14px;">'+
+      '<button class="btn btn-primary" style="flex:1;" onclick="saveSmartReminders()">Save reminders</button>'+
+      '<button class="btn" style="flex:1;" onclick="testSmartReminder()">Test notification</button>'+
+    '</div>'+
+    '<div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5;">Reminders are stored on this device and work offline. Android may delay background delivery due to battery and system policies. Allow notifications in Android settings for alerts to appear.</div>';
+}
+function collectSmartReminderConfig(){
+  var old=getReminderConfig();
+  var reminders=(old.reminders||[]).map(function(r){
+    var time=document.querySelector('[data-reminder-time="'+r.id+'"]');
+    var enabled=document.querySelector('[data-reminder-enabled="'+r.id+'"]');
+    return {id:r.id,label:r.label,time:time?time.value:r.time,enabled:enabled?enabled.checked:r.enabled!==false};
+  });
+  return {
+    enabled:!!document.getElementById('smartMaster').checked,
+    memeMode:!!document.getElementById('smartMeme').checked,
+    weekends:!!document.getElementById('smartWeekends').checked,
+    sound:!!document.getElementById('smartSound').checked,
+    reminders:reminders
+  };
+}
+function saveSmartReminders(){
+  var config=collectSmartReminderConfig();
+  if(!window.FinTrackNative || !window.FinTrackNative.saveReminderSettings){
+    showToast('Native reminder service is unavailable in this build','error');return;
+  }
+  var ok=window.FinTrackNative.saveReminderSettings(JSON.stringify(config));
+  if(ok){showToast(config.enabled?'Smart reminders saved. Allow notifications if prompted.':'Smart reminders disabled','success');renderSmartReminders();}
+  else showToast('Could not save reminder settings','error');
+}
+function addSmartReminder(){
+  var value=prompt('Enter a reminder time (24-hour format, HH:MM)','20:00');
+  if(!value) return;
+  if(!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(value)){showToast('Use a valid time such as 20:00','error');return;}
+  var cfg=getReminderConfig();cfg.reminders=cfg.reminders||[];
+  var normalized=value.length===4?'0'+value:value;
+  if(cfg.reminders.some(function(r){return r.time===normalized;})){showToast('A reminder already exists at that time','error');return;}
+  cfg.reminders.push({id:'custom-'+Date.now(),label:'Custom reminder',time:normalized,enabled:true});
+  saveReminderConfigDirect(cfg);
+}
+function removeSmartReminder(id){
+  var cfg=getReminderConfig();cfg.reminders=(cfg.reminders||[]).filter(function(r){return r.id!==id;});
+  saveReminderConfigDirect(cfg);
+}
+function saveReminderConfigDirect(cfg){
+  if(!window.FinTrackNative || !window.FinTrackNative.saveReminderSettings){showToast('Native reminder service unavailable','error');return;}
+  var ok=window.FinTrackNative.saveReminderSettings(JSON.stringify(cfg));
+  if(ok){showToast('Reminder schedule updated','success');renderSmartReminders();}else showToast('Could not update schedule','error');
+}
+function testSmartReminder(){
+  if(!window.FinTrackNative || !window.FinTrackNative.testReminder){showToast('Test notifications are available in the Android app','error');return;}
+  window.FinTrackNative.testReminder();
+  showToast('Test notification requested','success');
+}
 </script>
 </body>
 </html>
