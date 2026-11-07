@@ -50,6 +50,14 @@ class MainActivity : ComponentActivity() {
         }
         pendingBackupFile.delete()
     }
+    private var pendingReportBytes: ByteArray? = null
+    private val exportPdfLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/pdf")
+    ) { uri -> savePendingReport(uri) }
+    private val exportDocxLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    ) { uri -> savePendingReport(uri) }
+
     private val importBackupLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -156,6 +164,46 @@ class MainActivity : ComponentActivity() {
             runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)) }
         }
         return true
+    }
+
+    fun exportTransactionReport(raw: String, format: String, filename: String) {
+        runCatching {
+            val report = JSONObject(raw)
+            when (format.lowercase()) {
+                "pdf" -> {
+                    pendingReportBytes = TransactionReportExporter.createPdf(report)
+                    exportPdfLauncher.launch(filename.ifBlank { "FinTrack_Statement.pdf" })
+                }
+                "docx" -> {
+                    pendingReportBytes = TransactionReportExporter.createDocx(report)
+                    exportDocxLauncher.launch(filename.ifBlank { "FinTrack_Statement.docx" })
+                }
+                else -> error("Unsupported report format")
+            }
+        }.onFailure {
+            pendingReportBytes = null
+            notifyReportExport("Could not prepare the report. Please try again.", false)
+        }
+    }
+
+    private fun savePendingReport(uri: Uri?) {
+        val bytes = pendingReportBytes
+        pendingReportBytes = null
+        if (uri == null || bytes == null) return
+        runCatching {
+            contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                ?: error("Unable to open the selected destination")
+        }.onSuccess {
+            notifyReportExport("Transaction report saved successfully.", true)
+        }.onFailure {
+            notifyReportExport("Report export failed. Choose another location and try again.", false)
+        }
+    }
+
+    private fun notifyReportExport(message: String, success: Boolean) {
+        if (!::webView.isInitialized) return
+        val js = "showToast(${JSONObject.quote(message)},'${if (success) "success" else "error"}');"
+        webView.post { webView.evaluateJavascript(js, null) }
     }
 
     fun exportBackup(json: String, filename: String) {
