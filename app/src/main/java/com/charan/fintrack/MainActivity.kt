@@ -30,23 +30,25 @@ class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private var pageReady = false
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    private var pendingBackupJson: String? = null
+    private val pendingBackupFile get() = java.io.File(cacheDir, "fintrack_pending_backup.json")
     private var pendingImportJson: String? = null
     private val exportBackupLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
-        val payload = pendingBackupJson
-        pendingBackupJson = null
+        val payload = runCatching { pendingBackupFile.takeIf { it.exists() }?.readBytes() }.getOrNull()
         if (uri != null && payload != null) {
             runCatching {
-                contentResolver.openOutputStream(uri)?.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+                contentResolver.openOutputStream(uri)?.use { it.write(payload) }
                     ?: error("Unable to open the selected backup file")
             }.onSuccess {
                 if (::webView.isInitialized) webView.evaluateJavascript("showToast('Backup saved successfully','success');", null)
             }.onFailure {
                 if (::webView.isInitialized) webView.evaluateJavascript("showToast('Backup export failed','error');", null)
             }
+        } else if (uri != null && ::webView.isInitialized) {
+            webView.evaluateJavascript("showToast('Backup export could not be resumed. Please try again.','error');", null)
         }
+        pendingBackupFile.delete()
     }
     private val importBackupLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -68,8 +70,6 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        pendingBackupJson = savedInstanceState?.getString("pendingBackupJson")
-        pendingImportJson = savedInstanceState?.getString("pendingImportJson")
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
@@ -159,8 +159,11 @@ class MainActivity : ComponentActivity() {
     }
 
     fun exportBackup(json: String, filename: String) {
-        pendingBackupJson = json
-        exportBackupLauncher.launch(filename.ifBlank { "fintrack_backup.json" })
+        runCatching { pendingBackupFile.writeText(json, Charsets.UTF_8) }
+            .onSuccess { exportBackupLauncher.launch(filename.ifBlank { "fintrack_backup.json" }) }
+            .onFailure {
+                if (::webView.isInitialized) webView.evaluateJavascript("showToast('Could not prepare the backup file','error');", null)
+            }
     }
 
     fun importBackup() {
@@ -174,12 +177,6 @@ class MainActivity : ComponentActivity() {
         webView.post {
             webView.evaluateJavascript("window.importBackupText(${JSONObject.quote(payload)});", null)
         }
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        outState.putString("pendingBackupJson", pendingBackupJson)
-        outState.putString("pendingImportJson", pendingImportJson)
-        super.onSaveInstanceState(outState)
     }
 
     fun requestReminderPermission() {
