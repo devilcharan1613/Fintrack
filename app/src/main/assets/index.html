@@ -2672,8 +2672,22 @@ function collectSmartReminderConfig(){
     reminders:reminders
   };
 }
+function validateReminderTimes(config){
+  var reminders=Array.isArray(config.reminders)?config.reminders:[];
+  for(var i=0;i<reminders.length;i++){
+    var reminder=reminders[i];
+    if(reminder.enabled!==false && !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(String(reminder.time||''))){
+      showToast('Set a valid time for '+(reminder.label||'each enabled reminder'),'error');
+      var input=document.querySelector('[data-reminder-time="'+reminder.id+'"]');
+      if(input){input.focus();if(input.reportValidity)input.reportValidity();}
+      return false;
+    }
+  }
+  return true;
+}
 function saveSmartReminders(){
   var config=collectSmartReminderConfig();
+  if(!validateReminderTimes(config))return;
   if(!window.FinTrackNative || !window.FinTrackNative.saveReminderSettings){
     showToast('Native reminder service is unavailable in this build','error');return;
   }
@@ -2686,7 +2700,9 @@ function addSmartReminder(){
   var value=timeInput?timeInput.value:'';
   if(!value){showToast('Choose a reminder time first','error');return;}
   if(!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(value)){showToast('Use a valid time such as 20:00','error');return;}
-  var cfg=getReminderConfig();cfg.reminders=cfg.reminders||[];
+  // Start from visible controls, not stale persisted settings, so unsaved edits survive.
+  var cfg=collectSmartReminderConfig();cfg.reminders=cfg.reminders||[];
+  if(!validateReminderTimes(cfg))return;
   var normalized=value.length===4?'0'+value:value;
   if(cfg.reminders.some(function(r){return r.time===normalized;})){showToast('A reminder already exists at that time','error');return;}
   cfg.reminders.push({id:'custom-'+Date.now(),label:'Custom reminder',time:normalized,enabled:true});
