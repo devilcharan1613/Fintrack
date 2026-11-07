@@ -7,6 +7,7 @@ import org.json.JSONObject
 object ReminderPrefs {
     private const val FILE = "fintrack_smart_reminders"
     private const val KEY_CONFIG = "config"
+    private const val KEY_SCHEDULE_REVISION = "schedule_revision"
     private val defaults = JSONArray().apply {
         put(JSONObject().put("id", "morning").put("label", "Morning").put("time", "09:00").put("enabled", true))
         put(JSONObject().put("id", "afternoon").put("label", "Afternoon").put("time", "13:30").put("enabled", true))
@@ -55,6 +56,14 @@ object ReminderPrefs {
             }
         }
         return prefs(context).edit().putString(KEY_CONFIG, config.toString()).commit()
+    }
+
+    fun scheduleRevision(context: Context): Long = prefs(context).getLong(KEY_SCHEDULE_REVISION, 0L)
+
+    fun advanceScheduleRevision(context: Context): Long {
+        val next = scheduleRevision(context) + 1L
+        prefs(context).edit().putLong(KEY_SCHEDULE_REVISION, next).commit()
+        return next
     }
 
     fun reminders(context: Context): JSONArray =
