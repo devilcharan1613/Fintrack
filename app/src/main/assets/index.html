@@ -531,6 +531,10 @@
         <div class="set-icon">📥</div>
         <div class="set-mid"><div class="set-name">Import Data</div><div class="set-desc">Restore local JSON backup</div></div>
       </div>
+      <div class="set-item" id="recoveryBackupRow" onclick="exportRecoveryBackup()" style="display:none;cursor:pointer;">
+        <div class="set-icon">🛟</div>
+        <div class="set-mid"><div class="set-name">Export Recovery Copy</div><div class="set-desc">Download the original unreadable data for recovery</div></div>
+      </div>
       <div class="set-item" onclick="resetData()" style="cursor:pointer;">
         <div class="set-icon">🗑️</div>
         <div class="set-mid"><div class="set-name">Reset All Data</div><div class="set-desc">Delete all local finance data</div></div>
@@ -822,6 +826,8 @@
    CONSTANTS
 ============================================================ */
 var STORAGE_KEY = 'fintrack_v3';
+var storageRecoveryPending = false;
+var storageRecoverySaved = false;
 
 var DEFAULT_CATEGORIES = [
   {id:'food',name:'Food',icon:'🍽️',subcategories:['Hotel','Restaurant','Groceries','Snacks','Sweets','Dhaba']},
@@ -904,16 +910,34 @@ function getAcc(id){ return state.accounts.find(function(a){return a.id===id;});
 function getPerson(id){ return state.persons.find(function(p){return p.id===id;}); }
 function getTxnType(id){ return TXN_TYPES.find(function(t){return t.id===id;}) || TXN_TYPES[1]; }
 
+function preserveUnreadableStorage(raw){
+  storageRecoveryPending = true;
+  try{
+    var recoveryKey = STORAGE_KEY + '_recovery_backup';
+    if(!localStorage.getItem(recoveryKey)) localStorage.setItem(recoveryKey, raw);
+    storageRecoverySaved = !!localStorage.getItem(recoveryKey);
+  }catch(e){
+    storageRecoverySaved = false;
+  }
+}
 function save(){
   try{
+    if(storageRecoveryPending && !storageRecoverySaved){
+      showToast('Saved data is unreadable and could not be backed up. Original storage was not overwritten.', 'error');
+      return false;
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    storageRecoveryPending = false;
+    return true;
   }catch(e){
     showToast('Unable to access local storage on this device.', 'error');
+    return false;
   }
 }
 function load(){
+  var raw = null;
   try{
-    var raw = localStorage.getItem(STORAGE_KEY);
+    raw = localStorage.getItem(STORAGE_KEY);
     if(!raw && window.FinTrackBridge && typeof window.FinTrackBridge.getLegacyData === 'function'){
       try{
         var migrated = window.FinTrackBridge.getLegacyData();
@@ -928,7 +952,10 @@ function load(){
     }
     if(!raw) return null;
     var parsed = JSON.parse(raw);
-    if(!parsed || !Array.isArray(parsed.accounts) || !Array.isArray(parsed.transactions) || !Array.isArray(parsed.persons)) return null;
+    if(!parsed || !Array.isArray(parsed.accounts) || !Array.isArray(parsed.transactions) || !Array.isArray(parsed.persons)){
+      preserveUnreadableStorage(raw);
+      return null;
+    }
     if(!parsed.settings) parsed.settings = {currency:'₹', name:'FinTrack', version:'3.2'};
     if(!Array.isArray(parsed.categories)) parsed.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
     if(!Array.isArray(parsed.budgets)) parsed.budgets = [];
@@ -936,6 +963,7 @@ function load(){
     if(!Array.isArray(parsed.loans)) parsed.loans = [];
     return parsed;
   }catch(e){
+    if(raw !== null) preserveUnreadableStorage(raw);
     return null;
   }
 }
@@ -971,6 +999,12 @@ function initState(){
     if(!Array.isArray(state.loans)) state.loans = [];
   } else {
     state = buildSeedState();
+    if(storageRecoveryPending){
+      showToast(storageRecoverySaved
+        ? 'Saved data could not be read. A recovery copy was preserved in Settings.'
+        : 'Saved data could not be read. Original storage has been protected from overwrite.',
+        'error');
+    }
     save();
   }
 }
@@ -1551,6 +1585,8 @@ function deletePlannerItem(type,id){
    RENDER: SETTINGS
 ============================================================ */
 function renderSettings(){
+  var recoveryRow=document.getElementById('recoveryBackupRow');
+  if(recoveryRow) recoveryRow.style.display=localStorage.getItem(STORAGE_KEY+'_recovery_backup')?'flex':'none';
   document.getElementById('infoAccCount').textContent = state.accounts.length;
   document.getElementById('infoTxnCount').textContent = state.transactions.length;
   document.getElementById('infoPersonCount').textContent = state.persons.length;
@@ -2152,6 +2188,22 @@ function openPersonDetail(id){
 /* ============================================================
    EXPORT / IMPORT / RESET
 ============================================================ */
+function exportRecoveryBackup(){
+  try{
+    var raw=localStorage.getItem(STORAGE_KEY+'_recovery_backup');
+    if(!raw){showToast('No recovery copy is available','error');return;}
+    var filename='fintrack_recovery_backup_'+today()+'.json';
+    if(window.FinTrackNative && typeof window.FinTrackNative.exportBackup==='function'){
+      window.FinTrackNative.exportBackup(raw,filename);
+      showToast('Choose where to save the recovery copy','success');
+      return;
+    }
+    var blob=new Blob([raw],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+    showToast('Recovery copy downloaded','success');
+  }catch(e){showToast('Recovery export failed','error');}
+}
+
 function exportData(){
   try{
     var dataStr=JSON.stringify(state,null,2), filename='fintrack_backup_'+today()+'.json';
