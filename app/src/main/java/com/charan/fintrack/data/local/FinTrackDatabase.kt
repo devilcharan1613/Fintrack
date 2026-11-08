@@ -35,7 +35,7 @@ abstract class FinTrackDatabase : RoomDatabase() {
                     context.applicationContext,
                     FinTrackDatabase::class.java,
                     "fintrack_database"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build()
+                ).addMigrations(*ALL_MIGRATIONS).build()
 
                 INSTANCE = instance
                 instance
@@ -192,6 +192,10 @@ abstract class FinTrackDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_goal_contributions_goalId_timestamp ON goal_contributions(goalId, timestamp)")
             }
         }
+
+        internal val ALL_MIGRATIONS = arrayOf(
+            MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5
+        )
 
     }
 }
