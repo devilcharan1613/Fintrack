@@ -245,7 +245,7 @@ class MainActivity : ComponentActivity() {
                 )
                 val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
                 evaluateJavascript(
-                    "window.finTrackApplyInsets(\${safe.left},\${safe.top},\${safe.right},\${safe.bottom},\${ime.bottom});",
+                    "window.finTrackApplyInsets(${safe.left},${safe.top},${safe.right},${safe.bottom},${ime.bottom});",
                     null
                 )
                 view.setPadding(0, 0, 0, 0)
@@ -281,7 +281,7 @@ class MainActivity : ComponentActivity() {
         if (!pageReady || !::webView.isInitialized) return
         pendingQuickAction = null
         webView.evaluateJavascript(
-            "if(window.finTrackHandleNotificationAction){window.finTrackHandleNotificationAction(\${JSONObject.quote(action)});}",
+            "if(window.finTrackHandleNotificationAction){window.finTrackHandleNotificationAction(${JSONObject.quote(action)});}",
             null
         )
     }
@@ -295,7 +295,7 @@ class MainActivity : ComponentActivity() {
                 ?: throw IllegalStateException("Unable to open selected file")
             Toast.makeText(this, "File saved successfully.", Toast.LENGTH_LONG).show()
         } catch (error: Exception) {
-            Toast.makeText(this, "Save failed: \${error.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Save failed: ${error.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -307,13 +307,13 @@ class MainActivity : ComponentActivity() {
                     ?: throw IllegalStateException("Unable to read selected backup")
                 runOnUiThread {
                     webView.evaluateJavascript(
-                        "if(window.__importBackupFromAndroid){window.__importBackupFromAndroid(\${JSONObject.quote(json)});}",
+                        "if(window.__importBackupFromAndroid){window.__importBackupFromAndroid(${JSONObject.quote(json)});}",
                         null
                     )
                 }
             } catch (error: Exception) {
                 runOnUiThread {
-                    Toast.makeText(this, "Backup import failed: \${error.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Backup import failed: ${error.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
                 }
             }
         }.start()
@@ -332,7 +332,7 @@ class MainActivity : ComponentActivity() {
         if (!canInstallPackages()) {
             pendingInstallUri = uri
             installSettingsLauncher.launch(
-                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:\$packageName"))
+                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
             )
         } else launchApkInstaller(uri)
     }
@@ -344,7 +344,7 @@ class MainActivity : ComponentActivity() {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             })
         } catch (error: Exception) {
-            Toast.makeText(this, "Could not open Android package installer: \${error.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Could not open Android package installer: ${error.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -383,7 +383,7 @@ class MainActivity : ComponentActivity() {
                     }
                 } catch (error: Exception) {
                     runOnUiThread {
-                        Toast.makeText(this@MainActivity, "Excel export failed: \${error.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@MainActivity, "Excel export failed: ${error.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
                     }
                 }
             }.start()
