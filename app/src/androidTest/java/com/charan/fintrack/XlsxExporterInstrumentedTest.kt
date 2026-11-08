@@ -20,7 +20,10 @@ class XlsxExporterInstrumentedTest {
             .put("persons", JSONArray())
             .put("budgets", JSONArray().put(JSONObject().put("name", "Food").put("amount", 4000.0).put("spent", 150.0)))
             .put("goals", JSONArray())
-            .put("loans", JSONArray())
+            .put("loans", JSONArray().put(
+                JSONObject().put("name", "Education Loan").put("principal", 12000.0).put("paid", 1000.0)
+                    .put("repayments", JSONArray().put(JSONObject().put("amount", 1000.0).put("date", "2026-11-08")))
+            ))
             .put("categories", JSONArray())
 
         val output = XlsxExporter.create(state.toString())
@@ -38,5 +41,7 @@ class XlsxExporterInstrumentedTest {
         assertTrue(entries["xl/worksheets/sheet1.xml"].orEmpty().contains("Daily Cash"))
         assertTrue(entries["xl/worksheets/sheet2.xml"].orEmpty().contains("expense"))
         assertTrue(entries["xl/worksheets/sheet4.xml"].orEmpty().contains("4000.0"))
+        assertTrue(entries["xl/worksheets/sheet7.xml"].orEmpty().contains("Education Loan"))
+        assertTrue(entries["xl/worksheets/sheet7.xml"].orEmpty().contains("2026-11-08"))
     }
 }
