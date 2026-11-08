@@ -43,6 +43,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.charan.fintrack.data.MoneyPaise
 import com.charan.fintrack.data.NativeLedgerCalculator
@@ -62,11 +64,37 @@ private enum class EditorKind { NONE, TRANSACTION, ACCOUNT, PERSON, BUDGET, GOAL
 fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var dark by remember { mutableStateOf(context.getSharedPreferences("fintrack_native_settings", 0).getBoolean("dark_theme", true)) }
+
+    val backupSave = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) {
+        it?.let(viewModel::exportBackup)
+    }
+    val backupOpen = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
+        it?.let(viewModel::importBackup)
+    }
+    val csvSave = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) {
+        it?.let(viewModel::exportCsv)
+    }
+    val xlsxSave = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    ) { it?.let(viewModel::exportXlsx) }
+    val pdfSave = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) {
+        it?.let(viewModel::exportPdf)
+    }
+
     FinTrackNativeTheme(darkTheme = dark) {
-        NativeFinTrackContent(viewModel, dark) {
-            dark = it
-            context.getSharedPreferences("fintrack_native_settings", 0).edit().putBoolean("dark_theme", it).apply()
-        }
+        NativeFinTrackContent(
+            viewModel = viewModel,
+            darkTheme = dark,
+            onThemeChange = {
+                dark = it
+                context.getSharedPreferences("fintrack_native_settings", 0).edit().putBoolean("dark_theme", it).apply()
+            },
+            onExportBackup = { backupSave.launch("FinTrack_Backup.json") },
+            onImportBackup = { backupOpen.launch(arrayOf("application/json", "text/json", "application/octet-stream")) },
+            onExportCsv = { csvSave.launch("FinTrack_Transactions.csv") },
+            onExportXlsx = { xlsxSave.launch("FinTrack_Export.xlsx") },
+            onExportPdf = { pdfSave.launch("FinTrack_Statement.pdf") }
+        )
     }
 }
 
@@ -74,7 +102,12 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel) {
 private fun NativeFinTrackContent(
     viewModel: NativeFinTrackViewModel,
     darkTheme: Boolean,
-    onThemeChange: (Boolean) -> Unit
+    onThemeChange: (Boolean) -> Unit,
+    onExportBackup: () -> Unit,
+    onImportBackup: () -> Unit,
+    onExportCsv: () -> Unit,
+    onExportXlsx: () -> Unit,
+    onExportPdf: () -> Unit
 ) {
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val transactions by viewModel.transactions.collectAsStateWithLifecycle()
@@ -137,7 +170,10 @@ private fun NativeFinTrackContent(
                     FinPage.GOALS -> GoalsScreen(goals, { selectedGoal = it; editor = EditorKind.CONTRIBUTION }, viewModel::deleteGoal)
                     FinPage.LOANS -> LoansScreen(loans, { selectedLoan = it; editor = EditorKind.REPAYMENT }, viewModel::deleteLoan)
                     FinPage.CATEGORIES -> CategoriesScreen(categories, viewModel::deleteCategory)
-                    FinPage.SETTINGS -> SettingsScreen(darkTheme, onThemeChange)
+                    FinPage.SETTINGS -> SettingsScreen(
+                        darkTheme, onThemeChange, onExportBackup, onImportBackup,
+                        onExportCsv, onExportXlsx, onExportPdf
+                    )
                 }
             }
         }
@@ -526,8 +562,19 @@ private fun CategoriesScreen(categories: List<CategoryEntity>, onDelete: (Catego
 }
 
 @Composable
-private fun SettingsScreen(darkTheme: Boolean, onThemeChange: (Boolean) -> Unit) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+private fun SettingsScreen(
+    darkTheme: Boolean,
+    onThemeChange: (Boolean) -> Unit,
+    onExportBackup: () -> Unit,
+    onImportBackup: () -> Unit,
+    onExportCsv: () -> Unit,
+    onExportXlsx: () -> Unit,
+    onExportPdf: () -> Unit
+) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
         GlassCard {
             Text("Appearance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -536,9 +583,25 @@ private fun SettingsScreen(darkTheme: Boolean, onThemeChange: (Boolean) -> Unit)
             }
         }
         GlassCard {
+            Text("Local backup and restore", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "JSON backup includes accounts, transactions, people, categories, budgets, savings goals, contributions, loans and repayment history. Restore merges by stable record ID and does not replace existing data.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
+            Button(onClick = onExportBackup, modifier = Modifier.fillMaxWidth()) { Text("Export full JSON backup") }
+            OutlinedButton(onClick = onImportBackup, modifier = Modifier.fillMaxWidth()) { Text("Restore / merge JSON backup") }
+        }
+        GlassCard {
+            Text("Export reports", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Button(onClick = onExportCsv, modifier = Modifier.fillMaxWidth()) { Text("Export transactions CSV") }
+            OutlinedButton(onClick = onExportXlsx, modifier = Modifier.fillMaxWidth()) { Text("Export Excel workbook") }
+            OutlinedButton(onClick = onExportPdf, modifier = Modifier.fillMaxWidth()) { Text("Export PDF statement") }
+        }
+        GlassCard {
             Text("Offline privacy", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text("This edition has no sign-in, OTP, cloud sync or cloud backup.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Export a local JSON backup before resetting or removing the app.", style = MaterialTheme.typography.bodySmall)
+            Text("Files are created only after you choose a local save destination.", style = MaterialTheme.typography.bodySmall)
         }
         GlassCard {
             Text("App security", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
