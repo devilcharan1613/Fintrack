@@ -558,6 +558,7 @@ private fun PeopleScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) { Text(person.name, fontWeight = FontWeight.Bold); if (person.phone.isNotBlank()) Text(person.phone, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     TextButton(onClick = { onEdit(person) }) { Text("Edit") }
+                    TextButton(onClick = { onEdit(person) }) { Text("Edit") }
                     TextButton(onClick = { onDelete(person) }) { Text("Delete") }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -589,7 +590,10 @@ private fun BudgetsScreen(
                     Column(Modifier.weight(1f)) { Text(budget.category, fontWeight = FontWeight.Bold); Text(budget.month, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall) }
                     Row {
                         TextButton(onClick = { onEdit(budget) }) { Text("Edit") }
+                        Row {
+                        TextButton(onClick = { onEdit(budget) }) { Text("Edit") }
                         TextButton(onClick = { onDelete(budget) }) { Text("Delete") }
+                    }
                     }
                 }
                 Text(money(spent) + " of " + money(budget.limitAmountPaise))
@@ -621,7 +625,10 @@ private fun GoalsScreen(
                     Text(goal.name, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     Row {
                         TextButton(onClick = { onEdit(goal) }) { Text("Edit") }
+                        Row {
+                        TextButton(onClick = { onEdit(goal) }) { Text("Edit") }
                         TextButton(onClick = { onDelete(goal) }) { Text("Delete") }
+                    }
                     }
                 }
                 Text(money(goal.savedAmountPaise) + " saved of " + money(goal.targetAmountPaise))
@@ -631,7 +638,14 @@ private fun GoalsScreen(
                     TextButton(onClick = { onContribute(goal) }) { Text("Add contribution") }
                 }
                 val contributions by viewModel.goalContributions(goal.id).collectAsStateWithLifecycle(initialValue = emptyList())
+                val contributions by viewModel.goalContributions(goal.id).collectAsStateWithLifecycle(initialValue = emptyList())
                 Text("Contribution tracking does not change account balances.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (contributions.isNotEmpty()) {
+                    Text("Contribution history", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    contributions.take(3).forEach { entry ->
+                        Text(SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(entry.timestamp)) + " • " + money(entry.amountPaise), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
                 if (contributions.isNotEmpty()) {
                     Text("Contribution history", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     contributions.take(3).forEach { entry ->
@@ -661,7 +675,10 @@ private fun LoansScreen(
                     Text(loan.name, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     Row {
                         TextButton(onClick = { onEdit(loan) }) { Text("Edit") }
+                        Row {
+                        TextButton(onClick = { onEdit(loan) }) { Text("Edit") }
                         TextButton(onClick = { onDelete(loan) }) { Text("Delete") }
+                    }
                     }
                 }
                 Text("Outstanding " + money(remaining), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -669,7 +686,14 @@ private fun LoansScreen(
                 LinearProgressIndicator(progress = { ratio }, modifier = Modifier.fillMaxWidth(), color = Color(0xFF25D8C5))
                 TextButton(onClick = { onRepay(loan) }) { Text("Record repayment") }
                 val payments by viewModel.loanPayments(loan.id).collectAsStateWithLifecycle(initialValue = emptyList())
+                val payments by viewModel.loanPayments(loan.id).collectAsStateWithLifecycle(initialValue = emptyList())
                 Text("Repayment tracking does not change account balances.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (payments.isNotEmpty()) {
+                    Text("Repayment history", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    payments.take(3).forEach { entry ->
+                        Text(SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(entry.timestamp)) + " • " + money(entry.amountPaise), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
                 if (payments.isNotEmpty()) {
                     Text("Repayment history", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     payments.take(3).forEach { entry ->
@@ -1075,6 +1099,7 @@ private fun TransactionItem(
                 if (transaction.note.isNotBlank()) Text(transaction.note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
             Text(money(transaction.amountPaise), color = tint, fontWeight = FontWeight.Bold)
+            if (onEdit != null) TextButton(onClick = { onEdit(transaction) }) { Text("Edit") }
             if (onEdit != null) TextButton(onClick = { onEdit(transaction) }) { Text("Edit") }
             if (onDelete != null) IconButton(onClick = { onDelete(transaction) }) {
                 Icon(Icons.Filled.Delete, "Delete transaction", tint = MaterialTheme.colorScheme.error)
