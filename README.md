@@ -25,6 +25,23 @@ FinTrack is an offline-first Android personal finance tracker.
 - Added CI checks for embedded JavaScript syntax, JVM unit tests, Android emulator instrumentation tests and debug APK assembly.
 - Tightened top and bottom safe-area handling and improved bottom-sheet keyboard behaviour.
 
+## Latest verified build and feature highlights
+
+**Latest successful build:** [Download FinTrack debug APK from GitHub Actions](https://github.com/devilcharan1613/Fintrack/actions/runs/42435233271)
+
+The workflow run above completed successfully, including embedded JavaScript validation, Gradle debug build, JVM tests and Android emulator instrumentation tests. Open the run and download the `FinTrack-debug-apk` artifact.
+
+### Recent improvements
+
+- Reports dashboard visual refresh with refined dark surfaces, teal/cyan/coral chart palette, clearer legends, animated income/expense bars and category progress indicators.
+- Respect reduced-motion accessibility preferences.
+- Custom date-range PDF and editable DOCX transaction statements generated locally.
+- JSON backup restore validation, bounded file reading and safer failure handling.
+- Smart reminders with configurable local schedules, notification actions and original Meme Mode messages.
+- Offline-first local finance storage; no internet permission is requested by the Android app.
+
+**APK note:** This is a debug APK for testing, not a Play Store production-signed release. GitHub Actions artifacts are retained for a limited time; use the workflow run's Artifacts section while it is available.
+
 ## Features
 
 - Dashboard, accounts, wallets and recent transactions.
