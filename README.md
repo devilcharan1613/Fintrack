@@ -11,19 +11,19 @@ FinTrack is an offline-first personal finance tracker. This README documents fea
 - **Needs testing:** implementation exists, but device/emulator or regression testing is still required.
 - **Not claimed:** no complete implementation or successful test has been confirmed.
 
-## 1. Dashboard
+## 📊 1. Dashboard
 
 - **Implemented (source):** dashboard summaries for balances, income, expenses and recent activity.
 - **Implemented (source):** borrowed/lent and net-worth summary areas.
 - **Needs testing:** verify every dashboard figure against saved accounts, transactions and outstanding balances.
 
-## 2. Accounts and wallets
+## 👛 2. Accounts and wallets
 
 - **Implemented (source):** multiple account records and account balance display.
 - **Implemented (source):** account-linked transaction views.
 - **Needs testing:** opening/current balance calculations, transfers, edits and deletion edge cases.
 
-## 3. Transactions
+## 💸 3. Transactions
 
 - **Implemented (source):** income and expense records.
 - **Implemented (source):** transfer, borrowing and lending transaction types.
@@ -32,36 +32,36 @@ FinTrack is an offline-first personal finance tracker. This README documents fea
 - **Implemented (source):** custom From/To date controls in transaction and report views.
 - **Needs testing:** end-to-end add/edit/delete flows, transfer pairing, filter boundaries and totals after edits.
 
-## 4. Reports and analytics
+## 📈 4. Reports and analytics
 
 - **Implemented (source):** income-versus-expense and category chart areas.
 - **Implemented (source):** account balances and person summaries.
 - **Implemented (source):** date-range controls and transaction statement export entry points.
 - **Needs testing:** chart aggregation, date inclusivity, empty periods and reconciliation with the transaction list.
 
-## 5. Budgets
+## 🎯 5. Budgets
 
 - **Implemented (source):** budget records and budget display/progress UI.
 - **Partial:** budget periods and spending calculations require broader validation.
 - **Needs testing:** create/edit/delete, period rollover, category matching and over-budget cases.
 
-## 6. Savings goals
+## 🏦 6. Savings goals
 
 - **Implemented (source):** savings goal records and contribution flow.
 - **Needs testing:** contribution history, target/remaining calculations, editing and deletion.
 
-## 7. Borrowing, lending and loans
+## 🤝 7. Borrowing, lending and loans
 
 - **Implemented (source):** person-linked borrowing/lending records.
 - **Implemented (source):** loan records and repayment-history data structures.
 - **Needs testing:** repayment balance calculations, partial/full settlement, overpayment prevention and person-wise totals.
 
-## 8. People
+## 👥 8. People
 
 - **Implemented (source):** people records and person summary views.
 - **Needs testing:** contact validation, linked transaction history and settlement reconciliation.
 
-## 9. Exports and backup
+## 📤 9. Exports and backup
 
 - **Implemented (source):** JSON backup export and restore through Android file selection.
 - **Implemented (source):** restore validation before replacing current local data.
@@ -94,7 +94,7 @@ A print-friendly transaction statement with selected period, generated date, inc
 
 A local backup intended to preserve the app's finance data for later restore. Keep the exported file somewhere safe outside the app's private storage.
 
-## 10. Reminders and notifications
+## 🔔 10. Reminders and notifications
 
 - **Implemented (source):** optional daily reminder scheduling using Android local alarm/notification APIs.
 - **Implemented (source):** reminder time and fun-message preference controls.
@@ -103,20 +103,20 @@ A local backup intended to preserve the app's finance data for later restore. Ke
 - **Needs testing:** Android 13+ notification permission flow, denied/revoked permission, reboot, Doze/battery restrictions, notification action routing and delivery on supported Android versions.
 - **Limitation:** Android may delay or restrict background notifications depending on device settings and battery policies. Reminders do not require internet.
 
-## 11. Themes and appearance
+## 🎨 11. Themes and appearance
 
 - **Implemented (source):** dark/light theme preference and shared Liquid Glass styling layer.
 - **Implemented (source):** custom background photo selection and saved visibility preference controls.
 - **Needs testing:** consistency of every screen in both themes, photo persistence after restart, slider behaviour from 0–100%, contrast/readability and performance on lower-memory devices.
 
-## 12. Navigation and app update flow
+## 🧭 12. Navigation and app update flow
 
 - **Implemented (source):** bottom navigation and More-menu navigation entry points.
 - **Implemented (source):** manual selection and hand-off of a local APK to Android's package installer.
 - **Needs testing:** all navigation/back-stack paths and APK update installation/data preservation on real devices.
 - **Security note:** Android controls package installation and displays its own confirmation UI. FinTrack does not silently install updates.
 
-## 13. Offline operation and privacy
+## 🔒 13. Offline operation and privacy
 
 - **Source configuration:** the Android manifest does not declare `android.permission.INTERNET`.
 - No sign-in, OTP, cloud sync, online account, subscription or cloud backup is part of this offline edition.
@@ -125,7 +125,7 @@ A local backup intended to preserve the app's finance data for later restore. Ke
 - Reminders use Android's local scheduling and notification facilities.
 - Clearing app storage or uninstalling the app may permanently remove local records. Export a backup regularly and keep it in a safe location.
 
-## 14. Developer review and release status
+## 🛠️ 14. Developer review and release status
 
 This is a development-branch README, not a release certification.
 
