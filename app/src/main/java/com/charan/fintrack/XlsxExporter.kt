@@ -42,6 +42,7 @@ internal object XlsxExporter {
             SheetData("Loans", buildRows(state.optJSONArray("loans"), listOf(
                 "Name" to "name", "Principal INR" to "principal", "Paid INR" to "paid", "EMI INR" to "emi"
             ))),
+            SheetData("Loan Payments", buildRepaymentRows(state.optJSONArray("loans"))),
             SheetData("Categories", buildRows(state.optJSONArray("categories"), listOf(
                 "Name" to "name", "Icon" to "icon", "ID" to "id"
             )))
@@ -57,6 +58,28 @@ internal object XlsxExporter {
                 val obj = array.optJSONObject(index) ?: continue
                 rows += columns.map { (_, key) ->
                     if (obj.isNull(key)) "" else obj.opt(key)
+                }
+            }
+        }
+        return rows
+    }
+
+    private fun buildRepaymentRows(loans: JSONArray?): List<List<Any?>> {
+        val rows = mutableListOf<List<Any?>>()
+        rows += listOf("Loan", "Amount INR", "Date", "Created At")
+        if (loans != null) {
+            for (loanIndex in 0 until loans.length()) {
+                val loan = loans.optJSONObject(loanIndex) ?: continue
+                val name = loan.optString("name", "Loan")
+                val repayments = loan.optJSONArray("repayments") ?: continue
+                for (repaymentIndex in 0 until repayments.length()) {
+                    val repayment = repayments.optJSONObject(repaymentIndex) ?: continue
+                    rows += listOf(
+                        name,
+                        if (repayment.isNull("amount")) "" else repayment.opt("amount"),
+                        repayment.optString("date", ""),
+                        repayment.optString("createdAt", "")
+                    )
                 }
             }
         }
