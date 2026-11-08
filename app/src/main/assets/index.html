@@ -639,7 +639,7 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
         <div class="field"><label>Time</label><input type="time" id="txnTime"></div>
       </div>
       <div class="field"><label>Payment Method (optional)</label><select id="txnPaymentMethod" onchange="toggleTxnUpi()"><option value="">Not specified</option><option>UPI</option><option>Cash</option><option>Debit Card</option><option>Credit Card</option><option>Bank Transfer</option><option>Wallet</option><option>Other</option></select></div>
-      <div class="field hidden" id="txnUpiField"><label>UPI App</label><select id="txnUpiApp"><option value="">Select app</option><option>Google Pay</option><option>PhonePe</option><option>Paytm</option><option>BHIM</option><option>Amazon Pay</option><option>Other</option></select></div>
+      <div class="field hidden" id="txnUpiField"><label>UPI App</label><select id="txnUpiApp" onchange="toggleCustomUpiApp()"><option value="">Select app</option><option>Google Pay</option><option>PhonePe</option><option>Paytm</option><option>BHIM</option><option>Amazon Pay</option><option>Other</option></select><input id="txnCustomUpiApp" class="hidden" type="text" maxlength="40" placeholder="Enter UPI app name" style="margin-top:8px"></div>
       <div class="field"><label>Notes</label><input type="text" id="txnNotes" placeholder="Optional note"></div>
 
       <button class="btn btn-primary" onclick="saveTxn()">Save Transaction</button>
@@ -1901,6 +1901,8 @@ function resetTxnForm(){
   document.getElementById('txnTime').value = new Date().toTimeString().slice(0,5);
   document.getElementById('txnPaymentMethod').value = '';
   document.getElementById('txnUpiApp').value = '';
+  document.getElementById('txnCustomUpiApp').value = '';
+  toggleCustomUpiApp();
   toggleTxnUpi();
   document.getElementById('txnDeleteRow').style.display = 'none';
   document.getElementById('txnModalTitle').textContent = 'Add Transaction';
@@ -1937,7 +1939,10 @@ function editTxn(id){
   document.getElementById('txnDate').value = t.date;
   document.getElementById('txnTime').value = t.time || '12:00';
   document.getElementById('txnPaymentMethod').value = t.paymentMethod || '';
-  document.getElementById('txnUpiApp').value = t.upiApp || '';
+  var knownApps=['Google Pay','PhonePe','Paytm','BHIM','Amazon Pay'];
+  document.getElementById('txnUpiApp').value = knownApps.indexOf(t.upiApp)>=0?t.upiApp:(t.upiApp?'Other':'');
+  document.getElementById('txnCustomUpiApp').value=knownApps.indexOf(t.upiApp)>=0?'':(t.upiApp||'');
+  toggleCustomUpiApp();
   toggleTxnUpi();
   document.getElementById('txnNotes').value = t.notes||'';
   document.getElementById('txnModalTitle').textContent = 'Edit Transaction';
@@ -1959,6 +1964,10 @@ function applyTxnEffect(t, sign){
   }
 }
 
+function toggleCustomUpiApp(){
+  var app=document.getElementById('txnUpiApp'),custom=document.getElementById('txnCustomUpiApp');
+  if(custom)custom.classList.toggle('hidden',!app||app.value!=='Other');
+}
 function toggleTxnUpi(){
   var isUpi=document.getElementById('txnPaymentMethod').value==='UPI';
   document.getElementById('txnUpiField').classList.toggle('hidden',!isUpi);
@@ -1974,10 +1983,12 @@ function saveTxn(){
   var date = document.getElementById('txnDate').value || today();
   var time = document.getElementById('txnTime').value || new Date().toTimeString().slice(0,5);
   var paymentMethod = document.getElementById('txnPaymentMethod').value || '';
-  var upiApp = paymentMethod==='UPI' ? (document.getElementById('txnUpiApp').value||'') : '';
+  var upiChoice=document.getElementById('txnUpiApp').value||'';
+  var upiApp = paymentMethod==='UPI' ? (upiChoice==='Other'?(document.getElementById('txnCustomUpiApp').value.trim()||'Other'):upiChoice) : '';
   var notes = document.getElementById('txnNotes').value.trim();
 
   if(!amount || amount<=0){ showToast('Enter a valid amount', 'error'); return; }
+  if(paymentMethod==='UPI'&&(!upiApp||upiApp==='Other')){showToast('Select a UPI app or enter its name','error');return;}
   if(!accountId || accountId==='__ADD_WALLET__'){ showToast('Please select a valid account/wallet', 'error'); return; }
   if(currentTxnType==='transfer' && (!toAccountId || toAccountId===accountId || toAccountId==='__ADD_WALLET__')){ 
     showToast('Select a different destination account/wallet', 'error'); 
@@ -2349,6 +2360,7 @@ if(document.readyState==='loading'){
 }
 
 /* Expose global functions */
+window.setFinTrackTheme = setFinTrackTheme;
 window.showPage = showPage;
 window.fabAction = fabAction;
 window.setTxnType = setTxnType;
