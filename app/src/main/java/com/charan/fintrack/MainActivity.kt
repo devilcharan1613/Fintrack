@@ -403,9 +403,6 @@ class MainActivity : ComponentActivity() {
                         val count = input.read(buffer)
                         if (count < 0) break
                         totalBytes += count
-                        if (totalBytes > MAX_BACKUP_BYTES) {
-                            throw IllegalArgumentException("Backup is too large. Maximum supported size is 20 MB.")
-                        }
                         output.write(buffer, 0, count)
                     }
                     String(output.toByteArray(), Charsets.UTF_8)
@@ -623,32 +620,3 @@ class MainActivity : ComponentActivity() {
             runOnUiThread {
                 backgroundOpenLauncher.launch(arrayOf("image/*"))
             }
-        }
-
-        @JavascriptInterface
-        fun getLegacyData(): String = "null"
-
-        private fun safeFileName(input: String, fallback: String): String {
-            val safe = input.substringAfterLast('/').substringAfterLast('\\')
-                .replace(Regex("[^A-Za-z0-9._-]"), "_")
-            return safe.take(100).ifBlank { fallback }
-        }
-    }
-
-    override fun onDestroy() {
-        pageReady = false
-        if (::webView.isInitialized) {
-            webView.removeJavascriptInterface("FinTrackBridge")
-            webView.destroy()
-        }
-        printWebViews.forEach { it.destroy() }
-        printWebViews.clear()
-        super.onDestroy()
-    }
-
-    companion object {
-        const val EXTRA_QUICK_ACTION = "fintrack.quick_action"
-        private const val REMINDER_PREFS = "fintrack_reminders"
-        private const val MAX_BACKUP_BYTES = 20 * 1024 * 1024
-    }
-}
