@@ -118,13 +118,13 @@ class DailyReminderReceiver : android.content.BroadcastReceiver() {
             Notification.Builder(context)
         }
         val notification = builder
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_fintrack_notification)
             .setContentTitle("FinTrack daily reminder")
             .setContentText(message)
             .setStyle(Notification.BigTextStyle().bigText(message))
             .setContentIntent(openApp)
             .setAutoCancel(true)
-            .addAction(Notification.Action.Builder(Icon.createWithResource(context, R.mipmap.ic_launcher), "Add expense", expenseAction).build())
+            .addAction(Notification.Action.Builder(Icon.createWithResource(context, R.drawable.ic_fintrack_notification), "Add expense", expenseAction).build())
             .addAction(Notification.Action.Builder(Icon.createWithResource(context, R.mipmap.ic_launcher), "Add income", incomeAction).build())
             .build()
         (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(2501, notification)
@@ -306,7 +306,11 @@ class MainActivity : ComponentActivity() {
                         manager.print(
                             jobName,
                             view.createPrintDocumentAdapter(jobName),
-                            PrintAttributes.Builder().build()
+                            PrintAttributes.Builder()
+                                .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                                .setResolution(PrintAttributes.Resolution("fintrack", "FinTrack", 300, 300))
+                                .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
+                                .build()
                         )
                     } catch (error: Exception) {
                         Toast.makeText(this@MainActivity, "PDF print failed: " + (error.message ?: "unknown error"), Toast.LENGTH_LONG).show()
