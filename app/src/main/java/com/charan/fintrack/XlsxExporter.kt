@@ -224,10 +224,26 @@ ${if (rows.size > 1 && rows.firstOrNull()?.isNotEmpty() == true) "<autoFilter re
         return result.reverse().toString()
     }
 
-    private fun xml(value: String): String = value
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace("\"", "&quot;")
-        .replace("'", "&apos;")
+    private fun xml(value: String): String {
+        // XML 1.0 forbids most control characters. Remove invalid code points
+        // before escaping so a note copied from another app cannot corrupt the XLSX.
+        val clean = buildString(value.length) {
+            var index = 0
+            while (index < value.length) {
+                val codePoint = value.codePointAt(index)
+                val valid = codePoint == 0x9 || codePoint == 0xA || codePoint == 0xD ||
+                    codePoint in 0x20..0xD7FF ||
+                    codePoint in 0xE000..0xFFFD ||
+                    codePoint in 0x10000..0x10FFFF
+                if (valid) appendCodePoint(codePoint)
+                index += Character.charCount(codePoint)
+            }
+        }
+        return clean
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&apos;")
+    }
 }
