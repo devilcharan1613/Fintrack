@@ -222,10 +222,10 @@ class MainActivity : ComponentActivity() {
             pendingReminder = null
             if (granted && reminder != null) {
                 applyReminder(reminder)
-                notifyReminderPermissionResult(true)
+                notifyReminderPermissionResult(true, reminder.enabled)
             } else if (reminder?.enabled == true) {
                 applyReminder(reminder.copy(enabled = false))
-                notifyReminderPermissionResult(false)
+                notifyReminderPermissionResult(false, false)
                 Toast.makeText(this, "Allow FinTrack notifications in Android Settings to enable reminders.", Toast.LENGTH_LONG).show()
             }
         }
@@ -401,11 +401,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun notifyReminderPermissionResult(granted: Boolean) {
+    private fun notifyReminderPermissionResult(granted: Boolean, reminderEnabled: Boolean = false) {
         if (!::webView.isInitialized || !pageReady) return
         runOnUiThread {
             webView.evaluateJavascript(
-                "if(window.finTrackReminderPermissionResult){window.finTrackReminderPermissionResult($granted);}",
+                "if(window.finTrackReminderPermissionResult){window.finTrackReminderPermissionResult($granted,$reminderEnabled);}",
                 null
             )
         }
@@ -545,7 +545,7 @@ class MainActivity : ComponentActivity() {
                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 } else {
                     applyReminder(config)
-                    notifyReminderPermissionResult(true)
+                    notifyReminderPermissionResult(true, config.enabled)
                 }
             }
         }
