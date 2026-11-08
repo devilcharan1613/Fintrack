@@ -2278,7 +2278,7 @@ function openExportDialog(source){
   if(!start)return;
   var end=prompt('End date (YYYY-MM-DD)',today());
   if(!end)return;
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(start)||!/^\\d{4}-\\d{2}-\\d{2}$/.test(end)||start>end){showToast('Enter a valid date range','error');return;}
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||start>end){showToast('Enter a valid date range','error');return;}
   var format=prompt('Enter CSV or PDF','CSV');
   if(!format)return;
   format=format.toLowerCase();
@@ -2288,8 +2288,8 @@ function openExportDialog(source){
   var header=['Date','Type','Amount INR','Category','Account','Notes'];
   var data=[header].concat(rows.map(function(t){var a=getAcc(t.accountId),c=getCat(t.category);return [t.date,t.type,t.amount,c.name||t.category,a&&a.name||'',t.notes||t.note||''];}));
   if(format==='csv'){
-    var csv=data.map(function(row){return row.map(function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}).join(',');}).join('\\r\\n');
-    var blob=new Blob(['\\ufeff'+csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+    var csv=data.map(function(row){return row.map(function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}).join(',');}).join('\r\n');
+    var blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');
     link.href=url;link.download='fintrack_transactions_'+today()+'.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
     showToast('CSV export ready','success');return;
   }
