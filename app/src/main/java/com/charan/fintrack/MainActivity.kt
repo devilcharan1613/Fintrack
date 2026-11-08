@@ -425,7 +425,7 @@ class MainActivity : ComponentActivity() {
         @JavascriptInterface
         fun exportCsv(csv: String, fileName: String) {
             runOnUiThread {
-                pendingExportBytes = csv.toByteArray(Charsets.UTF_8)
+                pendingExportBytes = ("\uFEFF" + csv).toByteArray(Charsets.UTF_8)
                 csvSaveLauncher.launch(safeFileName(fileName, "fintrack-transactions.csv"))
             }
         }
