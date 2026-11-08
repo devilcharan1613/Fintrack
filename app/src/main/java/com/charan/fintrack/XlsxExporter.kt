@@ -3,6 +3,10 @@ package com.charan.fintrack
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -58,17 +62,19 @@ internal object XlsxExporter {
         var expense = 0.0
         for (i in 0 until transactions.length()) {
             val txn = transactions.optJSONObject(i) ?: continue
-            when (txn.optString("type")) {
+            when (txn.optString("type").lowercase(Locale.ROOT)) {
                 "income" -> income += txn.optDouble("amount", 0.0)
                 "expense" -> expense += txn.optDouble("amount", 0.0)
             }
         }
+        val generatedAt = metadata?.optString("generatedAt")?.takeIf { it.isNotBlank() }
+            ?: currentUtcTimestamp()
         return listOf(
             listOf("FinTrack Export Summary", "Value"),
             listOf("Export type", metadata?.optString("type", "full") ?: "full"),
             listOf("From date", metadata?.optString("from", "All records") ?: "All records"),
             listOf("To date", metadata?.optString("to", "All records") ?: "All records"),
-            listOf("Generated at", metadata?.optString("generatedAt", java.time.Instant.now().toString()) ?: java.time.Instant.now().toString()),
+            listOf("Generated at", generatedAt),
             listOf("Transactions included", transactions.length()),
             listOf("Income INR", income),
             listOf("Expense INR", expense),
@@ -78,6 +84,11 @@ internal object XlsxExporter {
         )
     }
 
+    private fun currentUtcTimestamp(): String =
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }.format(Date())
+
     private fun buildRows(array: JSONArray?, columns: List<Pair<String, String>>): List<List<Any?>> {
         val rows = mutableListOf<List<Any?>>()
         rows += columns.map { it.first }
@@ -85,7 +96,11 @@ internal object XlsxExporter {
             for (index in 0 until array.length()) {
                 val obj = array.optJSONObject(index) ?: continue
                 rows += columns.map { (_, key) ->
-                    if (obj.isNull(key)) "" else obj.opt(key)
+                    when {
+                        !obj.isNull(key) -> obj.opt(key)
+                        key == "notes" && !obj.isNull("note") -> obj.opt("note")
+                        else -> ""
+                    }
                 }
             }
         }
