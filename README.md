@@ -1,56 +1,57 @@
 # FinTrack
 
-**Version 2.5.0**
+**Version 2.5.0 · Offline edition**
 
-FinTrack is an offline-first Android personal finance tracker.
+FinTrack is a personal finance tracker designed to work without an internet connection. It does not require sign-in, OTP, cloud storage, a subscription, ads, or analytics.
 
-## 2.5.0 update
+## Finance features
 
-- Updated the Android version to 2.5.0 (version code 27).
-- Tightened the top safe-area spacing so the toolbar clears the display notch without a large empty band.
-- Corrected bottom navigation inset ownership to prevent the Android navigation inset being counted twice.
-- Reduced excessive bottom scroll padding while keeping screen content clear of the app navigation bar.
-- Improved bottom-sheet height and safe-area handling.
-- Reset sheet scroll and stale keyboard inset state when a form is cancelled or reopened.
-- Blur a previously focused field during modal open/close to prevent the keyboard from restoring an old sheet position.
-- Kept the FinTrack identity, logo, application ID, offline storage, and finance modules.
+- Dashboard with total balance, income, expenses, borrowed/lent amounts, net worth and recent activity.
+- Multiple cash, bank, card and wallet accounts.
+- Income, expenses, transfers, borrowing and lending.
+- Categories, subcategories, people, notes, date/time and payment method details.
+- Transaction search, filters, monthly history and income/expense summaries.
+- Budgets with weekly, monthly and yearly periods.
+- Savings goals with contributions.
+- Loans, EMI values, repayment records and repayment history.
+- Reports with period filters, category breakdowns and charts.
 
-## Features
+## v2.5.0 offline updates
 
-- Dashboard, accounts, wallets and recent transactions.
-- Income, expense, transfer, borrowing and lending records.
-- Categories and subcategories.
-- People and lending/borrowing history.
-- Budgets and savings goals.
-- Loans, EMI and repayments.
-- Reports with period filters, breakdowns and charts.
-- Settings, privacy information, JSON backup and validated restore.
+- Refreshed luminous teal glass UI across the existing screens.
+- Local JSON backup export through Android's Save dialog.
+- JSON backup restore through Android's file picker, with validation before replacing existing data.
+- Multi-sheet Excel workbook (.xlsx) export for accounts, transactions, people, budgets, goals, loans and categories.
+- CSV and printable PDF transaction statements.
+- Optional daily reminders scheduled on the device, with a fun-message setting and Add Expense / Add Income notification actions.
+- Reminder schedule is restored after device restart. Android notification permission is required on Android 13 and newer.
+- Manual install/update flow for an APK already stored on the phone. Android's package installer and user approval are required.
 
-## Privacy and storage
+## Offline and privacy guarantees
 
-- No mandatory sign-in, cloud synchronization, ads or analytics.
-- The Android manifest does not request the INTERNET permission.
-- Financial records are stored locally on the device.
-- Exported backup files are user-controlled. Store them safely.
-- Clearing app storage or uninstalling can remove local data.
+- The Android manifest does not request android.permission.INTERNET.
+- The app does not sign in, send financial records to a server, or synchronize data to a cloud account.
+- Finance records and reminder preferences stay on the device.
+- Backup and export files are created only after the user selects a destination in Android's file picker.
+- Reminders use Android's local alarm and notification services. Delivery time may be adjusted by Android battery and background policies.
+- APK updates are selected manually from local storage. FinTrack does not download updates.
+- Clearing app storage or uninstalling the app can remove its local data. Keep a separate backup in a safe place.
 
-## Build
+## Build and tests
 
 Use JDK 17 and Android SDK Platform 35.
 
-```bash
-./gradlew --no-daemon assembleDebug
-```
+Build command: ./gradlew --no-daemon testDebugUnitTest assembleDebug
 
-APK output: `app/build/outputs/apk/debug/app-debug.apk`
+APK output: app/build/outputs/apk/debug/app-debug.apk.
 
-GitHub Actions uploads the build as `FinTrack-debug-apk`.
+GitHub Actions uploads the debug APK as the FinTrack-debug-apk artifact. The CI workflow runs unit tests and assembles the APK. The XLSX package test is an instrumented test and must be run on an Android device or emulator.
 
 ## Application identity
 
 - App name: FinTrack
-- Application ID: `com.charan.fintrack`
-- Version name: `2.5.0`
-- Version code: `27`
+- Application ID: com.charan.fintrack
+- Version name: 2.5.0
+- Version code: 27
 - Minimum Android SDK: 23
 - Target Android SDK: 35
