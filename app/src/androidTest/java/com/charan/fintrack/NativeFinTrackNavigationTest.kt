@@ -21,7 +21,7 @@ class NativeFinTrackNavigationTest {
     @Test
     fun bottomNavigationOpensAccountsAndReports() {
         compose.onNodeWithText("Accounts").performClick()
-        compose.onNodeWithText("Accounts and wallets").assertExists()
+        compose.onNodeWithText("ACCOUNTS & WALLETS").assertExists()
         compose.onNodeWithText("Reports").performClick()
         compose.onNodeWithText("INCOME VS EXPENSE").assertExists()
     }

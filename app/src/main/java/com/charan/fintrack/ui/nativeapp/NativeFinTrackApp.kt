@@ -585,11 +585,14 @@ private fun AccountsScreen(
     onArchive: (Long) -> Unit,
     onEdit: (AccountEntity) -> Unit
 ) {
-    if (accounts.isEmpty()) EmptyState("Accounts and wallets", "Create a cash, bank or digital wallet account using Add.")
-    else LazyColumn(
-        Modifier.fillMaxSize().padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(bottom = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
+    Column(Modifier.fillMaxSize()) {
+        SectionLabel("ACCOUNTS & WALLETS")
+        if (accounts.isEmpty()) {
+            EmptyState("No accounts and wallets", "Create a cash, bank or digital wallet account using Add.")
+        } else LazyColumn(
+            Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(bottom = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
         items(accounts, key = { it.stableUid }) { account ->
             val current = NativeLedgerCalculator.accountBalancePaise(account, transactions)
             GlassCard {
@@ -610,8 +613,8 @@ private fun AccountsScreen(
             }
         }
     }
+    }
 }
-
 @Composable
 private fun ReportsScreen(
     accounts: List<AccountEntity>,
