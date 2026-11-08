@@ -100,6 +100,9 @@ interface FinanceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLoanPayment(payment: LoanPaymentEntity): Long
 
+    @Query("DELETE FROM loan_payments WHERE loanId = :loanId")
+    suspend fun deleteLoanPayments(loanId: Long)
+
     @Query("DELETE FROM loan_payments")
     suspend fun deleteAllLoanPayments()
 

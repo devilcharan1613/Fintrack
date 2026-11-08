@@ -34,6 +34,14 @@ value class MoneyPaise(val paise: Long) : Comparable<MoneyPaise> {
     companion object {
         val ZERO = MoneyPaise(0)
 
+        /** Parse a signed rupee balance without passing through binary floating point. */
+        fun fromSignedRupees(value: String): MoneyPaise {
+            val decimal = BigDecimal(value.trim())
+            return MoneyPaise(
+                decimal.movePointRight(2).setScale(0, RoundingMode.UNNECESSARY).longValueExact()
+            )
+        }
+
         /** Parse a rupee amount without passing through binary floating point. */
         fun fromRupees(value: String): MoneyPaise {
             val decimal = BigDecimal(value.trim())

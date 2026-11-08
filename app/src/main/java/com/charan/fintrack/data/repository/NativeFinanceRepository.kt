@@ -60,6 +60,46 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
         accountDao.updateAccount(account.copy(updatedAt = System.currentTimeMillis()))
     }
 
+    suspend fun deleteAccount(account: AccountEntity) {
+        val linked = transactions.first().any { it.accountId == account.id || it.transferAccountId == account.id }
+        require(!linked) { "This account has linked transactions. Archive it instead." }
+        accountDao.deleteAccount(account)
+    }
+
+    suspend fun deletePerson(person: PersonEntity) {
+        val linked = transactions.first().any { it.personId == person.id }
+        require(!linked) { "This person has linked transactions." }
+        dao.deletePerson(person)
+    }
+
+    suspend fun updatePerson(person: PersonEntity) = dao.updatePerson(person)
+    suspend fun deleteCategory(category: CategoryEntity) = dao.deleteCategory(category)
+    suspend fun updateCategory(category: CategoryEntity) = dao.updateCategory(category)
+    suspend fun deleteBudget(budget: BudgetEntity) = dao.deleteBudget(budget)
+    suspend fun updateBudget(budget: BudgetEntity) = dao.updateBudget(budget)
+    suspend fun updateGoal(goal: GoalEntity) = dao.updateGoal(goal)
+    suspend fun deleteGoal(goal: GoalEntity) = dao.deleteGoal(goal)
+    suspend fun updateLoan(loan: LoanEntity) = dao.updateLoan(loan)
+    suspend fun deleteLoan(loan: LoanEntity) {
+        database.withTransaction {
+            dao.deleteLoanPayments(loan.id)
+            dao.deleteLoan(loan)
+        }
+    }
+
+    suspend fun updateTransaction(transaction: TransactionEntity) {
+        require(transaction.amountPaise > 0L) { "Transaction amount must be positive" }
+        require(transaction.category.isNotBlank()) { "Category is required" }
+        database.withTransaction {
+            val original = transactions.first().firstOrNull { it.id == transaction.id }
+                ?: throw IllegalArgumentException("Transaction does not exist")
+            require(original.transferId == null && transaction.transferId == null) {
+                "Edit a paired transfer as a single transfer operation."
+            }
+            dao.updateTransaction(transaction)
+        }
+    }
+
     suspend fun archiveAccount(accountId: Long) = accountDao.archiveAccount(accountId)
 
     suspend fun saveTransaction(
