@@ -72,7 +72,7 @@ internal object XlsxExporter {
             add(zip, "xl/_rels/workbook.xml.rels", workbookRelationships(sheets.size))
             add(zip, "xl/styles.xml", styles())
             sheets.forEachIndexed { index, sheet ->
-                add(zip, "xl/worksheets/sheet\${index + 1}.xml", worksheet(sheet.rows))
+                add(zip, "xl/worksheets/sheet${index + 1}.xml", worksheet(sheet.rows))
             }
         }
         return out.toByteArray()
@@ -105,7 +105,7 @@ $overrides
 
     private fun workbook(sheets: List<SheetData>): String {
         val entries = sheets.mapIndexed { index, sheet ->
-            """<sheet name="\${xml(sheet.name)}" sheetId="\${index + 1}" r:id="rId\${index + 1}"/>"""
+            """<sheet name="${xml(sheet.name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>"""
         }.joinToString("")
         return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
@@ -120,7 +120,7 @@ $overrides
         return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 $sheets
-<Relationship Id="rId\${count + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+<Relationship Id="rId${count + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>"""
     }
 
@@ -139,7 +139,7 @@ $sheets
             val cells = row.mapIndexed { columnIndex, value ->
                 cell(columnName(columnIndex + 1) + (rowIndex + 1), value)
             }.joinToString("")
-            """<row r="\${rowIndex + 1}">$cells</row>"""
+            """<row r="${rowIndex + 1}">$cells</row>"""
         }.joinToString("")
         return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
@@ -155,9 +155,9 @@ $sheets
             return """<c r="$reference"><v>$value</v></c>"""
         }
         if (value is Boolean) {
-            return """<c r="$reference" t="b"><v>\${if (value) 1 else 0}</v></c>"""
+            return """<c r="$reference" t="b"><v>${if (value) 1 else 0}</v></c>"""
         }
-        return """<c r="$reference" t="inlineStr"><is><t xml:space="preserve">\${xml(value.toString())}</t></is></c>"""
+        return """<c r="$reference" t="inlineStr"><is><t xml:space="preserve">${xml(value.toString())}</t></is></c>"""
     }
 
     private fun columnName(number: Int): String {
