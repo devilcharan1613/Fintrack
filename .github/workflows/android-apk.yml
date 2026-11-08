@@ -2,7 +2,7 @@ name: Build FinTrack APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, fintrack-2.5.0-development]
   workflow_dispatch:
 
 permissions:
