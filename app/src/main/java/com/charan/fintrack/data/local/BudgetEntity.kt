@@ -10,11 +10,10 @@ import java.util.UUID
 data class BudgetEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val category: String,
-    /** Legacy rupee column retained for compatibility and migration audit. */
+    /** Legacy-compatible rupee projection. */
     val limitAmount: Double,
     val month: String,
-    @ColumnInfo(defaultValue = "''")
-    val stableUid: String = UUID.randomUUID().toString(),
-    @ColumnInfo(defaultValue = "0")
-    val limitAmountPaise: Long = 0L
+    @ColumnInfo(defaultValue = "''") val stableUid: String = UUID.randomUUID().toString(),
+    @ColumnInfo(defaultValue = "0") val limitAmountPaise: Long = 0L,
+    @ColumnInfo(defaultValue = "'Monthly'") val period: String = "Monthly"
 )

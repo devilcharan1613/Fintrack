@@ -11,7 +11,7 @@ data class TransactionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val accountId: Long,
     val type: String,
-    /** Legacy rupee amount retained for compatibility and migration audit. */
+    /** Legacy-compatible rupee projection. Exact calculations use amountPaise. */
     val amount: Double,
     val category: String,
     val note: String = "",
@@ -20,8 +20,8 @@ data class TransactionEntity(
     val transferId: String? = null,
     val subcategory: String = "",
     val personId: Long? = null,
-    @ColumnInfo(defaultValue = "''")
-    val stableUid: String = UUID.randomUUID().toString(),
-    @ColumnInfo(defaultValue = "0")
-    val amountPaise: Long = 0L
+    @ColumnInfo(defaultValue = "''") val stableUid: String = UUID.randomUUID().toString(),
+    @ColumnInfo(defaultValue = "0") val amountPaise: Long = 0L,
+    @ColumnInfo(defaultValue = "''") val paymentMethod: String = "",
+    @ColumnInfo(defaultValue = "''") val upiApp: String = ""
 )

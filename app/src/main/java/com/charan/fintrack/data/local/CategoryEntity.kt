@@ -14,5 +14,6 @@ data class CategoryEntity(
     val parentId: Long? = null,
     val icon: String = "",
     val isSystem: Boolean = false,
-    @ColumnInfo(defaultValue = "''") val stableUid: String = UUID.randomUUID().toString()
+    @ColumnInfo(defaultValue = "''") val stableUid: String = UUID.randomUUID().toString(),
+    @ColumnInfo(defaultValue = "'[]'") val subcategoriesJson: String = "[]"
 )
