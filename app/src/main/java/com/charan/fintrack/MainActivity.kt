@@ -16,6 +16,8 @@ import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.print.PrintAttributes
+import android.print.PrintManager
 import android.provider.Settings
 import android.util.Base64
 import android.view.WindowManager
@@ -162,6 +164,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var backupSaveLauncher: ActivityResultLauncher<String>
     private lateinit var workbookSaveLauncher: ActivityResultLauncher<String>
+    private lateinit var csvSaveLauncher: ActivityResultLauncher<String>
     private lateinit var backupOpenLauncher: ActivityResultLauncher<Array<String>>
     private lateinit var apkOpenLauncher: ActivityResultLauncher<Array<String>>
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
@@ -172,6 +175,7 @@ class MainActivity : ComponentActivity() {
     private var pendingReminder: ReminderConfig? = null
     private var pendingQuickAction: String? = null
     private var pageReady = false
+    private val printWebViews = mutableListOf<WebView>()
 
     private data class ReminderConfig(
         val enabled: Boolean,
@@ -189,6 +193,9 @@ class MainActivity : ComponentActivity() {
         ) { writePendingExport(it) }
         workbookSaveLauncher = registerForActivityResult(
             ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        ) { writePendingExport(it) }
+        csvSaveLauncher = registerForActivityResult(
+            ActivityResultContracts.CreateDocument("text/csv")
         ) { writePendingExport(it) }
         backupOpenLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) {
             readBackup(it)
@@ -284,6 +291,32 @@ class MainActivity : ComponentActivity() {
             "if(window.finTrackHandleNotificationAction){window.finTrackHandleNotificationAction(${JSONObject.quote(action)});}",
             null
         )
+    }
+
+    private fun printHtmlDocument(html: String, jobName: String) {
+        try {
+            val printView = WebView(this)
+            printWebViews.add(printView)
+            printView.settings.javaScriptEnabled = false
+            printView.webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView, url: String) {
+                    super.onPageFinished(view, url)
+                    try {
+                        val manager = getSystemService(Context.PRINT_SERVICE) as PrintManager
+                        manager.print(
+                            jobName,
+                            view.createPrintDocumentAdapter(jobName),
+                            PrintAttributes.Builder().build()
+                        )
+                    } catch (error: Exception) {
+                        Toast.makeText(this@MainActivity, "PDF print failed: " + (error.message ?: "unknown error"), Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+            printView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
+        } catch (error: Exception) {
+            Toast.makeText(this, "PDF print could not start: " + (error.message ?: "unknown error"), Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun writePendingExport(uri: Uri?) {
@@ -390,6 +423,21 @@ class MainActivity : ComponentActivity() {
         }
 
         @JavascriptInterface
+        fun exportCsv(csv: String, fileName: String) {
+            runOnUiThread {
+                pendingExportBytes = csv.toByteArray(Charsets.UTF_8)
+                csvSaveLauncher.launch(safeFileName(fileName, "fintrack-transactions.csv"))
+            }
+        }
+
+        @JavascriptInterface
+        fun printDocument(html: String, jobName: String) {
+            runOnUiThread {
+                printHtmlDocument(html, safeFileName(jobName, "FinTrack Statement"))
+            }
+        }
+
+        @JavascriptInterface
         fun importBackup() {
             runOnUiThread { backupOpenLauncher.launch(arrayOf("application/json", "text/json", "application/octet-stream")) }
         }
@@ -430,6 +478,8 @@ class MainActivity : ComponentActivity() {
             webView.removeJavascriptInterface("FinTrackBridge")
             webView.destroy()
         }
+        printWebViews.forEach { it.destroy() }
+        printWebViews.clear()
         super.onDestroy()
     }
 
