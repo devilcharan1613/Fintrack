@@ -53,14 +53,14 @@ class XlsxExporterInstrumentedTest {
             .put("accounts", JSONArray())
             .put("transactions", JSONArray().put(
                 JSONObject().put("type", "expense").put("amount", 10.0)
-                    .put("notes", "line\\u0001 break & <tag>")
+                    .put("notes", "line\u0001 break & <tag>")
             ))
         val sanitized = XlsxExporter.create(unsafeState.toString())
         ZipInputStream(ByteArrayInputStream(sanitized)).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
                 val xml = zip.readBytes().toString(Charsets.UTF_8)
-                assertTrue("Invalid XML control character leaked into "+entry.name, !xml.contains('\\u0001'))
+                assertTrue("Invalid XML control character leaked into "+entry.name, !xml.contains('\u0001'))
                 zip.closeEntry()
             }
         }
