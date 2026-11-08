@@ -75,8 +75,13 @@ class NativeBackupService(private val database: FinTrackDatabase) {
                     .put("stableUid", row.stableUid)
                     .put("name", row.name)
                     .put("accountType", row.accountType)
+                    .put("type", row.accountType)
                     .put("openingBalancePaise", row.openingBalancePaise)
+                    .put("balance", MoneyPaise.fromSignedPaise(
+                        com.charan.fintrack.data.NativeLedgerCalculator.accountBalancePaise(row, transactionRows)
+                    ).toRupeesDecimal().toDouble())
                     .put("creditLimitPaise", row.creditLimitPaise)
+                    .put("creditLimit", MoneyPaise.fromSignedPaise(row.creditLimitPaise).toRupeesDecimal().toDouble())
                     .put("currency", row.currency)
                     .put("institution", row.institution)
                     .put("accountNumber", row.accountNumber)
@@ -94,24 +99,31 @@ class NativeBackupService(private val database: FinTrackDatabase) {
                     .put("accountId", row.accountId)
                     .put("type", row.type)
                     .put("amountPaise", row.amountPaise)
+                    .put("amount", MoneyPaise.fromSignedPaise(row.amountPaise).toRupeesDecimal().toDouble())
                     .put("category", row.category)
                     .put("subcategory", row.subcategory)
                     .put("note", row.note)
+                    .put("notes", row.note)
                     .put("timestamp", row.timestamp)
+                    .put("date", localDate(row.timestamp))
+                    .put("time", SimpleDateFormat("HH:mm", Locale.US).format(Date(row.timestamp)))
                     .put("personId", row.personId ?: JSONObject.NULL)
                     .put("transferAccountId", row.transferAccountId ?: JSONObject.NULL)
+                    .put("toAccountId", row.transferAccountId ?: JSONObject.NULL)
                     .put("transferId", row.transferId ?: JSONObject.NULL)
                     .put("paymentMethod", row.paymentMethod)
                     .put("upiApp", row.upiApp))
             }
         })
-        root.put("people", JSONArray().apply {
+        val peopleJson = JSONArray().apply {
             peopleRows.forEach { row ->
                 put(JSONObject()
                     .put("id", row.id).put("stableUid", row.stableUid)
                     .put("name", row.name).put("phone", row.phone).put("notes", row.notes))
             }
-        })
+        }
+        root.put("people", peopleJson)
+        root.put("persons", peopleJson)
         root.put("categories", JSONArray().apply {
             categoryRows.forEach { row ->
                 put(JSONObject()
@@ -126,7 +138,9 @@ class NativeBackupService(private val database: FinTrackDatabase) {
             budgetRows.forEach { row ->
                 put(JSONObject()
                     .put("id", row.id).put("stableUid", row.stableUid)
-                    .put("category", row.category).put("limitAmountPaise", row.limitAmountPaise)
+                    .put("category", row.category).put("name", row.category)
+                    .put("limitAmountPaise", row.limitAmountPaise)
+                    .put("amount", MoneyPaise.fromSignedPaise(row.limitAmountPaise).toRupeesDecimal().toDouble())
                     .put("month", row.month).put("period", row.period))
             }
         })
@@ -135,7 +149,10 @@ class NativeBackupService(private val database: FinTrackDatabase) {
                 put(JSONObject()
                     .put("id", row.id).put("stableUid", row.stableUid)
                     .put("name", row.name).put("targetAmountPaise", row.targetAmountPaise)
-                    .put("savedAmountPaise", row.savedAmountPaise).put("deadline", row.deadline ?: JSONObject.NULL))
+                    .put("target", MoneyPaise.fromSignedPaise(row.targetAmountPaise).toRupeesDecimal().toDouble())
+                    .put("savedAmountPaise", row.savedAmountPaise)
+                    .put("saved", MoneyPaise.fromSignedPaise(row.savedAmountPaise).toRupeesDecimal().toDouble())
+                    .put("deadline", row.deadline ?: JSONObject.NULL))
             }
         })
         root.put("goalContributions", JSONArray().apply {
@@ -151,9 +168,25 @@ class NativeBackupService(private val database: FinTrackDatabase) {
                 put(JSONObject()
                     .put("id", row.id).put("stableUid", row.stableUid)
                     .put("name", row.name).put("principalPaise", row.principalPaise)
+                    .put("principal", MoneyPaise.fromSignedPaise(row.principalPaise).toRupeesDecimal().toDouble())
                     .put("paidAmountPaise", row.paidAmountPaise)
+                    .put("paid", MoneyPaise.fromSignedPaise(row.paidAmountPaise).toRupeesDecimal().toDouble())
                     .put("monthlyPaymentPaise", row.monthlyPaymentPaise)
-                    .put("interestRate", row.interestRate))
+                    .put("monthlyPayment", MoneyPaise.fromSignedPaise(row.monthlyPaymentPaise).toRupeesDecimal().toDouble())
+                    .put("emi", MoneyPaise.fromSignedPaise(row.monthlyPaymentPaise).toRupeesDecimal().toDouble())
+                    .put("interestRate", row.interestRate)
+                    .put("repayments", JSONArray().apply {
+                        paymentRows.filter { it.loanId == row.id }.forEach { payment ->
+                            put(JSONObject()
+                                .put("stableUid", payment.stableUid)
+                                .put("amountPaise", payment.amountPaise)
+                                .put("amount", MoneyPaise.fromSignedPaise(payment.amountPaise).toRupeesDecimal().toDouble())
+                                .put("timestamp", payment.timestamp)
+                                .put("date", localDate(payment.timestamp))
+                                .put("createdAt", payment.timestamp)
+                                .put("note", payment.note))
+                        }
+                    }))
             }
         })
         root.put("loanPayments", JSONArray().apply {
