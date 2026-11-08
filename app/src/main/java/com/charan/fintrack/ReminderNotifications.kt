@@ -15,24 +15,22 @@ import androidx.core.content.ContextCompat
 object ReminderNotifications {
     private const val CHANNEL_SOUND = "fintrack_money_reminders_sound"
     private const val CHANNEL_SILENT = "fintrack_money_reminders_silent"
-    private val expense = arrayOf(
-        "Bro, your money didn't disappear. You just forgot to track it. 💀",
-        "Your wallet after shopping: I'm tired, boss. 😭",
-        "POV: You said you wouldn't spend today. 😂",
-        "That ₹50 expense also deserves documentation, bro!",
-        "Your bank balance wants to talk to you. 💸"
-    )
-    private val night = arrayOf(
-        "Before sleeping, tell FinTrack where today's money went. 😂",
-        "Your expenses are hiding. Time to investigate! 🕵️",
-        "Tomorrow you will forget today's expenses. Update them now!",
-        "Good night! Your wallet needs a financial report. 🌙"
+    private val memeLibrary = mapOf(
+        "morning" to arrayOf("Rise and grind! Your wallet has a daily attendance sheet. ☀️", "New day, fresh budget. Let's not speedrun broke mode. 😂", "Good morning! Log yesterday's mystery ₹50 before it becomes lore. 🕵️", "Your future self says: track it now, thank me later. 💚", "Wallet check! Even superheroes track their cash. 🦸"),
+        "afternoon" to arrayOf("Lunch happened. The money moved. FinTrack wants the plot. 🍱", "That tiny UPI ping deserves a big-screen entry. 📲", "POV: You said 'just one snack'. Update the damage. 😭", "Your wallet is typing... please record that spend. 💸", "Midday audit: receipts or it didn't happen. Just kidding, log it! 😂"),
+        "evening" to arrayOf("The day is not over, but your expenses need a recap. 📊", "Your budget called. It says 'we need to talk'. 😅", "Before the evening plans, check where the money went. 🌆", "Small spends make big plot twists. Track them! 🎬", "Money moves fast. FinTrack has receipts. 👀"),
+        "night" to arrayOf("Before sleeping, tell FinTrack where today's money went. 😂", "Your expenses are hiding. Time to investigate! 🕵️", "Tomorrow-you has terrible memory. Help them out tonight. 🌙", "Good night! Give your wallet its daily debrief. 💸", "Close today's money chapter. No cliffhangers in the ledger! 📖"),
+        "income" to arrayOf("Money entered the chat! 🤑 Log that income before it vanishes.", "Cha-ching! Your hard work deserves a FinTrack entry. 🔥", "Income unlocked. Record the win, legend! 🏆", "The balance got a glow-up. Add the income! ✨"),
+        "budget" to arrayOf("Your budget is giving you the side-eye. Check your spending. 😭", "Shopping cart: main character. Budget: emotional support. 😂", "Financial discipline loading... don't close the app. ⏳", "Your budget is a plan, not a decorative wallpaper. 💚"),
+        "custom" to arrayOf("Quick money check-in: record any income or expenses you've made. 💚", "Tiny reminder, big financial main-character energy. ✨", "A little tracking today makes tomorrow less mysterious. 🕵️")
     )
     private val standard = mapOf(
         "morning" to "Good morning! ☀️ New day, new expenses. Don't forget to track your spending!",
         "afternoon" to "Hey! 👀 Did you spend money on lunch? Update your FinTrack before you forget!",
         "evening" to "Your money has a story today. 📊 Don't leave the expenses undocumented!",
         "night" to "Daily financial check! 🌙 Where did your money go today? Let's update FinTrack!",
+        "income" to "Have you received income today? Record it in FinTrack.",
+        "budget" to "Take a moment to review your budget and recent spending.",
         "custom" to "Quick money check-in: record any income or expenses you've made."
     )
 
@@ -81,24 +79,34 @@ object ReminderNotifications {
         val config = ReminderPrefs.config(context)
         val soundEnabled = config.optBoolean("sound", true)
         if (!canPost(context, soundEnabled)) return false
+        val normalizedCategory = when {
+            category.equals("night", true) -> "night"
+            category.equals("morning", true) -> "morning"
+            category.equals("afternoon", true) -> "afternoon"
+            category.equals("evening", true) -> "evening"
+            category.contains("income", true) -> "income"
+            category.contains("budget", true) -> "budget"
+            else -> "custom"
+        }
         val custom = config.optJSONArray("memeMessages")
         val customMessages = if (custom == null) emptyList() else {
-            (0 until custom.length()).mapNotNull { index -> custom.optString(index).trim().takeIf { it.isNotEmpty() } }
+            (0 until custom.length()).mapNotNull { index -> custom.optString(index).trim().takeIf { it.isNotEmpty() && it.length <= 180 } }
         }
-        val categoryMessages = if (category == "night") night.toList() else expense.toList()
-        val messages = if (customMessages.isNotEmpty()) customMessages else categoryMessages
-        val title = when (category) {
-            "morning" -> "Morning money check"
-            "afternoon" -> "Afternoon money check"
-            "evening" -> "Evening money check"
-            "night" -> "FinTrack daily review"
-            else -> "FinTrack reminder"
+        val messages = (memeLibrary[normalizedCategory] ?: memeLibrary.getValue("custom")).toList() + customMessages
+        val title = when (normalizedCategory) {
+            "morning" -> "☀️ Morning money check"
+            "afternoon" -> "🍱 Afternoon money check"
+            "evening" -> "🌆 Evening money check"
+            "night" -> "🌙 FinTrack daily review"
+            "income" -> "🤑 Income check-in"
+            "budget" -> "💚 Budget check-in"
+            else -> "✨ FinTrack reminder"
         }
         val message = if (!config.optBoolean("memeMode", true)) {
-            standard[category] ?: standard.getValue("custom")
+            standard[normalizedCategory] ?: standard.getValue("custom")
         } else {
             val prefs = ReminderPrefs.prefs(context)
-            val key = "last_message_$category"
+            val key = "last_message_$normalizedCategory"
             val previous = prefs.getInt(key, -1)
             val choices = messages.indices.filter { it != previous }
             val chosen = choices.randomOrNull() ?: 0
