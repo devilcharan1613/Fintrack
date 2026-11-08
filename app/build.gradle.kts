@@ -12,6 +12,7 @@ android {
         applicationId = "com.charan.fintrack"
         minSdk = 23
         targetSdk = 35
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionCode = 27
         versionName = "2.5.0"
     }
