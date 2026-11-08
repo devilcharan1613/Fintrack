@@ -1460,9 +1460,20 @@ function plannerCard(name, main, detail, percent, type, id, color){
   return '<div class="planner-card"><div class="planner-top"><div style="min-width:0"><div class="planner-name">'+escHtml(name)+'</div><div class="planner-sub">'+escHtml(detail)+'</div></div><div class="planner-value" style="color:'+(color||'var(--primary)')+'">'+escHtml(main)+'</div></div><div class="progress-track"><div class="progress-fill" style="width:'+p+'%;background:'+(color||'linear-gradient(90deg,#00c896,#47f3ad)')+'"></div></div><div class="planner-sub">'+Math.round(p)+'% complete</div><div class="planner-actions"><button onclick="editPlannerItem(\''+type+'\',\''+id+'\')">Edit</button><button onclick="deletePlannerItem(\''+type+'\',\''+id+'\')">Delete</button></div></div>';
 }
 function renderBudgets(){
-  var total = state.budgets.reduce(function(a,b){return a+Number(b.amount||0);},0);
-  var spent = state.budgets.reduce(function(a,b){return a+Number(b.spent||0);},0);
-  document.getElementById('budgetSummary').innerHTML = '<div class="planner-metric"><div class="k">TOTAL BUDGET</div><div class="v">'+fmt(total)+'</div></div><div class="planner-metric"><div class="k">TOTAL SPENT</div><div class="v" style="color:var(--gold)">'+fmt(spent)+'</div></div>';
+  var now=new Date();
+  state.budgets.forEach(function(b){
+    var period=(b.period||'Monthly').toLowerCase(), start=new Date(now.getFullYear(),now.getMonth(),1);
+    if(period==='weekly'){start=new Date(now);start.setHours(0,0,0,0);start.setDate(start.getDate()-((start.getDay()+6)%7));}
+    if(period==='yearly')start=new Date(now.getFullYear(),0,1);
+    var key=String(b.name||b.category||'').toLowerCase();
+    b.spent=state.transactions.filter(function(t){
+      if(t.type!=='expense'||!t.date)return false;
+      var d=new Date(t.date+'T00:00:00');if(d<start||d>now)return false;
+      var c=getCat(t.category);return String(c.name||t.category||'').toLowerCase()===key||String(t.category||'').toLowerCase()===key;
+    }).reduce(function(sum,t){return sum+Number(t.amount||0);},0);
+  });
+  var total=state.budgets.reduce(function(a,b){return a+Number(b.amount||0);},0),spent=state.budgets.reduce(function(a,b){return a+Number(b.spent||0);},0);
+  document.getElementById('budgetSummary').innerHTML='<div class="planner-metric"><div class="k">TOTAL BUDGET</div><div class="v">'+fmt(total)+'</div></div><div class="planner-metric"><div class="k">SPENT THIS PERIOD</div><div class="v" style="color:var(--gold)">'+fmt(spent)+'</div></div>';
   var wrap=document.getElementById('budgetsList');
   wrap.innerHTML=state.budgets.length?state.budgets.map(function(b){var pct=Number(b.amount)>0?100*Number(b.spent||0)/Number(b.amount):0;return plannerCard(b.name||b.category||'Budget',fmt(b.spent||0)+' / '+fmt(b.amount),b.period||'Monthly budget',pct,'budgets',b.id,pct>100?'var(--red)':'var(--primary)');}).join(''):'<div class="empty-state"><div class="icn">🎯</div><div class="ti">No budgets yet</div><div class="su">Set a spending limit to keep your money on track.</div></div>';
 }
@@ -1501,12 +1512,16 @@ function openPlannerModal(type,id){
 }
 function closePlannerModal(){closeModal('planner');}
 function savePlannerItem(){
-  var name=document.getElementById('plannerName').value.trim(), amount=Number(document.getElementById('plannerAmount').value), progress=Number(document.getElementById('plannerProgress').value||0), emi=Number(document.getElementById('plannerEmi').value||0);
-  if(!name||!Number.isFinite(amount)||amount<=0||!Number.isFinite(progress)||progress<0){showToast('Enter a name and valid amounts','error');return;}
-  var item={id:plannerEditId||uid(),name:name};
-  if(plannerType==='budgets')Object.assign(item,{amount:amount,spent:progress,period:document.getElementById('plannerPeriod').value});
+  var name=document.getElementById('plannerName').value.trim(),amount=Number(document.getElementById('plannerAmount').value),progress=Number(document.getElementById('plannerProgress').value||0),emi=Number(document.getElementById('plannerEmi').value||0);
+  if(!name||!Number.isFinite(amount)||amount<=0||!Number.isFinite(progress)||progress<0||!Number.isFinite(emi)||emi<0){showToast('Enter a name and valid amounts','error');return;}
+  if(plannerType==='goals'&&progress>amount){showToast('Saved amount cannot exceed the target','error');return;}
+  if(plannerType==='loans'&&progress>amount){showToast('Repaid amount cannot exceed principal','error');return;}
+  var existing=plannerEditId?state[plannerType].find(function(x){return String(x.id)===String(plannerEditId);}):null;
+  var item=existing?JSON.parse(JSON.stringify(existing)):{id:plannerEditId||uid(),name:name};
+  item.name=name;
+  if(plannerType==='budgets')Object.assign(item,{amount:amount,period:document.getElementById('plannerPeriod').value});
   else if(plannerType==='goals')Object.assign(item,{target:amount,saved:progress});
-  else Object.assign(item,{principal:amount,paid:progress,emi:emi});
+  else Object.assign(item,{principal:amount,paid:progress,emi:emi,repayments:Array.isArray(item.repayments)?item.repayments:[]});
   var index=state[plannerType].findIndex(function(x){return String(x.id)===String(item.id);});
   if(index>=0)state[plannerType][index]=item;else state[plannerType].push(item);
   save();closePlannerModal();renderCurrentPage();showToast('Saved successfully','success');
@@ -2169,7 +2184,7 @@ window.openExportDialog=openExportDialog;
 
 function exportData(){
   try{
-    var dataStr=JSON.stringify(state,null,2), filename='fintrack_backup_'+today()+'.json';
+    var backup=JSON.parse(JSON.stringify(state));backup.backupMetadata={app:'FinTrack',schemaVersion:1,appVersion:'2.5.0',createdAt:new Date().toISOString()};var dataStr=JSON.stringify(backup,null,2), filename='fintrack_backup_'+today()+'.json';
     if(window.FinTrackBridge && typeof window.FinTrackBridge.exportBackup==='function'){
       window.FinTrackBridge.exportBackup(dataStr,filename);
       showToast('Choose where to save your backup','success');
@@ -2181,17 +2196,30 @@ function exportData(){
   }catch(e){showToast('Export failed','error');}
 }
 function importBackupText(text){
+  var previous=state;
   try{
     var parsed=JSON.parse(text);
-    if(!parsed||!Array.isArray(parsed.accounts)||!Array.isArray(parsed.transactions)||!Array.isArray(parsed.persons))throw new Error('Invalid backup');
-    if(!confirm('Replace all current FinTrack data with this backup? This cannot be undone.'))return;
-    if(!Array.isArray(parsed.categories))parsed.categories=JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
-    if(!Array.isArray(parsed.budgets))parsed.budgets=[];
-    if(!Array.isArray(parsed.goals))parsed.goals=[];
-    if(!Array.isArray(parsed.loans))parsed.loans=[];
-    if(!parsed.settings)parsed.settings={currency:'₹',name:'FinTrack',version:'4.0'};
-    state=parsed;save();renderCurrentPage();showToast('Data imported successfully','success');
-  }catch(e){showToast('Invalid backup file','error');}
+    if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('Backup must be a JSON object');
+    ['accounts','transactions','persons'].forEach(function(k){if(!Array.isArray(parsed[k]))throw new Error('Missing '+k+' list');});
+    ['categories','budgets','goals','loans'].forEach(function(k){if(parsed[k]!==undefined&&!Array.isArray(parsed[k]))throw new Error('Invalid '+k+' list');});
+    var clean=JSON.parse(JSON.stringify(parsed));
+    clean.categories=Array.isArray(clean.categories)?clean.categories:JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+    ['budgets','goals','loans'].forEach(function(k){clean[k]=Array.isArray(clean[k])?clean[k]:[];});
+    clean.settings=clean.settings&&typeof clean.settings==='object'?clean.settings:{currency:'₹',name:'FinTrack',version:'2.5.0'};
+    clean.accounts.forEach(function(a){if(!a||typeof a.name!=='string'||!a.name.trim()||!Number.isFinite(Number(a.balance||0)))throw new Error('Invalid account data');});
+    clean.transactions.forEach(function(t){if(!t||!Number.isFinite(Number(t.amount))||Number(t.amount)<=0||!t.type||!t.accountId)throw new Error('Invalid transaction data');});
+    clean.budgets.forEach(function(b){if(!b||!Number.isFinite(Number(b.amount))||Number(b.amount)<=0)throw new Error('Invalid budget data');});
+    clean.goals.forEach(function(g){if(!g||!Number.isFinite(Number(g.target))||Number(g.target)<=0||Number(g.saved||0)<0)throw new Error('Invalid savings goal');});
+    clean.loans.forEach(function(l){if(!l||!Number.isFinite(Number(l.principal))||Number(l.principal)<=0||Number(l.paid||0)<0)throw new Error('Invalid loan data');});
+    if(!confirm('Replace all current FinTrack data with this backup? A copy of your current data is kept until the import is saved.'))return;
+    state=clean;
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+    renderCurrentPage();showToast('Backup restored successfully','success');
+  }catch(e){
+    state=previous;
+    try{if(previous)localStorage.setItem(STORAGE_KEY,JSON.stringify(previous));}catch(rollbackError){}
+    showToast('Restore failed: '+(e&&e.message?e.message:'invalid backup'),'error');
+  }
 }
 function triggerImport(){
   if(window.FinTrackBridge && typeof window.FinTrackBridge.importBackup==='function'){
