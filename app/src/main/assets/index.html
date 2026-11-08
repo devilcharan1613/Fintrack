@@ -630,7 +630,7 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
     </div>
 
     <div class="chart-card">
-      <h3>Income vs Expense (Last 6 Months)</h3>
+      <h3>Income vs Expense Trend</h3>
       <canvas id="barChart" height="180"></canvas>
     </div>
 
@@ -1620,24 +1620,59 @@ function drawBarChart(){
   canvas.width = cssW*ratio; canvas.height = cssH*ratio;
   canvas.style.width = cssW+'px'; canvas.style.height = cssH+'px';
   ctx.setTransform(ratio,0,0,ratio,0,0);
-  var months = [];
-  var now = new Date();
-  for(var i=5;i>=0;i--){
-    var d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-    months.push(d);
+
+  function dateKey(date){
+    return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
   }
-  var data = months.map(function(d){
-    var range = {start:new Date(d.getFullYear(),d.getMonth(),1), end:new Date(d.getFullYear(),d.getMonth()+1,1)};
-    var inc=0, exp=0;
+  var buckets=[];
+  if(reportCustomRange){
+    var from=new Date(reportCustomRange.from+'T00:00:00');
+    var to=new Date(reportCustomRange.to+'T00:00:00');
+    var monthCount=(to.getFullYear()-from.getFullYear())*12+(to.getMonth()-from.getMonth())+1;
+    if(monthCount>12){
+      for(var year=from.getFullYear();year<=to.getFullYear();year++){
+        buckets.push({
+          label:String(year),
+          start:year===from.getFullYear()?reportCustomRange.from:year+'-01-01',
+          end:year===to.getFullYear()?reportCustomRange.to:year+'-12-31'
+        });
+      }
+    }else{
+      var cursor=new Date(from.getFullYear(),from.getMonth(),1);
+      while(cursor<=to){
+        var monthStart=new Date(cursor.getFullYear(),cursor.getMonth(),1);
+        var monthEnd=new Date(cursor.getFullYear(),cursor.getMonth()+1,0);
+        buckets.push({
+          label:cursor.toLocaleDateString('en-IN',{month:'short',year:'2-digit'}),
+          start:dateKey(monthStart)<reportCustomRange.from?reportCustomRange.from:dateKey(monthStart),
+          end:dateKey(monthEnd)>reportCustomRange.to?reportCustomRange.to:dateKey(monthEnd)
+        });
+        cursor.setMonth(cursor.getMonth()+1);
+      }
+    }
+  }else{
+    var now = new Date();
+    for(var i=5;i>=0;i--){
+      var d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      buckets.push({
+        label:d.toLocaleDateString('en-IN',{month:'short'}),
+        start:dateKey(new Date(d.getFullYear(),d.getMonth(),1)),
+        end:dateKey(new Date(d.getFullYear(),d.getMonth()+1,0))
+      });
+    }
+  }
+
+  var data=buckets.map(function(bucket){
+    var inc=0,exp=0;
     state.transactions.forEach(function(t){
-      if(inRange(t.date, range)){
-        if(t.type==='income') inc += Number(t.amount);
-        if(t.type==='expense') exp += Number(t.amount);
+      if((t.date||'')>=bucket.start&&(t.date||'')<=bucket.end){
+        if(t.type==='income')inc+=Number(t.amount)||0;
+        if(t.type==='expense')exp+=Number(t.amount)||0;
       }
     });
-    return {label:d.toLocaleDateString('en-IN',{month:'short'}), inc:inc, exp:exp};
+    return {label:bucket.label,inc:inc,exp:exp};
   });
-
+  if(!data.length)return;
   var maxVal = Math.max(1, Math.max.apply(null, data.map(function(x){return Math.max(x.inc,x.exp);})));
   var padTop=10, padBottom=26, chartH = cssH-padTop-padBottom;
   var groupW = cssW/data.length;
@@ -1646,7 +1681,7 @@ function drawBarChart(){
   var red = resolveColor('--red');
   var textColor = resolveColor('--text2');
 
-  ctx.font = '10px sans-serif';
+  ctx.font = data.length>12?'9px sans-serif':'10px sans-serif';
   ctx.fillStyle = textColor;
   ctx.textAlign = 'center';
 
@@ -1665,6 +1700,7 @@ function drawBarChart(){
     });
   });
 }
+
 function roundRect(ctx,x,y,w,h,r){
   if(h<=0){ h=0.5; }
   ctx.beginPath();
