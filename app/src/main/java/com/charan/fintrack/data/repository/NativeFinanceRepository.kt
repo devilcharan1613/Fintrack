@@ -44,13 +44,21 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
         )
     }
 
-    suspend fun addAccount(name: String, accountType: String, openingBalance: MoneyPaise): Long {
+    suspend fun addAccount(
+        name: String,
+        accountType: String,
+        openingBalance: MoneyPaise,
+        creditLimit: MoneyPaise = MoneyPaise.ZERO
+    ): Long {
         require(name.isNotBlank()) { "Account name is required" }
+        require(creditLimit.paise >= 0L) { "Credit limit cannot be negative" }
         val legacy = openingBalance.toRupeesDecimal().toDouble()
         return accountDao.insertAccount(
             AccountEntity(
                 name = name.trim(), accountType = accountType,
-                balance = legacy, openingBalancePaise = openingBalance.paise
+                balance = legacy, openingBalancePaise = openingBalance.paise,
+                creditLimit = creditLimit.toRupeesDecimal().toDouble(),
+                creditLimitPaise = creditLimit.paise
             )
         )
     }
@@ -110,7 +118,9 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
         note: String = "",
         timestamp: Long = System.currentTimeMillis(),
         subcategory: String = "",
-        personId: Long? = null
+        personId: Long? = null,
+        paymentMethod: String = "",
+        upiApp: String = ""
     ): Long {
         require(amount.paise > 0L) { "Amount must be greater than zero" }
         require(category.isNotBlank()) { "Category is required" }
@@ -118,12 +128,19 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
             "Unsupported transaction type"
         }
         require(accountDao.getAccountById(accountId) != null) { "Account does not exist" }
+        if (type.equals("BORROW", true) || type.equals("LEND", true)) {
+            require(personId != null) { "Select a person for borrowed/lent money" }
+            require(dao.personByStableUid(personId.toString()) != null || dao.allPersons().any { it.id == personId }) {
+                "Selected person does not exist"
+            }
+        }
         return dao.insertTransaction(
             TransactionEntity(
                 accountId = accountId, type = type.uppercase(),
                 amount = amount.toRupeesDecimal().toDouble(), amountPaise = amount.paise,
                 category = category.trim(), note = note.trim(), timestamp = timestamp,
-                subcategory = subcategory.trim(), personId = personId
+                subcategory = subcategory.trim(), personId = personId,
+                paymentMethod = paymentMethod.trim(), upiApp = upiApp.trim()
             )
         )
     }
@@ -174,12 +191,19 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
         return dao.insertCategory(CategoryEntity(name = name.trim(), type = type.uppercase(), icon = icon))
     }
 
-    suspend fun addBudget(category: String, limit: MoneyPaise, month: String): Long {
+    suspend fun addBudget(
+        category: String,
+        limit: MoneyPaise,
+        month: String,
+        period: String = "Monthly"
+    ): Long {
         require(category.isNotBlank() && limit.paise > 0L) { "Enter a category and positive budget" }
+        require(period in setOf("Daily", "Weekly", "Monthly", "Yearly")) { "Invalid budget period" }
+        require(month.matches(Regex("\\d{4}-\\d{2}"))) { "Budget month must use YYYY-MM" }
         return dao.insertBudget(
             BudgetEntity(
                 category = category.trim(), limitAmount = limit.toRupeesDecimal().toDouble(),
-                limitAmountPaise = limit.paise, month = month
+                limitAmountPaise = limit.paise, month = month, period = period
             )
         )
     }
@@ -194,13 +218,25 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
         )
     }
 
+    fun goalContributions(goalId: Long): Flow<List<GoalContributionEntity>> = dao.goalContributions(goalId)
+
     /** Tracking-only contributions. They do not create ledger entries. */
-    suspend fun addGoalContribution(goalId: Long, contribution: MoneyPaise) {
+    suspend fun addGoalContribution(goalId: Long, contribution: MoneyPaise, note: String = "") {
         require(contribution.paise > 0L) { "Contribution must be positive" }
         database.withTransaction {
-            val goal = goals.first().firstOrNull { it.id == goalId }
+            val goal = dao.allGoals().firstOrNull { it.id == goalId }
                 ?: throw IllegalArgumentException("Savings goal does not exist")
             val saved = Math.addExact(goal.savedAmountPaise, contribution.paise)
+            require(saved <= goal.targetAmountPaise) { "Contribution exceeds remaining goal amount" }
+            dao.insertGoalContribution(
+                GoalContributionEntity(
+                    goalId = goalId,
+                    amount = contribution.toRupeesDecimal().toDouble(),
+                    amountPaise = contribution.paise,
+                    note = note.trim(),
+                    stableUid = UUID.randomUUID().toString()
+                )
+            )
             dao.updateGoal(
                 goal.copy(
                     savedAmount = MoneyPaise.fromSignedPaise(saved).toRupeesDecimal().toDouble(),
@@ -227,6 +263,8 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
     }
 
     /** Repayments are tracked separately; cash changes only via a separate transaction. */
+    fun loanPayments(loanId: Long): Flow<List<LoanPaymentEntity>> = dao.loanPayments(loanId)
+
     suspend fun addLoanRepayment(loanId: Long, amount: MoneyPaise, note: String = "") {
         require(amount.paise > 0L) { "Repayment must be positive" }
         database.withTransaction {
@@ -237,7 +275,8 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
             dao.insertLoanPayment(
                 LoanPaymentEntity(
                     loanId = loanId, amount = amount.toRupeesDecimal().toDouble(),
-                    amountPaise = amount.paise, note = note.trim()
+                    amountPaise = amount.paise, note = note.trim(),
+                    stableUid = UUID.randomUUID().toString()
                 )
             )
             dao.updateLoan(
