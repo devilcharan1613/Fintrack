@@ -2695,8 +2695,10 @@ function openExportDialog(source){
   if(format!=='csv'&&format!=='pdf'){showToast('Currently choose CSV or PDF','error');return;}
   var rows=state.transactions.filter(function(t){return t.date>=start&&t.date<=end;});
   if(!rows.length){showToast('No transactions in selected date range','error');return;}
-  var header=['Date','Type','Amount INR','Category','Account','Notes'];
-  var data=[header].concat(rows.map(function(t){var a=getAcc(t.accountId),c=getCat(t.category);return [t.date,t.type,t.amount,c.name||t.category,a&&a.name||'',t.notes||t.note||''];}));
+  var incomeTotal=rows.filter(function(t){return t.type==='income';}).reduce(function(sum,t){return sum+Number(t.amount||0);},0);
+  var expenseTotal=rows.filter(function(t){return t.type==='expense';}).reduce(function(sum,t){return sum+Number(t.amount||0);},0);
+  var header=['Date','Type','Description','Category','Account','Payment method','Amount INR'];
+  var data=[header].concat(rows.map(function(t){var a=getAcc(t.accountId),c=getCat(t.category);return [t.date,t.type,t.notes||t.note||'',c.name||t.category,a&&a.name||'',t.paymentMethod||t.upiApp||'',Number(t.amount||0)];}));
   if(format==='csv'){
     var csv=data.map(function(row){return row.map(function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}).join(',');}).join('\r\n');
     if(window.FinTrackBridge&&typeof window.FinTrackBridge.exportCsv==='function'){
@@ -2712,10 +2714,11 @@ function openExportDialog(source){
     return '<tr>' + row.map(function(value){ return '<td>' + escapeHtml(value) + '</td>'; }).join('') + '</tr>';
   }).join('');
   var printHtml = '<!doctype html><html><head><meta charset="utf-8"><title>FinTrack statement</title>' +
-    '<style>body{font-family:Arial,sans-serif;padding:24px;color:#17212b}h2{margin:0 0 8px}p{color:#52606d}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #ccd4dc;padding:7px;text-align:left}th{background:#eef3f7} @media print{body{padding:0}}</style>' +
-    '</head><body><h2>FinTrack transaction statement</h2><p>' + escapeHtml(start) + ' to ' + escapeHtml(end) + '</p>' +
+    '<style>@page{size:A4 landscape;margin:14mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;padding:18px;color:#152b38;font-size:11px}header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #087f89;padding-bottom:12px;margin-bottom:16px}h1{font-size:24px;margin:0;color:#073746}h2{font-size:13px;margin:0 0 5px;color:#315363}.meta{color:#526b78;line-height:1.6}.brand{font-size:12px;font-weight:700;color:#087f89}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 18px}.metric{border:1px solid #c9dce2;border-radius:8px;padding:10px;background:#f2f8fa}.metric b{display:block;font-size:16px;margin-top:5px}.income{color:#00866b}.expense{color:#c0394b}.net{color:#087f89}table{border-collapse:collapse;width:100%;font-size:10px}thead{display:table-header-group}tr{page-break-inside:avoid}th,td{border:1px solid #cbd8de;padding:7px;text-align:left;vertical-align:top}th{background:#073746;color:#fff;font-weight:700}tbody tr:nth-child(even){background:#f1f7f9}td:last-child,th:last-child{text-align:right}.foot{margin-top:16px;border-top:1px solid #cbd8de;padding-top:8px;color:#607987;font-size:9px}@media print{body{padding:0}}</style>' +
+    '</head><body><header><div><div class="brand">FINTRACK · OFFLINE FINANCE MANAGER</div><h1>Transaction Statement</h1><div class="meta">Period: ' + escapeHtml(start) + ' to ' + escapeHtml(end) + '<br>Generated: ' + escapeHtml(new Date().toLocaleString()) + '</div></div><div class="meta">Personal financial record<br>Currency: INR (₹)</div></header>' +
+    '<section class="summary"><div class="metric">Total income<b class="income">₹' + incomeTotal.toFixed(2) + '</b></div><div class="metric">Total expenses<b class="expense">₹' + expenseTotal.toFixed(2) + '</b></div><div class="metric">Net savings<b class="net">₹' + (incomeTotal-expenseTotal).toFixed(2) + '</b></div></section>' +
     '<table><thead><tr>' + header.map(function(value){return '<th>' + escapeHtml(value) + '</th>';}).join('') +
-    '</tr></thead><tbody>' + tableRows + '</tbody></table></body></html>';
+    '</tr></thead><tbody>' + tableRows + '</tbody></table><div class="foot">Generated locally by FinTrack. This statement contains data stored on this device only.</div></body></html>';
   if(window.FinTrackBridge&&typeof window.FinTrackBridge.printDocument==='function'){
     window.FinTrackBridge.printDocument(printHtml,'FinTrack_Statement_'+today());
     showToast('Use the Android print dialog to save this statement as PDF','success');return;
