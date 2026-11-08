@@ -29,6 +29,7 @@
 
         <receiver
             android:name=".ReminderBootReceiver"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
