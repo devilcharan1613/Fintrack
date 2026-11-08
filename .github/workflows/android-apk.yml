@@ -68,7 +68,10 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          script: ./gradlew --no-daemon connectedDebugAndroidTest
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          disable-animations: true
+          emulator-boot-timeout: 600
+          script: ./gradlew --no-daemon --stacktrace connectedDebugAndroidTest
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
