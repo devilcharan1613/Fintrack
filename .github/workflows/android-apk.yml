@@ -27,10 +27,10 @@ jobs:
           import re
           from pathlib import Path
           html = Path("app/src/main/assets/index.html").read_text(encoding="utf-8")
-          blocks = re.findall(r'<script\\b([^>]*)>(.*?)</script\\s*>', html, flags=re.IGNORECASE | re.DOTALL)
+          blocks = re.findall(r'<script\b([^>]*)>(.*?)</script\s*>', html, flags=re.IGNORECASE | re.DOTALL)
           count = 0
           for attrs, body in blocks:
-              if re.search(r'\\bsrc\\s*=', attrs, flags=re.IGNORECASE) or not body.strip():
+              if re.search(r'\bsrc\s*=', attrs, flags=re.IGNORECASE) or not body.strip():
                   continue
               target = Path(f"/tmp/fintrack-inline-{count}.js")
               target.write_text(body, encoding="utf-8")
