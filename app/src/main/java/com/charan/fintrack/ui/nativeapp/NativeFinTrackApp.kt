@@ -175,7 +175,7 @@ private fun NativeFinTrackContent(
                         accounts, transactions, viewModel::archiveAccount,
                         onEdit = { selectedAccount = it; editor = EditorKind.ACCOUNT }
                     )
-                    FinPage.REPORTS -> ReportsScreen(accounts, transactions, totals)
+                    FinPage.REPORTS -> ReportsScreen(accounts, transactions, totals, people)
                     FinPage.MORE -> MoreScreen { page = it }
                     FinPage.PEOPLE -> PeopleScreen(
                         people, transactions, viewModel::deletePerson,
@@ -535,46 +535,153 @@ private fun AccountsScreen(
 private fun ReportsScreen(
     accounts: List<AccountEntity>,
     transactions: List<TransactionEntity>,
-    totals: com.charan.fintrack.data.repository.NativeDashboardTotals
+    totals: com.charan.fintrack.data.repository.NativeDashboardTotals,
+    people: List<PersonEntity>
 ) {
-    val maxValue = maxOf(totals.incomePaise, totals.expensePaise, 1L).toFloat()
+    var period by remember { mutableStateOf("This month") }
+    var fromDate by remember { mutableStateOf("") }
+    var toDate by remember { mutableStateOf("") }
+    var customRange by remember { mutableStateOf(false) }
+
+    val now = Calendar.getInstance()
+    val from = Calendar.getInstance().apply {
+        when (period) {
+            "Today" -> {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }
+            "This week" -> {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                add(Calendar.DAY_OF_YEAR, -((get(Calendar.DAY_OF_WEEK) + 5) % 7))
+            }
+            "This year" -> {
+                set(Calendar.DAY_OF_YEAR, 1); set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }
+            "All time" -> timeInMillis = 0L
+            else -> {
+                set(Calendar.DAY_OF_MONTH, 1); set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }
+        }
+    }
+    val to = Calendar.getInstance().apply {
+        when (period) {
+            "Today" -> {
+                set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59)
+                set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999)
+            }
+            "This week" -> {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                add(Calendar.DAY_OF_YEAR, 7); add(Calendar.MILLISECOND, -1)
+            }
+            "This year" -> {
+                set(Calendar.DAY_OF_YEAR, 1); set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                add(Calendar.YEAR, 1); add(Calendar.MILLISECOND, -1)
+            }
+            "All time" -> timeInMillis = Long.MAX_VALUE
+            else -> {
+                set(Calendar.DAY_OF_MONTH, 1); set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                add(Calendar.MONTH, 1); add(Calendar.MILLISECOND, -1)
+            }
+        }
+    }
+
+    val selectedFrom = if (customRange) parseDateBound(fromDate, false) ?: Long.MIN_VALUE else from.timeInMillis
+    val selectedTo = if (customRange) parseDateBound(toDate, true) ?: Long.MAX_VALUE else to.timeInMillis
+    val rangeValid = !customRange || (parseDateBound(fromDate, false) != null && parseDateBound(toDate, true) != null && selectedFrom <= selectedTo)
+    val periodRows = if (rangeValid) transactions.filter {
+        it.timestamp >= selectedFrom && it.timestamp <= selectedTo &&
+            !it.type.equals("TRANSFER_IN", true)
+    } else emptyList()
+    val income = periodRows.filter { it.type.equals("INCOME", true) }.sumOf { it.amountPaise }
+    val expense = periodRows.filter { it.type.equals("EXPENSE", true) }.sumOf { it.amountPaise }
+    val borrow = periodRows.filter { it.type.equals("BORROW", true) }.sumOf { it.amountPaise }
+    val lend = periodRows.filter { it.type.equals("LEND", true) }.sumOf { it.amountPaise }
+    val maxValue = maxOf(income, expense, 1L).toFloat()
+    val peopleMap = people.associateBy { it.id }
+
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+        SectionLabel("REPORT PERIOD")
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("Today", "This week", "This month", "This year", "All time").forEach { option ->
+                FilterChip(selected = !customRange && period == option, onClick = { period = option; customRange = false }, label = { Text(option) })
+            }
+            FilterChip(selected = customRange, onClick = { customRange = true }, label = { Text("Custom") })
+        }
+        if (customRange) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(fromDate, { fromDate = it }, modifier = Modifier.weight(1f), label = { Text("From") }, placeholder = { Text("YYYY-MM-DD") }, singleLine = true)
+                OutlinedTextField(toDate, { toDate = it }, modifier = Modifier.weight(1f), label = { Text("To") }, placeholder = { Text("YYYY-MM-DD") }, singleLine = true)
+            }
+            if (!rangeValid) Text("Enter a valid date range using YYYY-MM-DD.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+        }
         SectionLabel("INCOME VS EXPENSE")
         GlassCard {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(Modifier.weight(1f)) { Text("Income", color = Color(0xFF19D5A3)); Text(money(totals.incomePaise), fontWeight = FontWeight.Bold) }
-                Column(Modifier.weight(1f)) { Text("Expense", color = Color(0xFFFF7380)); Text(money(totals.expensePaise), fontWeight = FontWeight.Bold) }
+                Column(Modifier.weight(1f)) { Text("Income", color = Color(0xFF19D5A3)); Text(money(income), fontWeight = FontWeight.Bold) }
+                Column(Modifier.weight(1f)) { Text("Expense", color = Color(0xFFFF7380)); Text(money(expense), fontWeight = FontWeight.Bold) }
             }
+            Spacer(Modifier.height(12.dp))
             Canvas(Modifier.fillMaxWidth().height(125.dp)) {
                 val base = size.height - 8f
                 val barWidth = size.width / 5f
-                val incomeHeight = (totals.incomePaise.toFloat() / maxValue) * (size.height - 18f)
-                val expenseHeight = (totals.expensePaise.toFloat() / maxValue) * (size.height - 18f)
+                val incomeHeight = (income.toFloat() / maxValue) * (size.height - 18f)
+                val expenseHeight = (expense.toFloat() / maxValue) * (size.height - 18f)
                 drawLine(Color(0xFF18D4A6), Offset(barWidth, base), Offset(barWidth, base - incomeHeight), barWidth * .45f, cap = StrokeCap.Round)
                 drawLine(Color(0xFFFF687B), Offset(barWidth * 3, base), Offset(barWidth * 3, base - expenseHeight), barWidth * .45f, cap = StrokeCap.Round)
             }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Borrowed " + money(borrow), color = Color(0xFFB59BFF), style = MaterialTheme.typography.bodySmall)
+                Text("Lent " + money(lend), color = Color(0xFFFFBC72), style = MaterialTheme.typography.bodySmall)
+            }
+            Text("Net cash flow " + money(income - expense), fontWeight = FontWeight.Bold)
         }
         SectionLabel("ACCOUNT BALANCES")
         accounts.forEach { account ->
             val current = NativeLedgerCalculator.accountBalancePaise(account, transactions)
-            GlassCard { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(account.name, fontWeight = FontWeight.SemiBold); Text(money(current), fontWeight = FontWeight.Bold)
-            } }
+            GlassCard {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(account.name, fontWeight = FontWeight.SemiBold)
+                    Text(money(current), fontWeight = FontWeight.Bold)
+                }
+            }
             Spacer(Modifier.height(8.dp))
         }
         SectionLabel("SPENDING BY CATEGORY")
-        val categories = transactions.filter { it.type.equals("EXPENSE", true) }.groupBy { it.category }
-        if (categories.isEmpty()) GlassCard { Text("No expense records for analysis yet.") }
-        categories.entries.sortedByDescending { e -> e.value.sumOf { it.amountPaise } }.forEach { (name, rows) ->
+        val categoryRows = periodRows.filter { it.type.equals("EXPENSE", true) }.groupBy { it.category }
+        if (categoryRows.isEmpty()) GlassCard { Text("No expense records for the selected period.") }
+        categoryRows.entries.sortedByDescending { e -> e.value.fold(0L) { sum, row -> Math.addExact(sum, row.amountPaise) } }.forEach { (name, rows) ->
             val sum = rows.fold(0L) { acc, row -> Math.addExact(acc, row.amountPaise) }
-            GlassCard { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(name); Text(money(sum), fontWeight = FontWeight.Bold)
-            } }
+            GlassCard {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(name); Text(money(sum), fontWeight = FontWeight.Bold)
+                }
+            }
             Spacer(Modifier.height(8.dp))
         }
+        SectionLabel("PERSON-WISE SUMMARY")
+        val peopleTotals = periodRows.filter { it.personId != null }.groupBy { it.personId!! }
+        if (peopleTotals.isEmpty()) GlassCard { Text("No person-linked borrowing or lending in the selected period.") }
+        peopleTotals.forEach { (personId, rows) ->
+            val person = peopleMap[personId]
+            val borrowedByPerson = rows.filter { it.type.equals("BORROW", true) }.sumOf { it.amountPaise }
+            val lentByPerson = rows.filter { it.type.equals("LEND", true) }.sumOf { it.amountPaise }
+            GlassCard {
+                Text(person?.name ?: "Person", fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Borrowed " + money(borrowedByPerson), color = Color(0xFFB59BFF), style = MaterialTheme.typography.bodySmall)
+                    Text("Lent " + money(lentByPerson), color = Color(0xFFFFBC72), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        Text("Transfers are excluded from income and expense summaries.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
     }
 }
-
 @Composable
 private fun MoreScreen(onNavigate: (FinPage) -> Unit) {
     val entries = listOf(
