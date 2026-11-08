@@ -2784,6 +2784,99 @@ window.handleSubcategorySelect = handleSubcategorySelect;
       transition-duration:.001ms !important;
     }
   }
+
+  /* v2.5.0 release polish: consistent glass surfaces across every page */
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    --bg:#03131d; --bg2:rgba(8,35,49,.70); --bg3:rgba(14,52,68,.82);
+    --border:rgba(125,225,240,.24); --text:#f4fbff; --text2:#b6cbd8;
+    --text3:#7894a6; --primary:#18f2d0; --primary-dim:rgba(24,242,208,.16);
+  }
+  html[data-theme="dark"] .bottomnav {
+    background:linear-gradient(145deg,rgba(22,64,83,.90),rgba(5,24,42,.96))!important;
+    border:1px solid rgba(155,225,239,.38)!important;
+    box-shadow:0 0 24px rgba(0,181,207,.18),0 12px 34px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.17)!important;
+  }
+  html[data-theme="dark"] .nav-add {
+    background:linear-gradient(145deg,#28ffe0,#00b8d2)!important;
+    color:#03232c!important;border:1px solid rgba(255,255,255,.55)!important;
+    box-shadow:0 0 25px rgba(0,238,218,.45),inset 0 1px 0 rgba(255,255,255,.55)!important;
+  }
+  html[data-theme="dark"] .page .card,
+  html[data-theme="dark"] .page .acc-card,
+  html[data-theme="dark"] .page .planner-card,
+  html[data-theme="dark"] .page .chart-card,
+  html[data-theme="dark"] .page .info-panel,
+  html[data-theme="dark"] .page .report-card,
+  html[data-theme="dark"] .page .more-tile,
+  html[data-theme="dark"] .page .person-card {
+    border-color:rgba(143,226,240,.26);
+    box-shadow:0 12px 28px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.10);
+    backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  }
+  html[data-theme="dark"] .section-title {color:#c7dce7}
+  html[data-theme="dark"] .field label,html[data-theme="dark"] .set-item,
+  html[data-theme="dark"] .txn-row,html[data-theme="dark"] .info-row {color:#e8f5fa}
+  html[data-theme="dark"] input,html[data-theme="dark"] select,html[data-theme="dark"] textarea {
+    color:#f4fbff;background:rgba(5,27,40,.86);border-color:rgba(145,216,232,.28);
+  }
+  html[data-theme="light"] {
+    color-scheme:light;
+    --bg:#edf5f8;--bg2:rgba(255,255,255,.72);--bg3:rgba(255,255,255,.90);
+    --border:rgba(35,90,110,.18);--text:#102b3b;--text2:#527080;
+    --text3:#78909c;--primary:#009f91;--primary-dim:rgba(0,159,145,.12);
+    --shadow:0 12px 32px rgba(34,90,110,.12);
+  }
+  html[data-theme="light"] body {background:#eaf4f7;color:#102b3b}
+  html[data-theme="light"] #shell {
+    background:radial-gradient(ellipse at 85% 0%,rgba(0,210,190,.17),transparent 38%),
+      radial-gradient(ellipse at 0% 90%,rgba(110,165,255,.14),transparent 40%),
+      linear-gradient(145deg,#f5fbfd,#e5f1f6);
+  }
+  html[data-theme="light"] .topbar {background:rgba(245,252,255,.84);border-bottom:1px solid rgba(60,120,140,.14)}
+  html[data-theme="light"] .hero,html[data-theme="light"] .card,
+  html[data-theme="light"] .qs-card,html[data-theme="light"] .chart-card,
+  html[data-theme="light"] .planner-card,html[data-theme="light"] .planner-summary,
+  html[data-theme="light"] .acc-card,html[data-theme="light"] .acc-mini,
+  html[data-theme="light"] .more-tile,html[data-theme="light"] .person-card,
+  html[data-theme="light"] .info-panel,html[data-theme="light"] .report-card,
+  html[data-theme="light"] .sheet {
+    color:#173747!important;
+    background:linear-gradient(145deg,rgba(255,255,255,.94),rgba(226,245,249,.84) 58%,rgba(236,231,255,.72))!important;
+    border:1px solid rgba(70,150,170,.22)!important;
+    box-shadow:0 12px 32px rgba(43,100,120,.12),inset 0 1px 0 #fff!important;
+    backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  }
+  html[data-theme="light"] .hero {background:linear-gradient(145deg,rgba(195,250,244,.98),rgba(222,241,251,.94) 58%,rgba(235,222,255,.88))!important}
+  html[data-theme="light"] .hero .label,html[data-theme="light"] .hero .stat .l,
+  html[data-theme="light"] .qs-label,html[data-theme="light"] .section-title,
+  html[data-theme="light"] .topbar .sub {color:#527080!important}
+  html[data-theme="light"] .hero .amount,html[data-theme="light"] .hero .stat .v,
+  html[data-theme="light"] .qs-val,html[data-theme="light"] .card,
+  html[data-theme="light"] .field label,html[data-theme="light"] .set-item {color:#102b3b}
+  html[data-theme="light"] .bottomnav {
+    background:linear-gradient(145deg,rgba(248,253,255,.94),rgba(222,242,248,.96))!important;
+    border:1px solid rgba(70,140,160,.26)!important;
+    box-shadow:0 10px 30px rgba(35,105,125,.18),inset 0 1px 0 #fff!important;
+  }
+  html[data-theme="light"] .nav-item {color:#527080}
+  html[data-theme="light"] .nav-item.active {color:#07546a!important;background:linear-gradient(135deg,#b9fff3,#d4f2ff)!important}
+  html[data-theme="light"] .nav-add {background:linear-gradient(145deg,#21e7d0,#00aeca)!important;color:#032b35!important}
+  html[data-theme="light"] input,html[data-theme="light"] select,html[data-theme="light"] textarea,
+  html[data-theme="light"] .field input,html[data-theme="light"] .field select,
+  html[data-theme="light"] .field textarea {color:#173747!important;background:rgba(255,255,255,.82)!important;border-color:rgba(45,110,130,.22)!important}
+  html[data-theme="light"] .sheet {background:linear-gradient(160deg,#f8fdff,#e8f4f8)!important}
+  @media(max-width:380px) {
+    .page {padding-left:14px;padding-right:14px}
+    .hero {padding:20px 16px}
+    .qs-card {min-height:124px;padding:14px}
+    .bottomnav {left:9px;right:9px;height:72px}
+  }
+  @media(prefers-reduced-motion:reduce) {
+    html[data-theme] .page.active {animation:none}
+    *,*::before,*::after {scroll-behavior:auto!important;transition:none!important}
+  }
+
 </style>
 
 <script>
