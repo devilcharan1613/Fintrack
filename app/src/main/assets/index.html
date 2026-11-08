@@ -893,7 +893,7 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
       <div class="sheet-title" id="plannerTitle">Add item</div>
       <div class="field"><label id="plannerNameLabel">Name</label><input type="text" id="plannerName" placeholder="Enter a name"></div>
       <div class="field"><label id="plannerAmountLabel">Target amount (₹)</label><input type="number" id="plannerAmount" min="0.01" step="0.01" placeholder="0.00"></div>
-      <div class="field"><label id="plannerProgressLabel">Used / saved / paid (₹)</label><input type="number" id="plannerProgress" min="0" step="0.01" value="0" placeholder="0.00"></div>
+      <div class="field" id="plannerProgressField"><label id="plannerProgressLabel">Used / saved / paid (₹)</label><input type="number" id="plannerProgress" min="0" step="0.01" value="0" placeholder="0.00"></div>
       <div class="field hidden" id="plannerEmiField"><label>Monthly EMI (₹)</label><input type="number" id="plannerEmi" min="0" step="0.01" placeholder="Optional"></div>
       <div class="field hidden" id="plannerPeriodField"><label>Budget period</label><select id="plannerPeriod"><option>Monthly</option><option>Weekly</option><option>Yearly</option></select></div>
       <button class="btn btn-primary" onclick="savePlannerItem()">Save</button>
@@ -1674,6 +1674,7 @@ function openPlannerModal(type,id){
   document.getElementById('plannerName').value=item?(item.name||item.category||''):'';
   document.getElementById('plannerAmount').value=item?(item.amount||item.target||item.principal||''):'';
   document.getElementById('plannerProgress').value=item?(item.spent||item.saved||item.paid||0):0;
+  document.getElementById('plannerProgressField').classList.toggle('hidden',type==='budgets');
   document.getElementById('plannerEmiField').classList.toggle('hidden',type!=='loans');
   document.getElementById('plannerEmi').value=item?(item.emi||0):'';
   document.getElementById('plannerPeriodField').classList.toggle('hidden',type!=='budgets');
