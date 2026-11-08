@@ -2477,12 +2477,33 @@ function importBackupText(text){
     clean.categories=Array.isArray(clean.categories)?clean.categories:JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
     ['budgets','goals','loans'].forEach(function(k){clean[k]=Array.isArray(clean[k])?clean[k]:[];});
     clean.settings=clean.settings&&typeof clean.settings==='object'?clean.settings:{currency:'₹',name:'FinTrack',version:'2.5.0'};
-    clean.accounts.forEach(function(a){if(!a||typeof a.name!=='string'||!a.name.trim()||!Number.isFinite(Number(a.balance||0)))throw new Error('Invalid account data');});
-    clean.transactions.forEach(function(t){if(!t||!Number.isFinite(Number(t.amount))||Number(t.amount)<=0||!t.type||!t.accountId)throw new Error('Invalid transaction data');});
-    clean.budgets.forEach(function(b){if(!b||!Number.isFinite(Number(b.amount))||Number(b.amount)<=0)throw new Error('Invalid budget data');});
-    clean.goals.forEach(function(g){if(!g||!Number.isFinite(Number(g.target))||Number(g.target)<=0||Number(g.saved||0)<0)throw new Error('Invalid savings goal');});
-    clean.loans.forEach(function(l){if(!l||!Number.isFinite(Number(l.principal))||Number(l.principal)<=0||Number(l.paid||0)<0)throw new Error('Invalid loan data');});
-    if(!confirm('Replace all current FinTrack data with this backup? A copy of your current data is kept until the import is saved.'))return;
+
+    var accountIds=Object.create(null),personIds=Object.create(null);
+    clean.accounts.forEach(function(a){
+      if(!a||a.id===undefined||a.id===null||String(a.id).trim()===''||typeof a.name!=='string'||!a.name.trim()||!Number.isFinite(Number(a.balance||0)))throw new Error('Invalid account data');
+      var key=String(a.id);if(accountIds[key])throw new Error('Duplicate account ID in backup');accountIds[key]=true;
+    });
+    clean.persons.forEach(function(p){
+      if(!p||p.id===undefined||p.id===null||String(p.id).trim()===''||typeof p.name!=='string'||!p.name.trim())throw new Error('Invalid person data');
+      var key=String(p.id);if(personIds[key])throw new Error('Duplicate person ID in backup');personIds[key]=true;
+    });
+    var validTypes=['income','expense','transfer','borrow','lend'];
+    clean.transactions.forEach(function(t){
+      if(!t||!Number.isFinite(Number(t.amount))||Number(t.amount)<=0||validTypes.indexOf(t.type)<0||t.accountId===undefined||!accountIds[String(t.accountId)])throw new Error('Invalid transaction or missing account reference');
+      if(t.type==='transfer'&&(t.toAccountId===undefined||!accountIds[String(t.toAccountId)]||String(t.toAccountId)===String(t.accountId)))throw new Error('Invalid transfer account reference');
+      if((t.type==='borrow'||t.type==='lend')&&(t.personId===undefined||!personIds[String(t.personId)]))throw new Error('Invalid borrowed/lent person reference');
+    });
+    clean.categories.forEach(function(c){
+      if(!c||c.id===undefined||typeof c.name!=='string'||!c.name.trim())throw new Error('Invalid category data');
+      if(c.subcategories!==undefined&&!Array.isArray(c.subcategories))throw new Error('Invalid category subcategories');
+    });
+    clean.budgets.forEach(function(b){if(!b||!Number.isFinite(Number(b.amount))||Number(b.amount)<=0||!String(b.name||b.category||'').trim())throw new Error('Invalid budget data');});
+    clean.goals.forEach(function(g){if(!g||!Number.isFinite(Number(g.target))||Number(g.target)<=0||!Number.isFinite(Number(g.saved||0))||Number(g.saved||0)<0||Number(g.saved||0)>Number(g.target))throw new Error('Invalid savings goal');});
+    clean.loans.forEach(function(l){
+      if(!l||!Number.isFinite(Number(l.principal))||Number(l.principal)<=0||!Number.isFinite(Number(l.paid||0))||Number(l.paid||0)<0||Number(l.paid||0)>Number(l.principal)||!Number.isFinite(Number(l.emi||0))||Number(l.emi||0)<0)throw new Error('Invalid loan data');
+      if(l.repayments!==undefined&&(!Array.isArray(l.repayments)||l.repayments.some(function(r){return !r||!Number.isFinite(Number(r.amount))||Number(r.amount)<=0;})))throw new Error('Invalid loan repayment history');
+    });
+    if(!confirm('Replace all current FinTrack data with this backup? Export your current data first if you may need a separate copy.'))return;
     state=clean;
     localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
     renderCurrentPage();showToast('Backup restored successfully','success');
