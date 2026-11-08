@@ -1132,6 +1132,14 @@ function renderTransactions(){
   }).join('');
 
   var list = state.transactions.slice();
+  var searchText=(document.getElementById('txnSearch')&&document.getElementById('txnSearch').value||'').trim().toLowerCase();
+  if(searchText){
+    list=list.filter(function(t){
+      var account=getAcc(t.accountId),category=getCat(t.category),person=getPerson(t.personId);
+      var hay=[t.notes,t.note,t.type,t.amount,t.date,t.category,category.name,account&&account.name,person&&person.name].join(' ').toLowerCase();
+      return hay.indexOf(searchText)>=0;
+    });
+  }
   if(txnFilter!=='All'){
     var typeKey = txnFilter.toLowerCase();
     list = list.filter(function(t){ return t.type===typeKey; });
@@ -2104,6 +2112,32 @@ function openPersonDetail(id){
 /* ============================================================
    EXPORT / IMPORT / RESET
 ============================================================ */
+function openExportDialog(source){
+  var start=prompt('Start date (YYYY-MM-DD)',new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10));
+  if(!start)return;
+  var end=prompt('End date (YYYY-MM-DD)',today());
+  if(!end)return;
+  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(start)||!/^\\d{4}-\\d{2}-\\d{2}$/.test(end)||start>end){showToast('Enter a valid date range','error');return;}
+  var format=prompt('Enter CSV or PDF','CSV');
+  if(!format)return;
+  format=format.toLowerCase();
+  if(format!=='csv'&&format!=='pdf'){showToast('Currently choose CSV or PDF','error');return;}
+  var rows=state.transactions.filter(function(t){return t.date>=start&&t.date<=end;});
+  if(!rows.length){showToast('No transactions in selected date range','error');return;}
+  var header=['Date','Type','Amount INR','Category','Account','Notes'];
+  var data=[header].concat(rows.map(function(t){var a=getAcc(t.accountId),c=getCat(t.category);return [t.date,t.type,t.amount,c.name||t.category,a&&a.name||'',t.notes||t.note||''];}));
+  if(format==='csv'){
+    var csv=data.map(function(row){return row.map(function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}).join(',');}).join('\\r\\n');
+    var blob=new Blob(['\\ufeff'+csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+    link.href=url;link.download='fintrack_transactions_'+today()+'.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
+    showToast('CSV export ready','success');return;
+  }
+  var win=window.open('','_blank');if(!win){showToast('Allow pop-ups to print PDF','error');return;}
+  win.document.write('<html><head><title>FinTrack statement</title><style>body{font-family:Arial;padding:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:7px;text-align:left}</style></head><body><h2>FinTrack transaction statement</h2><p>'+start+' to '+end+'</p><table><thead><tr>'+header.map(function(v){return '<th>'+escHtml(v)+'</th>';}).join('')+'</tr></thead><tbody>'+data.slice(1).map(function(row){return '<tr>'+row.map(function(v){return '<td>'+escHtml(v)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table><script>window.onload=function(){window.print();};<\\/script></body></html>');
+  win.document.close();
+}
+window.openExportDialog=openExportDialog;
+
 function exportData(){
   try{
     var dataStr=JSON.stringify(state,null,2), filename='fintrack_backup_'+today()+'.json';
