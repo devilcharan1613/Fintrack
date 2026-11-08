@@ -1035,6 +1035,7 @@ var ACC_TYPE_LABEL = {cash:'Cash',bank:'Bank',credit:'Credit Card',wallet:'Walle
    STATE
 ============================================================ */
 var state = null;
+var stateLoadWarning = false;
 var currentTxnType = 'expense';
 var currentPage = 'dashboard';
 var txnFilter = 'All';
@@ -1053,9 +1054,15 @@ function fmt(n){
   var v = Math.abs(n).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:2});
   return (neg?'-':'') + '₹' + v;
 }
-function today(){
-  var now=new Date(),pad=function(value){return String(value).padStart(2,'0');};
-  return now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
+function today(){ return localDateISO(new Date()); }
+function localDateISO(date){
+  var pad=function(value){return String(value).padStart(2,'0');};
+  return date.getFullYear()+'-'+pad(date.getMonth()+1)+'-'+pad(date.getDate());
+}
+function isValidISODate(value){
+  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
+  var parts=value.split('-').map(Number),date=new Date(parts[0],parts[1]-1,parts[2]);
+  return date.getFullYear()===parts[0]&&date.getMonth()===parts[1]-1&&date.getDate()===parts[2];
 }
 function roundMoney(value){
   var number=Number(value);
@@ -1095,31 +1102,64 @@ function save(){
     showToast('Unable to access local storage on this device.', 'error');
   }
 }
-function load(){
+function preserveUnreadableState(raw){
+  if(!raw)return;
   try{
-    var raw = localStorage.getItem(STORAGE_KEY);
+    var recoveryKey=STORAGE_KEY+'_recovery';
+    if(!localStorage.getItem(recoveryKey))localStorage.setItem(recoveryKey,raw);
+  }catch(e){}
+}
+function load(){
+  var raw=null;
+  try{
+    raw=localStorage.getItem(STORAGE_KEY);
     if(!raw && window.FinTrackBridge && typeof window.FinTrackBridge.getLegacyData === 'function'){
       try{
-        var migrated = window.FinTrackBridge.getLegacyData();
-        if(migrated && migrated !== 'null'){
-          var legacyParsed = JSON.parse(migrated);
-          if(legacyParsed && Array.isArray(legacyParsed.accounts) && Array.isArray(legacyParsed.transactions)){
-            raw = JSON.stringify(legacyParsed);
-            localStorage.setItem(STORAGE_KEY, raw);
+        var migrated=window.FinTrackBridge.getLegacyData();
+        if(migrated&&migrated!=='null'){
+          var legacyParsed=JSON.parse(migrated);
+          if(legacyParsed&&Array.isArray(legacyParsed.accounts)&&Array.isArray(legacyParsed.transactions)){
+            raw=JSON.stringify(legacyParsed);
+            localStorage.setItem(STORAGE_KEY,raw);
           }
         }
       }catch(migrationError){}
     }
-    if(!raw) return null;
-    var parsed = JSON.parse(raw);
-    if(!parsed || !Array.isArray(parsed.accounts) || !Array.isArray(parsed.transactions) || !Array.isArray(parsed.persons)) return null;
-    if(!parsed.settings) parsed.settings = {currency:'₹', name:'FinTrack', version:'3.2'};
-    if(!Array.isArray(parsed.categories)) parsed.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
-    if(!Array.isArray(parsed.budgets)) parsed.budgets = [];
-    if(!Array.isArray(parsed.goals)) parsed.goals = [];
-    if(!Array.isArray(parsed.loans)) parsed.loans = [];
-    return parsed;
+    if(!raw)return null;
+    var parsed=JSON.parse(raw);
+    if(!parsed||typeof parsed!=='object'||Array.isArray(parsed)||
+       !Array.isArray(parsed.accounts)||!Array.isArray(parsed.transactions)){
+      stateLoadWarning=true;
+      preserveUnreadableState(raw);
+      return null;
+    }
+    // Earlier FinTrack saves did not always contain every newer collection.
+    // Add missing collections without discarding the user's existing records.
+    var normalized=Object.assign(buildSeedState(),parsed);
+    normalized.persons=Array.isArray(parsed.persons)?parsed.persons:[];
+    normalized.categories=Array.isArray(parsed.categories)&&parsed.categories.length
+      ?parsed.categories:JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+    normalized.budgets=Array.isArray(parsed.budgets)?parsed.budgets:[];
+    normalized.goals=Array.isArray(parsed.goals)?parsed.goals:[];
+    normalized.loans=Array.isArray(parsed.loans)?parsed.loans:[];
+    normalized.settings=parsed.settings&&typeof parsed.settings==='object'
+      ?parsed.settings:{currency:'₹',name:'FinTrack',version:'2.5.0'};
+    normalized.transactions=normalized.transactions.map(function(t){
+      if(!t||typeof t!=='object')return t;
+      var item=Object.assign({},t);
+      if(item.notes===undefined&&item.note!==undefined)item.notes=item.note;
+      return item;
+    });
+    var changed=!Array.isArray(parsed.persons)||!Array.isArray(parsed.categories)||
+      !Array.isArray(parsed.budgets)||!Array.isArray(parsed.goals)||!Array.isArray(parsed.loans)||
+      !parsed.settings||typeof parsed.settings!=='object';
+    if(changed){
+      try{localStorage.setItem(STORAGE_KEY,JSON.stringify(normalized));}catch(storageError){}
+    }
+    return normalized;
   }catch(e){
+    stateLoadWarning=true;
+    preserveUnreadableState(raw);
     return null;
   }
 }
@@ -1232,7 +1272,11 @@ function initState(){
     if(!Array.isArray(state.loans)) state.loans = [];
   } else {
     state = buildSeedState();
-    save();
+    if(stateLoadWarning){
+      showToast('Saved data could not be read. A recovery copy was preserved on this device.','error');
+    }else{
+      save();
+    }
   }
 }
 
@@ -1555,8 +1599,8 @@ function periodRange(period, ref){
     start = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
     end = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate()+1);
   } else if(period==='Weekly'){
-    var day = ref.getDay();
-    start = new Date(ref); start.setDate(ref.getDate()-day); start.setHours(0,0,0,0);
+    var dayOffset = (ref.getDay()+6)%7; // Monday-based week, consistent with the filters.
+    start = new Date(ref); start.setDate(ref.getDate()-dayOffset); start.setHours(0,0,0,0);
     end = new Date(start); end.setDate(start.getDate()+7);
   } else if(period==='Monthly'){
     start = new Date(ref.getFullYear(), ref.getMonth(), 1);
@@ -1675,13 +1719,39 @@ function drawBarChart(){
     }
   }else{
     var now = new Date();
-    for(var i=5;i>=0;i--){
-      var d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-      buckets.push({
-        label:d.toLocaleDateString('en-IN',{month:'short'}),
-        start:dateKey(new Date(d.getFullYear(),d.getMonth(),1)),
-        end:dateKey(new Date(d.getFullYear(),d.getMonth()+1,0))
-      });
+    if(reportPeriod==='Daily'){
+      for(var dayOffset=6;dayOffset>=0;dayOffset--){
+        var dayDate=new Date(now.getFullYear(),now.getMonth(),now.getDate()-dayOffset);
+        var dayKey=dateKey(dayDate);
+        buckets.push({label:dayDate.toLocaleDateString('en-IN',{weekday:'short'}),start:dayKey,end:dayKey});
+      }
+    }else if(reportPeriod==='Weekly'){
+      var weekStart=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+      weekStart.setDate(weekStart.getDate()-((weekStart.getDay()+6)%7));
+      for(var weekOffset=6;weekOffset>=0;weekOffset--){
+        var weekDate=new Date(weekStart);
+        weekDate.setDate(weekStart.getDate()-weekOffset*7);
+        var weekEnd=new Date(weekDate);
+        weekEnd.setDate(weekDate.getDate()+6);
+        buckets.push({
+          label:weekDate.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}),
+          start:dateKey(weekDate),end:dateKey(weekEnd)
+        });
+      }
+    }else if(reportPeriod==='Yearly'){
+      for(var yearOffset=4;yearOffset>=0;yearOffset--){
+        var year=now.getFullYear()-yearOffset;
+        buckets.push({label:String(year),start:year+'-01-01',end:year+'-12-31'});
+      }
+    }else{
+      for(var monthOffset=5;monthOffset>=0;monthOffset--){
+        var monthDate=new Date(now.getFullYear(),now.getMonth()-monthOffset,1);
+        buckets.push({
+          label:monthDate.toLocaleDateString('en-IN',{month:'short'}),
+          start:dateKey(new Date(monthDate.getFullYear(),monthDate.getMonth(),1)),
+          end:dateKey(new Date(monthDate.getFullYear(),monthDate.getMonth()+1,0))
+        });
+      }
     }
   }
 
@@ -2047,12 +2117,15 @@ function exportExcelWorkbook(){
 }
 
 function exportExcelDateRange(){
-  var defaultStart=new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10);
+  // Use local calendar fields. toISOString() shifts midnight to the previous
+  // calendar date in India and can exclude transactions from the first of a month.
+  var now=new Date();
+  var defaultStart=localDateISO(new Date(now.getFullYear(),now.getMonth(),1));
   var start=prompt('Excel start date (YYYY-MM-DD)',defaultStart);
   if(!start)return;
   var end=prompt('Excel end date (YYYY-MM-DD)',today());
   if(!end)return;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||start>end){
+  if(!isValidISODate(start)||!isValidISODate(end)||start>end){
     showToast('Enter a valid Excel date range','error');return;
   }
   var filtered=state.transactions.filter(function(t){return (t.date||'')>=start&&(t.date||'')<=end;});
@@ -2136,29 +2209,34 @@ function setTxnType(type){
 }
 
 function populateAccountSelects(selectedFromId, selectedToId){
-  var opts = state.accounts.map(function(a){ 
-    return '<option value="'+a.id+'">'+(a.type==='wallet'?'👛 ':'🏦 ')+escHtml(a.name)+' ('+fmt(a.balance)+')</option>'; 
+  var selFrom=document.getElementById('txnAccount');
+  var selTo=document.getElementById('txnToAccount');
+  var selAction=document.getElementById('accActionToAccount');
+  // Rebuilding option lists resets native <select> values. Preserve current choices
+  // unless the caller explicitly supplies a replacement (such as a newly added wallet).
+  var previousFrom=selFrom?selFrom.value:'';
+  var previousTo=selTo?selTo.value:'';
+  var opts=state.accounts.map(function(a){
+    return '<option value="'+escHtml(a.id)+'">'+(a.type==='wallet'?'👛 ':'🏦 ')+escHtml(a.name)+' ('+fmt(a.balance)+')</option>';
   }).join('');
-  
-  var addOpt = '<option value="__ADD_WALLET__" style="color:var(--primary);font-weight:bold;">➕ + Add New Wallet...</option>';
-  var fullOpts = opts + addOpt;
-
-  var selFrom = document.getElementById('txnAccount');
-  var selTo = document.getElementById('txnToAccount');
-  var selAction = document.getElementById('accActionToAccount');
-
+  var fullOpts=opts+'<option value="__ADD_WALLET__" style="color:var(--primary);font-weight:bold;">➕ + Add New Wallet...</option>';
+  function hasAccount(id){
+    return id!==undefined&&id!==null&&state.accounts.some(function(a){return String(a.id)===String(id);});
+  }
   if(selFrom){
-    selFrom.innerHTML = fullOpts;
-    if(selectedFromId) selFrom.value = selectedFromId;
-    else if(!selFrom.value && state.accounts.length) selFrom.value = state.accounts[0].id;
+    selFrom.innerHTML=fullOpts;
+    var wantedFrom=hasAccount(selectedFromId)?selectedFromId:previousFrom;
+    if(hasAccount(wantedFrom))selFrom.value=String(wantedFrom);
+    else if(state.accounts.length)selFrom.value=String(state.accounts[0].id);
+    else selFrom.value='';
   }
   if(selTo){
-    selTo.innerHTML = fullOpts;
-    if(selectedToId) selTo.value = selectedToId;
+    selTo.innerHTML=fullOpts;
+    var wantedTo=hasAccount(selectedToId)?selectedToId:previousTo;
+    if(hasAccount(wantedTo))selTo.value=String(wantedTo);
+    else selTo.value='';
   }
-  if(selAction){
-    selAction.innerHTML = opts || '<option value="">No accounts</option>';
-  }
+  if(selAction)selAction.innerHTML=opts||'<option value="">No accounts</option>';
 }
 
 function handleAccountSelect(selectEl, target){
@@ -2755,12 +2833,7 @@ function finishTransactionExport(format){
   var start=dialog.querySelector('#exportStartDate').value;
   var end=dialog.querySelector('#exportEndDate').value;
   var error=dialog.querySelector('#exportRangeError');
-  var validDate=function(value){
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
-    var parts=value.split('-').map(Number),date=new Date(parts[0],parts[1]-1,parts[2]);
-    return date.getFullYear()===parts[0]&&date.getMonth()===parts[1]-1&&date.getDate()===parts[2];
-  };
-  if(!validDate(start)||!validDate(end)||start>end){error.textContent='Please select a valid date range.';return;}
+  if(!isValidISODate(start)||!isValidISODate(end)||start>end){error.textContent='Please select a valid date range.';return;}
   var rows=state.transactions.filter(function(t){return t.date>=start&&t.date<=end;});
   if(!rows.length){error.textContent='No transactions found in this date range.';return;}
   var incomeTotal=rows.filter(function(t){return t.type==='income';}).reduce(function(sum,t){return sum+Number(t.amount||0);},0);
@@ -3303,7 +3376,7 @@ html[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator{f
   }
   function formatLike(n){
     var neg = n < 0;
-    var v = Math.abs(n).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0});
+    var v = Math.abs(n).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:2});
     return (neg?'-':'') + '₹' + v;
   }
 
