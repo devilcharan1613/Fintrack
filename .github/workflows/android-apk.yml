@@ -41,6 +41,15 @@ jobs:
           chmod +x ./gradlew
           ./gradlew --no-daemon --stacktrace testDebugUnitTest assembleDebugAndroidTest assembleDebug
 
+      - name: Run Android instrumented tests on emulator
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: ./gradlew --no-daemon connectedDebugAndroidTest
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
