@@ -62,6 +62,7 @@ jobs:
           gradle-version: '8.9'
 
       - name: Build debug APK
+        id: build_apk
         run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebugAndroidTest assembleDebug
 
       - name: Run Android instrumented tests on emulator
@@ -77,6 +78,7 @@ jobs:
           script: gradle --no-daemon --stacktrace connectedDebugAndroidTest
 
       - name: Upload APK
+        if: steps.build_apk.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: FinTrack-debug-apk
