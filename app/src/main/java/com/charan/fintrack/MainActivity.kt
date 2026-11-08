@@ -39,8 +39,12 @@ class MainActivity : ComponentActivity() {
         val payload = runCatching { pendingBackupFile.takeIf { it.exists() }?.readBytes() }.getOrNull()
         if (uri != null && payload != null) {
             runCatching {
-                contentResolver.openOutputStream(uri)?.use { it.write(payload) }
+                val output = contentResolver.openOutputStream(uri)
                     ?: error("Unable to open the selected backup file")
+                output.use {
+                    it.write(payload)
+                    it.flush()
+                }
             }.onSuccess {
                 if (::webView.isInitialized) webView.evaluateJavascript("showToast('Backup saved successfully','success');", null)
             }.onFailure {
@@ -64,8 +68,14 @@ class MainActivity : ComponentActivity() {
     ) { uri ->
         if (uri != null) {
             val payload = runCatching {
-                contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                val input = contentResolver.openInputStream(uri)
                     ?: error("Unable to read the selected backup file")
+                input.use { stream ->
+                    val bytes = stream.readBytes()
+                    require(bytes.isNotEmpty()) { "The selected backup is empty" }
+                    require(bytes.size <= 20 * 1024 * 1024) { "Backup file is larger than 20 MB" }
+                    bytes.toString(Charsets.UTF_8)
+                }
             }.getOrNull()
             if (payload != null) {
                 pendingImportJson = payload
