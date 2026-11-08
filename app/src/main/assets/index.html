@@ -1993,7 +1993,7 @@ function saveReminderSettings(){
     showToast('Install the FinTrack Android app to schedule notifications','error');
   }
 }
-window.finTrackReminderPermissionResult=function(granted){
+window.finTrackReminderPermissionResult=function(granted,reminderEnabled){
   var enabled=document.getElementById('dailyReminderEnabled');
   var hint=document.getElementById('reminderPermissionHint');
   if(!granted){
@@ -2002,6 +2002,12 @@ window.finTrackReminderPermissionResult=function(granted){
     try{localStorage.setItem('fintrack_reminder_settings',JSON.stringify({enabled:false,time:time&&time.value||'20:00',memeMode:!!(meme&&meme.checked)}));}catch(e){}
     if(hint)hint.textContent='Notifications are off. Allow FinTrack notifications in Android Settings, then save again.';
     showToast('Notification permission is required for reminders','error');
+    return;
+  }
+  if(reminderEnabled===false){
+    if(enabled)enabled.checked=false;
+    if(hint)hint.textContent='Daily reminders are turned off on this device.';
+    showToast('Offline reminders turned off','success');
     return;
   }
   if(hint)hint.textContent='Reminder is saved on this device. Android may adjust the delivery time.';
