@@ -425,6 +425,65 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
   .nav-add{flex-basis:58px;width:58px;height:58px;border:1px solid rgba(194,255,249,.7);background:linear-gradient(145deg,#42ffe0,#00b7d4);box-shadow:0 0 24px rgba(0,238,215,.48),inset 0 1px 0 rgba(255,255,255,.65);font-size:34px;transform:translateY(-13px);}
   @media (max-width:380px){.qs-card{min-height:126px;padding:14px}.hero{padding:21px 18px}.bottomnav{left:8px;right:8px}.nav-item .lb{font-size:10px}}
 
+
+  /* Light Liquid Glass counterpart. Dark remains the default. */
+  html[data-theme="light"] body,
+  html[data-theme="light"] #shell{
+    background:
+      radial-gradient(ellipse at 82% 5%,rgba(0,191,174,.16),transparent 36%),
+      radial-gradient(ellipse at 4% 58%,rgba(71,137,220,.10),transparent 38%),
+      linear-gradient(145deg,#eef8fb,#e8f3fb 55%,#f1efff);
+    color:#102b3a;
+  }
+  html[data-theme="light"] .topbar{background:rgba(241,250,253,.78);border-bottom:1px solid rgba(36,120,143,.12);}
+  html[data-theme="light"] .topbar h1{color:#123647;}
+  html[data-theme="light"] .topbar .sub{color:#4f6d7d;}
+  html[data-theme="light"] .card,
+  html[data-theme="light"] .qs-card,
+  html[data-theme="light"] .chart-card,
+  html[data-theme="light"] .planner-card,
+  html[data-theme="light"] .more-tile,
+  html[data-theme="light"] .info-panel,
+  html[data-theme="light"] .report-card{
+    background:linear-gradient(145deg,rgba(255,255,255,.82),rgba(232,246,250,.78));
+    border:1px solid rgba(47,131,155,.20);
+    box-shadow:0 12px 28px rgba(56,112,135,.10),inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  html[data-theme="light"] .hero{
+    background:linear-gradient(135deg,rgba(40,221,196,.23),rgba(93,181,218,.20) 52%,rgba(153,145,235,.20));
+    border-color:rgba(23,166,162,.28);
+    box-shadow:0 12px 30px rgba(42,139,159,.13),inset 0 1px 0 rgba(255,255,255,.88);
+  }
+  html[data-theme="light"] .hero .label,
+  html[data-theme="light"] .hero .stat .l,
+  html[data-theme="light"] .section-title,
+  html[data-theme="light"] .qs-label,
+  html[data-theme="light"] .nav-item{color:#456475;}
+  html[data-theme="light"] .hero .amount,
+  html[data-theme="light"] .hero .stat .v,
+  html[data-theme="light"] .qs-val,
+  html[data-theme="light"] .planner-name,
+  html[data-theme="light"] .set-name{color:#102f40;}
+  html[data-theme="light"] .hero .stat{background:linear-gradient(145deg,rgba(255,255,255,.58),rgba(216,242,244,.62));border-color:rgba(58,142,156,.15);}
+  html[data-theme="light"] .bottomnav{
+    background:linear-gradient(145deg,rgba(255,255,255,.91),rgba(224,243,248,.93));
+    border-color:rgba(38,138,156,.25);
+    box-shadow:0 12px 28px rgba(52,119,143,.16),inset 0 1px 0 rgba(255,255,255,.95);
+  }
+  html[data-theme="light"] .nav-item.active{color:#008d83;background:linear-gradient(145deg,rgba(35,224,197,.18),rgba(79,168,202,.15));}
+  html[data-theme="light"] .field input,
+  html[data-theme="light"] .field select,
+  html[data-theme="light"] .field textarea{
+    background:rgba(255,255,255,.86);border-color:rgba(52,127,150,.24);color:#17394a;
+  }
+  html[data-theme="light"] .sheet{background:linear-gradient(160deg,rgba(248,254,255,.99),rgba(231,244,250,.99));border-color:rgba(43,130,151,.23);}
+  html[data-theme="light"] .overlay{background:rgba(20,51,66,.34);}
+  html[data-theme="light"] .add-acc-mini{background:rgba(255,255,255,.46);color:#33596b;}
+  html[data-theme="light"] .btn-secondary{background:rgba(255,255,255,.8);color:#17394a;border-color:rgba(52,127,150,.24);}
+  html[data-theme="light"] .set-desc,
+  html[data-theme="light"] .muted,
+  html[data-theme="light"] .planner-sub{color:#587485;}
+
 </style>
 <script>
   window.finTrackApplyInsets = function(left, top, right, bottom, imeBottom) {
