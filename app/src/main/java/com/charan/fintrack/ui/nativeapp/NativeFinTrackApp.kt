@@ -1,5 +1,16 @@
 package com.charan.fintrack.ui.nativeapp
 
+import android.Manifest
+import android.app.TimePickerDialog
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,6 +46,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -45,7 +58,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.charan.fintrack.FinTrackReminderScheduler
 import com.charan.fintrack.data.MoneyPaise
 import com.charan.fintrack.data.NativeLedgerCalculator
 import com.charan.fintrack.data.local.*
@@ -64,7 +79,11 @@ private enum class EditorKind { NONE, TRANSACTION, ACCOUNT, PERSON, BUDGET, GOAL
 @Composable
 fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    var dark by remember { mutableStateOf(context.getSharedPreferences("fintrack_native_settings", 0).getBoolean("dark_theme", true)) }
+    val appPrefs = remember { context.getSharedPreferences("fintrack_native_settings", 0) }
+    var dark by remember { mutableStateOf(appPrefs.getBoolean("dark_theme", true)) }
+    var backgroundUri by remember { mutableStateOf(appPrefs.getString("background_uri", null)) }
+    var backgroundOpacity by remember { mutableFloatStateOf(appPrefs.getInt("background_opacity", 35).toFloat()) }
+    var pendingApkUri by remember { mutableStateOf<Uri?>(null) }
 
     val backupSave = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) {
         it?.let(viewModel::exportBackup)
@@ -81,6 +100,39 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel) {
     val pdfSave = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) {
         it?.let(viewModel::exportPdf)
     }
+    val backgroundPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: Exception) { }
+            backgroundUri = uri.toString()
+            appPrefs.edit().putString("background_uri", backgroundUri).apply()
+        }
+    }
+    val apkPermissionSettings = rememberLauncherForActivityResult(StartActivityForResult()) {
+        val uri = pendingApkUri
+        pendingApkUri = null
+        if (uri != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && context.packageManager.canRequestPackageInstalls()) {
+            openSelectedApk(context, uri)
+        } else if (uri != null) {
+            Toast.makeText(context, "Allow install permission, then select the APK again.", Toast.LENGTH_LONG).show()
+        }
+    }
+    val apkPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            try { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Exception) { }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
+                pendingApkUri = uri
+                apkPermissionSettings.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
+            } else {
+                openSelectedApk(context, uri)
+            }
+        }
+    }
+
+    val decodedBackground = remember(backgroundUri) {
+        backgroundUri?.let { decodeBackgroundBitmap(context, Uri.parse(it)) }
+    }
 
     FinTrackNativeTheme(darkTheme = dark) {
         NativeFinTrackContent(
@@ -94,7 +146,19 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel) {
             onImportBackup = { backupOpen.launch(arrayOf("application/json", "text/json", "application/octet-stream")) },
             onExportCsv = { csvSave.launch("FinTrack_Transactions.csv") },
             onExportXlsx = { xlsxSave.launch("FinTrack_Export.xlsx") },
-            onExportPdf = { pdfSave.launch("FinTrack_Statement.pdf") }
+            onExportPdf = { pdfSave.launch("FinTrack_Statement.pdf") },
+            backgroundBitmap = decodedBackground,
+            backgroundOpacity = backgroundOpacity / 100f,
+            onChooseBackground = { backgroundPicker.launch(arrayOf("image/*")) },
+            onRemoveBackground = {
+                backgroundUri = null
+                appPrefs.edit().remove("background_uri").apply()
+            },
+            onBackgroundOpacity = {
+                backgroundOpacity = it
+                appPrefs.edit().putInt("background_opacity", it.toInt()).apply()
+            },
+            onInstallApk = { apkPicker.launch(arrayOf("application/vnd.android.package-archive", "application/octet-stream")) }
         )
     }
 }
@@ -108,7 +172,13 @@ private fun NativeFinTrackContent(
     onImportBackup: () -> Unit,
     onExportCsv: () -> Unit,
     onExportXlsx: () -> Unit,
-    onExportPdf: () -> Unit
+    onExportPdf: () -> Unit,
+    backgroundBitmap: Bitmap?,
+    backgroundOpacity: Float,
+    onChooseBackground: () -> Unit,
+    onRemoveBackground: () -> Unit,
+    onBackgroundOpacity: (Float) -> Unit,
+    onInstallApk: () -> Unit
 ) {
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val transactions by viewModel.transactions.collectAsStateWithLifecycle()
@@ -142,6 +212,15 @@ private fun NativeFinTrackContent(
             Brush.linearGradient(listOf(MaterialTheme.colorScheme.background, Color(0xFF062A3A), MaterialTheme.colorScheme.background))
         )
     ) {
+        backgroundBitmap?.let { bitmap ->
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = "Custom FinTrack background",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                alpha = backgroundOpacity
+            )
+        }
         Scaffold(
             containerColor = Color.Transparent,
             snackbarHost = { SnackbarHost(snackbar) },
@@ -205,7 +284,8 @@ private fun NativeFinTrackContent(
                     )
                     FinPage.SETTINGS -> SettingsScreen(
                         darkTheme, onThemeChange, onExportBackup, onImportBackup,
-                        onExportCsv, onExportXlsx, onExportPdf
+                        onExportCsv, onExportXlsx, onExportPdf, onChooseBackground,
+                        onRemoveBackground, onBackgroundOpacity, onInstallApk
                     )
                 }
             }
@@ -929,8 +1009,39 @@ private fun SettingsScreen(
     onImportBackup: () -> Unit,
     onExportCsv: () -> Unit,
     onExportXlsx: () -> Unit,
-    onExportPdf: () -> Unit
+    onExportPdf: () -> Unit,
+    onChooseBackground: () -> Unit,
+    onRemoveBackground: () -> Unit,
+    onBackgroundOpacity: (Float) -> Unit,
+    onInstallApk: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val reminderPrefs = remember { context.getSharedPreferences("fintrack_reminders", 0) }
+    var remindersEnabled by remember { mutableStateOf(reminderPrefs.getBoolean("enabled", false)) }
+    var reminderHour by remember { mutableIntStateOf(reminderPrefs.getInt("hour", 20)) }
+    var reminderMinute by remember { mutableIntStateOf(reminderPrefs.getInt("minute", 0)) }
+    var memeMode by remember { mutableStateOf(reminderPrefs.getBoolean("memeMode", false)) }
+    var pendingReminderEnable by remember { mutableStateOf(false) }
+
+    fun saveReminder(enabled: Boolean, hour: Int = reminderHour, minute: Int = reminderMinute, funMode: Boolean = memeMode) {
+        reminderPrefs.edit().putBoolean("enabled", enabled).putInt("hour", hour)
+            .putInt("minute", minute).putBoolean("memeMode", funMode).apply()
+        remindersEnabled = enabled
+        reminderHour = hour
+        reminderMinute = minute
+        memeMode = funMode
+        FinTrackReminderScheduler.schedule(context, enabled, hour, minute)
+    }
+
+    val notificationPermission = rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val enable = pendingReminderEnable
+        pendingReminderEnable = false
+        if (granted && enable) saveReminder(true)
+        else if (enable) Toast.makeText(context, "Notification permission is required for reminders.", Toast.LENGTH_LONG).show()
+    }
+
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -941,6 +1052,15 @@ private fun SettingsScreen(
                 Text(if (darkTheme) "Dark Liquid Glass theme" else "Light theme")
                 Switch(checked = darkTheme, onCheckedChange = onThemeChange)
             }
+            Text("Custom background image", fontWeight = FontWeight.SemiBold)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onChooseBackground, modifier = Modifier.weight(1f)) { Text("Choose photo") }
+                TextButton(onClick = onRemoveBackground) { Text("Remove") }
+            }
+            Text("Background visibility", style = MaterialTheme.typography.labelMedium)
+            var opacity by remember { mutableFloatStateOf(35f) }
+            Slider(value = opacity, onValueChange = { opacity = it; onBackgroundOpacity(it) }, valueRange = 0f..100f)
+            Text("${opacity.toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
         }
         GlassCard {
             Text("Local backup and restore", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -957,6 +1077,46 @@ private fun SettingsScreen(
             Button(onClick = onExportCsv, modifier = Modifier.fillMaxWidth()) { Text("Export transactions CSV") }
             OutlinedButton(onClick = onExportXlsx, modifier = Modifier.fillMaxWidth()) { Text("Export Excel workbook") }
             OutlinedButton(onClick = onExportPdf, modifier = Modifier.fillMaxWidth()) { Text("Export PDF statement") }
+        }
+        GlassCard {
+            Text("Daily reminders", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(if (remindersEnabled) "Reminder enabled" else "Reminder disabled")
+                    Text(String.format(Locale.getDefault(), "%02d:%02d", reminderHour, reminderMinute), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(
+                    checked = remindersEnabled,
+                    onCheckedChange = { enabled ->
+                        if (enabled && Build.VERSION.SDK_INT >= 33 &&
+                            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            pendingReminderEnable = true
+                            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else saveReminder(enabled)
+                    }
+                )
+            }
+            OutlinedButton(
+                onClick = {
+                    TimePickerDialog(
+                        context,
+                        { _, hour, minute -> saveReminder(remindersEnabled, hour, minute) },
+                        reminderHour, reminderMinute, true
+                    ).show()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Change reminder time") }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Fun reminder messages")
+                Switch(checked = memeMode, onCheckedChange = { saveReminder(remindersEnabled, funMode = it) })
+            }
+            Text("Reminders are scheduled locally. Android battery settings may delay delivery.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        }
+        GlassCard {
+            Text("Manual app update", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Choose a compatible FinTrack APK. Android will show its own installation confirmation.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            OutlinedButton(onClick = onInstallApk, modifier = Modifier.fillMaxWidth()) { Text("Select update APK") }
         }
         GlassCard {
             Text("Offline privacy", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -1349,6 +1509,31 @@ private fun EmptyState(title: String, description: String) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+}
+
+private fun decodeBackgroundBitmap(context: android.content.Context, uri: Uri): Bitmap? {
+    return try {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        var sample = 1
+        while (bounds.outWidth / sample > 1600 || bounds.outHeight / sample > 1600) sample *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun openSelectedApk(context: android.content.Context, uri: Uri) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        })
+    } catch (error: Exception) {
+        Toast.makeText(context, "Could not open Android package installer: ${error.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
     }
 }
 
