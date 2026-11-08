@@ -1013,6 +1013,7 @@ private fun SettingsScreen(
     onExportPdf: () -> Unit,
     onChooseBackground: () -> Unit,
     onRemoveBackground: () -> Unit,
+    backgroundOpacity: Float,
     onBackgroundOpacity: (Float) -> Unit,
     onInstallApk: () -> Unit
 ) {
