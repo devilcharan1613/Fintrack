@@ -95,18 +95,65 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
         }
     }
 
-    suspend fun updateTransaction(transaction: TransactionEntity) {
+    suspend fun replaceTransaction(
+        transaction: TransactionEntity,
+        destinationAccountId: Long? = null
+    ) {
         require(transaction.amountPaise > 0L) { "Transaction amount must be positive" }
-        require(transaction.category.isNotBlank()) { "Category is required" }
-        database.withTransaction {
-            val original = transactions.first().firstOrNull { it.id == transaction.id }
-                ?: throw IllegalArgumentException("Transaction does not exist")
-            require(original.transferId == null && transaction.transferId == null) {
-                "Edit a paired transfer as a single transfer operation."
+        val type = transaction.type.uppercase()
+        require(type in setOf("INCOME", "EXPENSE", "BORROW", "LEND", "TRANSFER")) {
+            "Unsupported transaction type"
+        }
+        require(accountDao.getAccountById(transaction.accountId) != null) { "Account does not exist" }
+        if (type == "TRANSFER") {
+            val destination = destinationAccountId ?: throw IllegalArgumentException("Choose a destination account")
+            require(destination != transaction.accountId) { "Transfer accounts must be different" }
+            require(accountDao.getAccountById(destination) != null) { "Destination account does not exist" }
+        }
+        if (type == "BORROW" || type == "LEND") {
+            require(transaction.personId != null && dao.allPersons().any { it.id == transaction.personId }) {
+                "Select a valid person for borrowed/lent money"
             }
-            dao.updateTransaction(transaction)
+        }
+        database.withTransaction {
+            val original = dao.allTransactions().firstOrNull { it.id == transaction.id }
+                ?: throw IllegalArgumentException("Transaction does not exist")
+            val oldTransferId = original.transferId
+            if (oldTransferId != null) dao.deleteTransfer(oldTransferId)
+
+            if (type == "TRANSFER") {
+                val transferId = oldTransferId ?: UUID.randomUUID().toString()
+                val legacyAmount = MoneyPaise.fromSignedPaise(transaction.amountPaise).toRupeesDecimal().toDouble()
+                dao.insertTransaction(
+                    transaction.copy(
+                        id = original.id, type = "TRANSFER_OUT", amount = legacyAmount,
+                        category = "Transfer", transferAccountId = destinationAccountId,
+                        transferId = transferId, stableUid = original.stableUid
+                    )
+                )
+                dao.insertTransaction(
+                    TransactionEntity(
+                        accountId = destinationAccountId!!, type = "TRANSFER_IN",
+                        amount = legacyAmount, amountPaise = transaction.amountPaise,
+                        category = "Transfer", note = transaction.note, timestamp = transaction.timestamp,
+                        transferAccountId = transaction.accountId, transferId = transferId,
+                        stableUid = original.stableUid + ":in"
+                    )
+                )
+            } else {
+                val updated = transaction.copy(
+                    id = original.id, type = type,
+                    amount = MoneyPaise.fromSignedPaise(transaction.amountPaise).toRupeesDecimal().toDouble(),
+                    transferAccountId = null, transferId = null, stableUid = original.stableUid
+                )
+                if (oldTransferId != null) dao.insertTransaction(updated)
+                else dao.updateTransaction(updated)
+            }
         }
     }
+
+    suspend fun updateTransaction(transaction: TransactionEntity) =
+        replaceTransaction(transaction, transaction.transferAccountId)
 
     suspend fun archiveAccount(accountId: Long) = accountDao.archiveAccount(accountId)
 
