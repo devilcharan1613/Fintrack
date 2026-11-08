@@ -548,16 +548,22 @@ private fun PeopleScreen(
     onDelete: (PersonEntity) -> Unit,
     onEdit: (PersonEntity) -> Unit
 ) {
-    if (people.isEmpty()) EmptyState("No people added", "Add people to track money borrowed from or lent to each person.")
-    else LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    if (people.isEmpty()) {
+        EmptyState("No people added", "Add people to track money borrowed from or lent to each person.")
+    } else LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
         items(people, key = { it.stableUid }) { person ->
             val rows = transactions.filter { it.personId == person.id }
             val borrowed = rows.filter { it.type.equals("BORROW", true) }.sumOf { it.amountPaise }
             val lent = rows.filter { it.type.equals("LEND", true) }.sumOf { it.amountPaise }
             GlassCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) { Text(person.name, fontWeight = FontWeight.Bold); if (person.phone.isNotBlank()) Text(person.phone, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    TextButton(onClick = { onEdit(person) }) { Text("Edit") }
+                    Column(Modifier.weight(1f)) {
+                        Text(person.name, fontWeight = FontWeight.Bold)
+                        if (person.phone.isNotBlank()) Text(person.phone, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     TextButton(onClick = { onEdit(person) }) { Text("Edit") }
                     TextButton(onClick = { onDelete(person) }) { Text("Delete") }
                 }
@@ -565,11 +571,13 @@ private fun PeopleScreen(
                     Text("Borrowed " + money(borrowed), color = Color(0xFFB59BFF), style = MaterialTheme.typography.bodySmall)
                     Text("Lent " + money(lent), color = Color(0xFFFFBC72), style = MaterialTheme.typography.bodySmall)
                 }
+                if (rows.isNotEmpty()) {
+                    Text("Linked transactions: ${rows.size}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }
 }
-
 @Composable
 private fun BudgetsScreen(
     budgets: List<BudgetEntity>,
@@ -577,37 +585,45 @@ private fun BudgetsScreen(
     onDelete: (BudgetEntity) -> Unit,
     onEdit: (BudgetEntity) -> Unit
 ) {
-    if (budgets.isEmpty()) EmptyState("No budgets created", "Set category spending limits and monitor progress.")
-    else LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    if (budgets.isEmpty()) {
+        EmptyState("No budgets created", "Set category spending limits and monitor progress.")
+    } else LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
         items(budgets, key = { it.stableUid }) { budget ->
             val range = budgetWindow(budget)
             val spent = NativeLedgerCalculator.categoryExpensePaise(
                 transactions, budget.category, range.first, range.second
             )
-            val ratio = if (budget.limitAmountPaise <= 0) 0f else (spent.toDouble() / budget.limitAmountPaise).toFloat().coerceIn(0f, 1.2f)
+            val remaining = budget.limitAmountPaise - spent
+            val ratio = if (budget.limitAmountPaise <= 0L) 0f
+                else (spent.toDouble() / budget.limitAmountPaise).toFloat().coerceIn(0f, 1.2f)
             GlassCard {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column(Modifier.weight(1f)) { Text(budget.category, fontWeight = FontWeight.Bold); Text(budget.month, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall) }
+                    Column(Modifier.weight(1f)) {
+                        Text(budget.category, fontWeight = FontWeight.Bold)
+                        Text("${budget.period} • ${budget.month}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                    }
                     Row {
-                        TextButton(onClick = { onEdit(budget) }) { Text("Edit") }
-                        Row {
                         TextButton(onClick = { onEdit(budget) }) { Text("Edit") }
                         TextButton(onClick = { onDelete(budget) }) { Text("Delete") }
                     }
-                    }
                 }
                 Text(money(spent) + " of " + money(budget.limitAmountPaise))
-                LinearProgressIndicator(progress = { ratio.coerceAtMost(1f) }, modifier = Modifier.fillMaxWidth(), color = if (ratio >= 1f) Color(0xFFFF6779) else Color(0xFF20D7BE))
+                LinearProgressIndicator(
+                    progress = { ratio.coerceAtMost(1f) }, modifier = Modifier.fillMaxWidth(),
+                    color = if (ratio >= 1f) Color(0xFFFF6779) else Color(0xFF20D7BE)
+                )
                 Text(
-                    if (spent > budget.limitAmountPaise) "Over budget by " + money(spent - budget.limitAmountPaise)
-                    else "Remaining " + money(budget.limitAmountPaise - spent),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
+                    if (remaining < 0L) "Over budget by " + money(-remaining) else "Remaining " + money(remaining),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
     }
 }
-
 @Composable
 private fun GoalsScreen(
     goals: List<GoalEntity>,
@@ -616,47 +632,46 @@ private fun GoalsScreen(
     onEdit: (GoalEntity) -> Unit,
     viewModel: NativeFinTrackViewModel
 ) {
-    if (goals.isEmpty()) EmptyState("No savings goals", "Create a target and record contributions as separate tracking entries.")
-    else LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    if (goals.isEmpty()) {
+        EmptyState("No savings goals", "Create a target and record contributions as separate tracking entries.")
+    } else LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
         items(goals, key = { it.stableUid }) { goal ->
-            val ratio = if (goal.targetAmountPaise <= 0) 0f else (goal.savedAmountPaise.toDouble() / goal.targetAmountPaise).toFloat().coerceIn(0f, 1f)
+            val ratio = if (goal.targetAmountPaise <= 0L) 0f
+                else (goal.savedAmountPaise.toDouble() / goal.targetAmountPaise).toFloat().coerceIn(0f, 1f)
+            val contributions by viewModel.goalContributions(goal.id).collectAsStateWithLifecycle(initialValue = emptyList())
             GlassCard {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(goal.name, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     Row {
                         TextButton(onClick = { onEdit(goal) }) { Text("Edit") }
-                        Row {
-                        TextButton(onClick = { onEdit(goal) }) { Text("Edit") }
                         TextButton(onClick = { onDelete(goal) }) { Text("Delete") }
-                    }
                     }
                 }
                 Text(money(goal.savedAmountPaise) + " saved of " + money(goal.targetAmountPaise))
                 LinearProgressIndicator(progress = { ratio }, modifier = Modifier.fillMaxWidth(), color = Color(0xFF19D9C8))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Remaining " + money((goal.targetAmountPaise - goal.savedAmountPaise).coerceAtLeast(0)), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Remaining " + money((goal.targetAmountPaise - goal.savedAmountPaise).coerceAtLeast(0L)), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = { onContribute(goal) }) { Text("Add contribution") }
                 }
-                val contributions by viewModel.goalContributions(goal.id).collectAsStateWithLifecycle(initialValue = emptyList())
-                val contributions by viewModel.goalContributions(goal.id).collectAsStateWithLifecycle(initialValue = emptyList())
                 Text("Contribution tracking does not change account balances.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (contributions.isNotEmpty()) {
                     Text("Contribution history", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     contributions.take(3).forEach { entry ->
-                        Text(SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(entry.timestamp)) + " • " + money(entry.amountPaise), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                if (contributions.isNotEmpty()) {
-                    Text("Contribution history", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    contributions.take(3).forEach { entry ->
-                        Text(SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(entry.timestamp)) + " • " + money(entry.amountPaise), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(entry.timestamp)) +
+                                " • " + money(entry.amountPaise),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
         }
     }
 }
-
 @Composable
 private fun LoansScreen(
     loans: List<LoanEntity>,
@@ -665,54 +680,57 @@ private fun LoansScreen(
     onEdit: (LoanEntity) -> Unit,
     viewModel: NativeFinTrackViewModel
 ) {
-    if (loans.isEmpty()) EmptyState("No loan records", "Add a loan and record partial or full repayments.")
-    else LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    if (loans.isEmpty()) {
+        EmptyState("No loan records", "Add a loan and record partial or full repayments.")
+    } else LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
         items(loans, key = { it.stableUid }) { loan ->
             val remaining = (loan.principalPaise - loan.paidAmountPaise).coerceAtLeast(0L)
-            val ratio = if (loan.principalPaise <= 0) 0f else (loan.paidAmountPaise.toDouble() / loan.principalPaise).toFloat().coerceIn(0f, 1f)
+            val ratio = if (loan.principalPaise <= 0L) 0f
+                else (loan.paidAmountPaise.toDouble() / loan.principalPaise).toFloat().coerceIn(0f, 1f)
+            val payments by viewModel.loanPayments(loan.id).collectAsStateWithLifecycle(initialValue = emptyList())
             GlassCard {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(loan.name, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     Row {
                         TextButton(onClick = { onEdit(loan) }) { Text("Edit") }
-                        Row {
-                        TextButton(onClick = { onEdit(loan) }) { Text("Edit") }
                         TextButton(onClick = { onDelete(loan) }) { Text("Delete") }
-                    }
                     }
                 }
                 Text("Outstanding " + money(remaining), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text("Principal " + money(loan.principalPaise) + " • Paid " + money(loan.paidAmountPaise), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 LinearProgressIndicator(progress = { ratio }, modifier = Modifier.fillMaxWidth(), color = Color(0xFF25D8C5))
                 TextButton(onClick = { onRepay(loan) }) { Text("Record repayment") }
-                val payments by viewModel.loanPayments(loan.id).collectAsStateWithLifecycle(initialValue = emptyList())
-                val payments by viewModel.loanPayments(loan.id).collectAsStateWithLifecycle(initialValue = emptyList())
                 Text("Repayment tracking does not change account balances.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (payments.isNotEmpty()) {
                     Text("Repayment history", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     payments.take(3).forEach { entry ->
-                        Text(SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(entry.timestamp)) + " • " + money(entry.amountPaise), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                if (payments.isNotEmpty()) {
-                    Text("Repayment history", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    payments.take(3).forEach { entry ->
-                        Text(SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(entry.timestamp)) + " • " + money(entry.amountPaise), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(entry.timestamp)) +
+                                " • " + money(entry.amountPaise),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
         }
     }
 }
-
 @Composable
 private fun CategoriesScreen(
     categories: List<CategoryEntity>,
     onDelete: (CategoryEntity) -> Unit,
     onEdit: (CategoryEntity) -> Unit
 ) {
-    if (categories.isEmpty()) EmptyState("No categories available", "Create income and expense categories for transaction classification.")
-    else LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    if (categories.isEmpty()) {
+        EmptyState("No categories available", "Create income and expense categories for transaction classification.")
+    } else LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         items(categories, key = { it.stableUid }) { category ->
             GlassCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -721,6 +739,11 @@ private fun CategoriesScreen(
                     Column(Modifier.weight(1f)) {
                         Text(category.name, fontWeight = FontWeight.SemiBold)
                         Text(category.type, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            "Subcategories: ${runCatching { org.json.JSONArray(category.subcategoriesJson).length() }.getOrDefault(0)}",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall
+                        )
                     }
                     if (!category.isSystem) {
                         TextButton(onClick = { onEdit(category) }) { Text("Edit") }
@@ -731,7 +754,6 @@ private fun CategoriesScreen(
         }
     }
 }
-
 @Composable
 private fun SettingsScreen(
     darkTheme: Boolean,
