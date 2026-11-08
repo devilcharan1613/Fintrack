@@ -129,10 +129,10 @@ abstract class FinTrackDatabase : RoomDatabase() {
                 val ids = mutableListOf<Long>()
                 while (cursor.moveToNext()) ids += cursor.getLong(0)
                 ids.forEach { id ->
-                    val values = android.content.ContentValues().apply {
-                        put("stableUid", java.util.UUID.randomUUID().toString())
-                    }
-                    db.update(table, values, "id = ?", arrayOf(id.toString()))
+                    db.execSQL(
+                        "UPDATE $table SET stableUid = ? WHERE id = ?",
+                        arrayOf(java.util.UUID.randomUUID().toString(), id)
+                    )
                 }
             }
         }
@@ -148,8 +148,7 @@ abstract class FinTrackDatabase : RoomDatabase() {
                 while (cursor.moveToNext()) rows += cursor.getLong(0) to cursor.getDouble(1)
                 rows.forEach { (id, amount) ->
                     val paise = com.charan.fintrack.data.MoneyPaise.fromLegacyRupees(amount).paise
-                    val values = android.content.ContentValues().apply { put(paiseColumn, paise) }
-                    db.update(table, values, "id = ?", arrayOf(id.toString()))
+                    db.execSQL("UPDATE $table SET $paiseColumn = ? WHERE id = ?", arrayOf(paise, id))
                 }
             }
         }
