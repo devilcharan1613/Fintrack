@@ -3,16 +3,22 @@ name: Build FinTrack APK
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: fintrack-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Assemble debug APK
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -26,21 +32,83 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          # The legacy 'tools' SDK package was removed. Gradle fetches the compile/build tools it needs.
           packages: 'platform-tools'
 
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses || true
 
-      - name: Build debug APK
+      - name: Set up Node.js for embedded JavaScript validation
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate embedded JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          import pathlib, re
+          html = pathlib.Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script[^>]*>(.*?)</script>', html, flags=re.S | re.I)
+          if not scripts:
+              raise SystemExit('No inline JavaScript blocks found')
+          # Catch over-escaped digit classes in the Smart Reminders time validator.
+          if r"/^([01]\d|2[0-3]):[0-5]\d$/" not in html:
+              raise SystemExit('Smart Reminders time validator must accept valid HH:MM values')
+          for index, script in enumerate(scripts):
+              pathlib.Path(f'/tmp/fintrack-inline-{index}.js').write_text(script, encoding='utf-8')
+          print(f'Extracted {len(scripts)} JavaScript block(s)')
+          PY
+          for script in /tmp/fintrack-inline-*.js; do node --check "$script"; done
+
+      - name: Build debug APK and run JVM tests
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon --stacktrace assembleDebug
+          ./gradlew --no-daemon --stacktrace testDebugUnitTest assembleDebug
 
-      - name: Upload APK
+      - name: Upload debug APK after successful build
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: FinTrack-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Enable KVM access for Android emulator
+        run: |
+          if [ ! -e /dev/kvm ]; then
+            echo "::error:: /dev/kvm is unavailable on this runner; hardware-accelerated emulator tests cannot start."
+            exit 1
+          fi
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+          echo "KVM is accessible to the GitHub Actions runner."
+
+      - name: Run Android instrumentation tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          cores: 4
+          ram-size: 4096M
+          heap-size: 1024M
+          emulator-boot-timeout: 600
+          disable-linux-hw-accel: false
+          disable-animations: false
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -camera-back none
+          script: ./gradlew --no-daemon --stacktrace connectedDebugAndroidTest
+
+      - name: Upload test reports and emulator diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FinTrack-test-diagnostics
+          path: |
+            app/build/reports/androidTests/**
+            app/build/outputs/androidTest-results/**
+            app/build/ci-diagnostics/**
+          if-no-files-found: warn
+          retention-days: 14
+

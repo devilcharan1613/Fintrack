@@ -12,8 +12,9 @@ android {
         applicationId = "com.charan.fintrack"
         minSdk = 23
         targetSdk = 35
-        versionCode = 24
-        versionName = "2.4.0"
+        versionCode = 26
+        versionName = "2.4.2"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true }
     compileOptions {
@@ -34,6 +35,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.room:room-runtime:2.6.1")

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>FinTrack — Personal Finance & Budget Tracker · v2.3.0</title>
+<title>FinTrack — Personal Finance & Budget Tracker · v2.4.2</title>
 <style>
   :root{
     --bg:#090d14; --bg2:rgba(255,255,255,.065); --bg3:rgba(255,255,255,.09); --border:rgba(255,255,255,.14);
@@ -174,7 +174,9 @@
 
   /* ===== Bottom nav ===== */
   .bottomnav{
-    position:fixed; bottom:0; left:0; right:0; height:calc(var(--nav-h) + env(safe-area-inset-bottom)); padding:0 6px env(safe-area-inset-bottom);
+    position:fixed; bottom:0; left:0; right:0;
+    height:calc(var(--nav-h) + max(env(safe-area-inset-bottom),var(--safe-bottom)));
+    padding:0 6px max(env(safe-area-inset-bottom),var(--safe-bottom));
     background:rgba(18,25,36,.78); border:1px solid rgba(255,255,255,.14); border-bottom:0; border-radius:24px 24px 0 0;
     box-shadow:0 -12px 32px rgba(0,0,0,.24); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
     display:flex; z-index:30;
@@ -230,15 +232,28 @@
   .period-tabs{display:flex; gap:8px; margin-bottom:18px;}
   .period-tab{flex:1; text-align:center; padding:9px 4px; border-radius:10px; background:var(--bg2); border:1px solid var(--border); font-size:12.5px; font-weight:800; color:var(--text2);}
   .period-tab.active{background:var(--primary-dim); color:var(--primary); border-color:rgba(0,200,150,0.4);}
-  .chart-card{background:var(--bg2); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:16px;}
-  .chart-card h3{font-size:14px; font-weight:800; margin:0 0 12px;}
-  .legend{display:flex; flex-wrap:wrap; gap:10px; margin-top:12px;}
-  .legend-item{display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--text2);}
-  .legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
-  .cat-row{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border);}
-  .cat-row:last-child{border-bottom:none;}
-  .cat-bar-bg{flex:1; height:7px; background:var(--bg3); border-radius:6px; overflow:hidden;}
-  .cat-bar-fill{height:100%; border-radius:6px;}
+  /* Reports: refined editorial dashboard */
+  #page-reports{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;}
+  #page-reports .period-tabs{gap:7px;overflow-x:auto;padding:2px 1px 7px;scrollbar-width:none;}
+  #page-reports .period-tab{min-width:66px;border-radius:12px;padding:10px 9px;letter-spacing:.1px;transition:transform .2s,background .2s,border-color .2s;}
+  #page-reports .period-tab:active{transform:scale(.96);}
+  #page-reports .period-tab.active{background:linear-gradient(135deg,rgba(0,214,170,.2),rgba(40,190,255,.1));box-shadow:0 5px 18px rgba(0,200,160,.12);border-color:rgba(0,220,180,.48);}
+  #page-reports .chart-card{position:relative;overflow:hidden;background:linear-gradient(145deg,rgba(30,39,49,.97),rgba(20,27,36,.98));border:1px solid rgba(157,177,196,.18);border-radius:20px;padding:17px 16px;margin-bottom:15px;box-shadow:0 10px 28px rgba(0,0,0,.16);animation:reportRise .55s ease both;}
+  #page-reports .chart-card:before{content:"";position:absolute;inset:0 0 auto;height:2px;background:linear-gradient(90deg,#00d6aa,#35b9f5,#a78bfa);opacity:.72;}
+  #page-reports .chart-card h3{font-size:14px;font-weight:850;letter-spacing:.12px;margin:0 0 14px;color:var(--text);}
+  #page-reports .legend{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px;}
+  #page-reports .legend-item{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;color:var(--text2);background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.055);border-radius:20px;padding:7px 9px;}
+  #page-reports .legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 9px currentColor;}
+  #page-reports .cat-row{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid rgba(157,177,196,.12);}
+  #page-reports .cat-row:last-child{border-bottom:none;}
+  #page-reports .cat-bar-bg{flex:1;height:9px;background:rgba(255,255,255,.07);border-radius:20px;overflow:hidden;}
+  #page-reports .cat-bar-fill{height:100%;border-radius:20px;box-shadow:0 0 12px rgba(0,214,170,.2);animation:reportBar .85s cubic-bezier(.2,.8,.2,1) both;}
+  #page-reports .info-row{padding:12px 0;font-size:13px;border-bottom:1px solid rgba(157,177,196,.12);}
+  #page-reports #barChart{display:block;width:100%;height:210px;}
+  #page-reports #doughnutChart{display:block;width:100%;height:230px;}
+  @keyframes reportRise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes reportBar{from{width:0}to{width:var(--bar-width,100%)}}
+  @media(prefers-reduced-motion:reduce){#page-reports .chart-card,#page-reports .cat-bar-fill{animation:none!important;transition:none!important;}}
 
   /* ===== Settings ===== */
   .set-item{display:flex; align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid var(--border);}
@@ -332,6 +347,25 @@
   @media (prefers-reduced-motion: reduce){
     .hero{animation:none;}
   }
+  /* FinTrack 2.3.1: use native insets in CSS-pixel units and keep modal actions above IME. */
+  :root.keyboard-open .overlay.show{bottom:var(--ime-bottom);}
+  :root.keyboard-open .sheet{
+    max-height:calc(100dvh - max(env(safe-area-inset-top),var(--safe-top)) - var(--ime-bottom) - 8px);
+    padding-bottom:20px;
+    scroll-padding-bottom:20px;
+  }
+  .sheet{min-height:0; overscroll-behavior-y:contain;}
+  .sheet .btn-row:last-child{padding-bottom:2px;}
+  .quick-add-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:4px 0 10px;}
+  .quick-add-option{
+    min-height:82px;border:1px solid var(--border);border-radius:14px;
+    background:rgba(255,255,255,.07);color:var(--text);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+    font-size:12px;font-weight:800;
+  }
+  .quick-add-option .ic{font-size:23px;}
+  .quick-add-option:active{background:var(--primary-dim);border-color:var(--primary);}
+
 </style>
 <script>
   window.finTrackApplyInsets = function(left, top, right, bottom, imeBottom) {
@@ -343,7 +377,15 @@
     root.style.setProperty('--safe-top', safeTop + 'px');
     root.style.setProperty('--safe-right', safeRight + 'px');
     root.style.setProperty('--safe-bottom', safeBottom + 'px');
-    root.style.setProperty('--ime-bottom', Math.max(0, keyboard - safeBottom) + 'px');
+    // Some WebView/Android combinations resize the CSS viewport for ADJUST_RESIZE;
+    // others keep it edge-to-edge. Only offset the sheet when the viewport was not resized.
+    var viewportHeight = window.innerHeight || root.clientHeight;
+    var screenHeight = (window.screen && window.screen.height) || viewportHeight;
+    var expectedAppHeight = Math.max(0, screenHeight - safeTop - safeBottom);
+    var viewportAlreadyResized = keyboard > safeBottom + 80 &&
+      viewportHeight < expectedAppHeight - 80;
+    var imeOffset = viewportAlreadyResized ? 0 : Math.max(0, keyboard - safeBottom);
+    root.style.setProperty('--ime-bottom', imeOffset + 'px');
     root.classList.toggle('keyboard-open', keyboard > safeBottom + 80);
     root.classList.toggle('has-safe-top', safeTop > 0);
     root.classList.toggle('has-safe-bottom', safeBottom > 0);
@@ -450,6 +492,20 @@
   <div class="page" id="page-reports">
     <div class="period-tabs" id="reportPeriodTabs"></div>
 
+    <div class="card" id="reportExportCard" style="margin-bottom:16px;">
+      <div class="section-title" style="margin-top:0;">Export Transactions</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div class="field" style="margin:0;"><label for="reportStartDate">Start date</label><input id="reportStartDate" type="date" aria-label="Report start date"></div>
+        <div class="field" style="margin:0;"><label for="reportEndDate">End date</label><input id="reportEndDate" type="date" aria-label="Report end date"></div>
+      </div>
+      <button class="btn" style="width:100%;margin-bottom:10px;" onclick="applyCustomReportRange()">Apply custom date range</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button class="btn btn-primary" onclick="exportTransactionReport('pdf')">↓ Export PDF</button>
+        <button class="btn" onclick="exportTransactionReport('docx')">↓ Export DOCX</button>
+      </div>
+      <div class="muted" style="font-size:11px;line-height:1.5;margin-top:9px;">Exports include the selected date range, summary, charts, account and category breakdowns, and the complete matching ledger. Files are generated locally on this device.</div>
+    </div>
+
     <div class="card" style="margin-bottom:16px;">
       <div class="section-title" style="margin-top:0;">Summary</div>
       <div class="info-row"><span class="l">Income</span><span class="v" style="color:var(--primary)" id="repIncome">₹0</span></div>
@@ -486,7 +542,13 @@
 
   <!-- ================= SETTINGS ================= -->
   <div class="page" id="page-settings">
-    <div class="section-title" style="margin-top:0;">Data Management</div>
+    <div class="section-title" style="margin-top:0;">SMART REMINDERS</div>
+    <div class="card" id="smartReminderCard" style="margin-bottom:16px;">
+      <div id="smartReminderControls">
+        <div style="color:var(--text2);font-size:13px;">Loading reminder preferences…</div>
+      </div>
+    </div>
+    <div class="section-title">Data Management</div>
     <div class="card">
       <div class="set-item" onclick="exportData()" style="cursor:pointer;">
         <div class="set-icon">📤</div>
@@ -495,6 +557,10 @@
       <div class="set-item" onclick="triggerImport()" style="cursor:pointer;">
         <div class="set-icon">📥</div>
         <div class="set-mid"><div class="set-name">Import Data</div><div class="set-desc">Restore local JSON backup</div></div>
+      </div>
+      <div class="set-item" id="recoveryBackupRow" onclick="exportRecoveryBackup()" style="display:none;cursor:pointer;">
+        <div class="set-icon">🛟</div>
+        <div class="set-mid"><div class="set-name">Export Recovery Copy</div><div class="set-desc">Download the original unreadable data for recovery</div></div>
       </div>
       <div class="set-item" onclick="resetData()" style="cursor:pointer;">
         <div class="set-icon">🗑️</div>
@@ -524,7 +590,7 @@
       <div class="icn">💰</div>
       <h3>FinTrack</h3>
       <p>Personal Finance & Budget Tracker</p>
-      <p style="margin-top:8px;">Version 4.0 · 100% Offline</p>
+      <p style="margin-top:8px;">Version 2.4.2 · 100% Offline</p>
     </div>
   </div>
 
@@ -534,7 +600,7 @@
   <div class="bottomnav">
     <button class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><span class="ic">🏠</span><span class="lb">Home</span></button>
     <button class="nav-item" data-page="accounts" onclick="showPage('accounts')"><span class="ic">💳</span><span class="lb">Accounts</span></button>
-    <button class="nav-add" aria-label="Add transaction" onclick="openModal('txn')">+</button>
+    <button class="nav-add" aria-label="Quick add" aria-haspopup="dialog" onclick="openQuickAddMenu()">+</button>
     <button class="nav-item" data-page="reports" onclick="showPage('reports')"><span class="ic">📊</span><span class="lb">Reports</span></button>
     <button class="nav-item" data-page="more" onclick="showPage('more')"><span class="ic">☰</span><span class="lb">More</span></button>
   </div>
@@ -760,6 +826,22 @@
     </div>
   </div>
 
+  <!-- ================= MODAL: QUICK ADD MENU (2.3.1) ================= -->
+  <div class="overlay" id="overlay-quickadd" onclick="if(event.target===this)closeModal('quickadd')">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Quick Add</div>
+      <div class="quick-add-grid">
+        <button type="button" class="quick-add-option" onclick="openQuickAdd('income')"><span class="ic">💰</span>Income</button>
+        <button type="button" class="quick-add-option" onclick="openQuickAdd('expense')"><span class="ic">💸</span>Expense</button>
+        <button type="button" class="quick-add-option" onclick="openQuickAdd('transfer')"><span class="ic">🔄</span>Transfer</button>
+        <button type="button" class="quick-add-option" onclick="openQuickAdd('borrow')"><span class="ic">📥</span>Borrow</button>
+        <button type="button" class="quick-add-option" onclick="openQuickAdd('lend')"><span class="ic">📤</span>Lend</button>
+      </div>
+      <div class="btn-row"><button class="btn btn-secondary" onclick="closeModal('quickadd')">Cancel</button></div>
+    </div>
+  </div>
+
   <div id="toast"></div>
 </div>
 
@@ -771,6 +853,8 @@
    CONSTANTS
 ============================================================ */
 var STORAGE_KEY = 'fintrack_v3';
+var storageRecoveryPending = false;
+var storageRecoverySaved = false;
 
 var DEFAULT_CATEGORIES = [
   {id:'food',name:'Food',icon:'🍽️',subcategories:['Hotel','Restaurant','Groceries','Snacks','Sweets','Dhaba']},
@@ -826,7 +910,10 @@ function fmt(n){
   var v = Math.abs(n).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:2});
   return (neg?'-':'') + '₹' + v;
 }
-function today(){ return new Date().toISOString().split('T')[0]; }
+function today(){
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 function fmtDate(d){
   try{
     return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
@@ -853,16 +940,34 @@ function getAcc(id){ return state.accounts.find(function(a){return a.id===id;});
 function getPerson(id){ return state.persons.find(function(p){return p.id===id;}); }
 function getTxnType(id){ return TXN_TYPES.find(function(t){return t.id===id;}) || TXN_TYPES[1]; }
 
+function preserveUnreadableStorage(raw){
+  storageRecoveryPending = true;
+  try{
+    var recoveryKey = STORAGE_KEY + '_recovery_backup';
+    if(!localStorage.getItem(recoveryKey)) localStorage.setItem(recoveryKey, raw);
+    storageRecoverySaved = !!localStorage.getItem(recoveryKey);
+  }catch(e){
+    storageRecoverySaved = false;
+  }
+}
 function save(){
   try{
+    if(storageRecoveryPending && !storageRecoverySaved){
+      showToast('Saved data is unreadable and could not be backed up. Original storage was not overwritten.', 'error');
+      return false;
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    storageRecoveryPending = false;
+    return true;
   }catch(e){
     showToast('Unable to access local storage on this device.', 'error');
+    return false;
   }
 }
 function load(){
+  var raw = null;
   try{
-    var raw = localStorage.getItem(STORAGE_KEY);
+    raw = localStorage.getItem(STORAGE_KEY);
     if(!raw && window.FinTrackBridge && typeof window.FinTrackBridge.getLegacyData === 'function'){
       try{
         var migrated = window.FinTrackBridge.getLegacyData();
@@ -877,7 +982,10 @@ function load(){
     }
     if(!raw) return null;
     var parsed = JSON.parse(raw);
-    if(!parsed || !Array.isArray(parsed.accounts) || !Array.isArray(parsed.transactions) || !Array.isArray(parsed.persons)) return null;
+    if(!parsed || !Array.isArray(parsed.accounts) || !Array.isArray(parsed.transactions) || !Array.isArray(parsed.persons)){
+      preserveUnreadableStorage(raw);
+      return null;
+    }
     if(!parsed.settings) parsed.settings = {currency:'₹', name:'FinTrack', version:'3.2'};
     if(!Array.isArray(parsed.categories)) parsed.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
     if(!Array.isArray(parsed.budgets)) parsed.budgets = [];
@@ -885,6 +993,7 @@ function load(){
     if(!Array.isArray(parsed.loans)) parsed.loans = [];
     return parsed;
   }catch(e){
+    if(raw !== null) preserveUnreadableStorage(raw);
     return null;
   }
 }
@@ -920,6 +1029,12 @@ function initState(){
     if(!Array.isArray(state.loans)) state.loans = [];
   } else {
     state = buildSeedState();
+    if(storageRecoveryPending){
+      showToast(storageRecoverySaved
+        ? 'Saved data could not be read. A recovery copy was preserved in Settings.'
+        : 'Saved data could not be read. Original storage has been protected from overwrite.',
+        'error');
+    }
     save();
   }
 }
@@ -1178,7 +1293,9 @@ function renderPersons(){
 /* ============================================================
    RENDER: REPORTS
 ============================================================ */
-var REPORT_PERIODS = ['Daily','Weekly','Monthly','Yearly'];
+var REPORT_PERIODS = ['Daily','Weekly','Monthly','Yearly','Custom'];
+var customReportStart = new Date(new Date().getFullYear(),new Date().getMonth(),1);
+var customReportEnd = new Date();
 function periodRange(period, ref){
   ref = ref || new Date();
   var start, end;
@@ -1192,9 +1309,12 @@ function periodRange(period, ref){
   } else if(period==='Monthly'){
     start = new Date(ref.getFullYear(), ref.getMonth(), 1);
     end = new Date(ref.getFullYear(), ref.getMonth()+1, 1);
-  } else {
+  } else if(period==='Yearly') {
     start = new Date(ref.getFullYear(), 0, 1);
     end = new Date(ref.getFullYear()+1, 0, 1);
+  } else {
+    start = new Date(customReportStart.getFullYear(),customReportStart.getMonth(),customReportStart.getDate());
+    end = new Date(customReportEnd.getFullYear(),customReportEnd.getMonth(),customReportEnd.getDate()+1);
   }
   return {start:start, end:end};
 }
@@ -1210,6 +1330,10 @@ function renderReports(){
   }).join('');
 
   var range = periodRange(reportPeriod);
+  var startInput=document.getElementById('reportStartDate');
+  var endInput=document.getElementById('reportEndDate');
+  if(startInput && !startInput.value) startInput.value=toDateInputValue(customReportStart);
+  if(endInput && !endInput.value) endInput.value=toDateInputValue(customReportEnd);
   var periodTxns = state.transactions.filter(function(t){ return inRange(t.date, range); });
 
   var income = periodTxns.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+Number(t.amount);},0);
@@ -1227,6 +1351,96 @@ function renderReports(){
   renderAccBalances();
 }
 function setReportPeriod(p){ reportPeriod=p; renderReports(); }
+function toDateInputValue(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function applyCustomReportRange(){
+  var start=document.getElementById('reportStartDate');
+  var end=document.getElementById('reportEndDate');
+  if(!start||!end||!start.value||!end.value){showToast('Select both start and end dates','error');return;}
+  if(start.value>end.value){showToast('Start date must be before or equal to end date','error');return;}
+  customReportStart=new Date(start.value+'T00:00:00');
+  customReportEnd=new Date(end.value+'T00:00:00');
+  reportPeriod='Custom';
+  renderReports();
+  showToast('Custom report range applied','success');
+}
+function buildTransactionExportPayload(){
+  var range=periodRange(reportPeriod);
+  var startDate=toDateInputValue(range.start);
+  var endDate=toDateInputValue(new Date(range.end.getFullYear(),range.end.getMonth(),range.end.getDate()-1));
+  var txns=state.transactions.filter(function(t){return typeof t.date==='string'&&t.date>=startDate&&t.date<=endDate;});
+  txns.sort(function(a,b){return (b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||'');});
+  var income=0,expense=0,borrow=0,lend=0;
+  var accountMap={},categoryMap={},monthMap={};
+  state.accounts.forEach(function(a){accountMap[a.id]={id:a.id,name:a.name||'Account',type:a.type||'',balance:Number(a.balance)||0,income:0,expense:0,borrow:0,lend:0,transferIn:0,transferOut:0,netFlow:0};});
+  txns.forEach(function(t){
+    var amount=Number(t.amount)||0;
+    var account=accountMap[t.accountId];
+    var category=getCat(t.category);
+    if(t.type==='income'){income+=amount;if(account)account.income+=amount;}
+    else if(t.type==='expense'){expense+=amount;if(account)account.expense+=amount;}
+    else if(t.type==='borrow'){borrow+=amount;if(account)account.borrow+=amount;}
+    else if(t.type==='lend'){lend+=amount;if(account)account.lend+=amount;}
+    else if(t.type==='transfer'){
+      if(account)account.transferOut+=amount;
+      if(accountMap[t.toAccountId])accountMap[t.toAccountId].transferIn+=amount;
+    }
+    if(t.category){
+      var key=String(t.category);
+      if(!categoryMap[key])categoryMap[key]={id:key,name:category.name||key,income:0,expense:0,count:0};
+      if(t.type==='income'||t.type==='expense'){
+        categoryMap[key][t.type]+=amount;
+        categoryMap[key].count++;
+      }
+    }
+    var month=(t.date||'').slice(0,7);
+    if(month){
+      if(!monthMap[month])monthMap[month]={month:month,income:0,expense:0};
+      if(t.type==='income')monthMap[month].income+=amount;
+      if(t.type==='expense')monthMap[month].expense+=amount;
+    }
+  });
+  Object.keys(accountMap).forEach(function(id){
+    var a=accountMap[id];
+    a.netFlow=a.income+a.borrow+a.transferIn-a.expense-a.lend-a.transferOut;
+  });
+  var categories=Object.keys(categoryMap).map(function(k){return categoryMap[k];}).sort(function(a,b){return b.expense-a.expense;});
+  var accounts=Object.keys(accountMap).map(function(k){return accountMap[k];});
+  var chart=Object.keys(monthMap).sort().map(function(k){return monthMap[k];});
+  var currency=(state.settings&&state.settings.currency)||'₹';
+  return {
+    title:'FinTrack Transaction Statement',
+    generatedAt:new Date().toLocaleString('en-IN'),
+    startDate:startDate,endDate:endDate,currency:currency,
+    summary:{income:income,expense:expense,netSavings:income-expense,currentBalance:state.accounts.reduce(function(sum,a){return sum+(Number(a.balance)||0);},0),borrowed:borrow,lent:lend,transactionCount:txns.length},
+    chart:chart,accounts:accounts,categories:categories,
+    transactions:txns.map(function(t){
+      var acc=state.accounts.find(function(a){return a.id===t.accountId;});
+      var toAcc=state.accounts.find(function(a){return a.id===t.toAccountId;});
+      var person=state.persons.find(function(p){return p.id===t.personId;});
+      var cat=getCat(t.category);
+      return {date:t.date||'',type:t.type||'',amount:Number(t.amount)||0,account:acc?acc.name:'—',toAccount:toAcc?toAcc.name:'',category:cat.name||t.category||'—',subcategory:t.subcategory||'',person:person?person.name:'',notes:t.notes||''};
+    })
+  };
+}
+function exportTransactionReport(format){
+  try{
+    if(format!=='pdf'&&format!=='docx'){showToast('Unsupported report format','error');return;}
+    var payload=buildTransactionExportPayload();
+    if(!payload.transactions.length){showToast('No transactions found in the selected date range','error');return;}
+    if(!window.FinTrackNative||typeof window.FinTrackNative.exportTransactionReport!=='function'){
+      showToast('Report export requires the installed FinTrack Android app','error');return;
+    }
+    var safeDate=payload.startDate+'_to_'+payload.endDate;
+    var filename='FinTrack_Statement_'+safeDate+(format==='docx'?'.docx':'.pdf');
+    window.FinTrackNative.exportTransactionReport(JSON.stringify(payload),format,filename);
+    showToast('Preparing '+format.toUpperCase()+' statement. Choose a save location when prompted.','success');
+  }catch(e){
+    console.error('FinTrack report export request failed',e);
+    showToast('Could not start report export: '+(e&&e.message?e.message:'unknown error'),'error');
+  }
+}
 
 function resolveColor(cssVar){
   var probe = document.createElement('div');
@@ -1265,29 +1479,29 @@ function drawBarChart(){
   });
 
   var maxVal = Math.max(1, Math.max.apply(null, data.map(function(x){return Math.max(x.inc,x.exp);})));
-  var padTop=10, padBottom=26, chartH = cssH-padTop-padBottom;
+  var padTop=18, padBottom=30, chartH = cssH-padTop-padBottom;
   var groupW = cssW/data.length;
-  var barW = Math.min(16, groupW*0.28);
-  var green = resolveColor('--primary');
-  var red = resolveColor('--red');
+  var barW = Math.min(18, groupW*0.25);
+  var green = '#16D6AE';
+  var red = '#FF647C';
   var textColor = resolveColor('--text2');
-
-  ctx.font = '10px sans-serif';
-  ctx.fillStyle = textColor;
+  ctx.font = '10px Inter, sans-serif';
   ctx.textAlign = 'center';
-
   animateCanvas(canvas,function(progress){
     ctx.clearRect(0,0,cssW,cssH);
+    ctx.strokeStyle='rgba(160,180,200,.12)';ctx.lineWidth=1;
+    for(var grid=0;grid<4;grid++){var gy=padTop+(chartH/3)*grid;ctx.beginPath();ctx.moveTo(2,gy);ctx.lineTo(cssW-2,gy);ctx.stroke();}
     data.forEach(function(d,i){
       var cx = groupW*i + groupW/2;
       var incH = (d.inc/maxVal)*chartH*progress;
       var expH = (d.exp/maxVal)*chartH*progress;
-      ctx.fillStyle = green;
-      roundRect(ctx, cx-barW-2, padTop+chartH-incH, barW, incH, 3);
-      ctx.fillStyle = red;
-      roundRect(ctx, cx+2, padTop+chartH-expH, barW, expH, 3);
-      ctx.fillStyle = textColor;
-      ctx.fillText(d.label, cx, cssH-8);
+      var gradIn=ctx.createLinearGradient(0,padTop+chartH-incH,0,padTop+chartH);
+      gradIn.addColorStop(0,'#43F5D0');gradIn.addColorStop(1,'#08A98D');
+      var gradOut=ctx.createLinearGradient(0,padTop+chartH-expH,0,padTop+chartH);
+      gradOut.addColorStop(0,'#FF8292');gradOut.addColorStop(1,'#E84462');
+      ctx.fillStyle=gradIn;roundRect(ctx,cx-barW-3,padTop+chartH-incH,barW,incH,5);
+      ctx.fillStyle=gradOut;roundRect(ctx,cx+3,padTop+chartH-expH,barW,expH,5);
+      ctx.fillStyle=textColor;ctx.fillText(d.label,cx,cssH-9);
     });
   });
 }
@@ -1484,9 +1698,15 @@ function savePlannerItem(){
   if(plannerType==='budgets')Object.assign(item,{amount:amount,spent:progress,period:document.getElementById('plannerPeriod').value});
   else if(plannerType==='goals')Object.assign(item,{target:amount,saved:progress});
   else Object.assign(item,{principal:amount,paid:progress,emi:emi});
+  var previousItems=state[plannerType].slice();
   var index=state[plannerType].findIndex(function(x){return String(x.id)===String(item.id);});
   if(index>=0)state[plannerType][index]=item;else state[plannerType].push(item);
-  save();closePlannerModal();renderCurrentPage();showToast('Saved successfully','success');
+  if(!save()){
+    state[plannerType]=previousItems;
+    showToast('Could not save. Your changes are still here. Check device storage and try again.','error');
+    return;
+  }
+  closePlannerModal();renderCurrentPage();showToast('Saved successfully','success');
 }
 function editPlannerItem(type,id){openPlannerModal(type,id);}
 function deletePlannerItem(type,id){
@@ -1500,9 +1720,12 @@ function deletePlannerItem(type,id){
    RENDER: SETTINGS
 ============================================================ */
 function renderSettings(){
+  var recoveryRow=document.getElementById('recoveryBackupRow');
+  if(recoveryRow) recoveryRow.style.display=localStorage.getItem(STORAGE_KEY+'_recovery_backup')?'flex':'none';
   document.getElementById('infoAccCount').textContent = state.accounts.length;
   document.getElementById('infoTxnCount').textContent = state.transactions.length;
   document.getElementById('infoPersonCount').textContent = state.persons.length;
+  renderSmartReminders();
 }
 
 /* ============================================================
@@ -1520,6 +1743,22 @@ function openModal(type){
     if(focused && focused.blur) focused.blur();
   });
 }
+function handleAndroidBack(){
+  var visible=Array.prototype.slice.call(document.querySelectorAll('.overlay.show'));
+  if(!visible.length) return false;
+  visible.sort(function(a,b){
+    return (parseInt(getComputedStyle(a).zIndex,10)||0)-(parseInt(getComputedStyle(b).zIndex,10)||0);
+  });
+  var top=visible[visible.length-1];
+  if(top.id==='overlay-planner') closePlannerModal();
+  else if(top.id==='overlay-quickcat') closeQuickCategory();
+  else if(top.id==='overlay-quicksubcat') closeQuickSubcategory();
+  else if(top.id==='overlay-quickwallet') closeQuickWallet();
+  else if(top.id==='overlay-quickadd') closeModal('quickadd');
+  else closeModal(top.id.replace('overlay-',''));
+  return true;
+}
+window.handleAndroidBack=handleAndroidBack;
 function closeModal(type){
   var overlay = document.getElementById('overlay-'+type);
   if(!overlay) return;
@@ -2100,35 +2339,91 @@ function openPersonDetail(id){
 /* ============================================================
    EXPORT / IMPORT / RESET
 ============================================================ */
-function exportData(){
+function exportRecoveryBackup(){
   try{
-    var dataStr=JSON.stringify(state,null,2), filename='fintrack_backup_'+today()+'.json';
-    if(window.FinTrackBridge && typeof window.FinTrackBridge.exportBackup==='function'){
-      window.FinTrackBridge.exportBackup(dataStr,filename);
-      showToast('Choose where to save your backup','success');
+    var raw=localStorage.getItem(STORAGE_KEY+'_recovery_backup');
+    if(!raw){showToast('No recovery copy is available','error');return;}
+    var filename='fintrack_recovery_backup_'+today()+'.json';
+    if(window.FinTrackNative && typeof window.FinTrackNative.exportBackup==='function'){
+      window.FinTrackNative.exportBackup(raw,filename);
+      showToast('Choose where to save the recovery copy','success');
       return;
     }
-    var blob=new Blob([dataStr],{type:'application/json'}), url=URL.createObjectURL(blob), a=document.createElement('a');
+    var blob=new Blob([raw],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
     a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-    showToast('Backup downloaded','success');
-  }catch(e){showToast('Export failed','error');}
+    showToast('Recovery copy downloaded','success');
+  }catch(e){showToast('Recovery export failed','error');}
+}
+
+function validateBackupData(parsed){
+  if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('Backup must be a JSON object');
+  ['accounts','transactions','persons'].forEach(function(key){
+    if(!Array.isArray(parsed[key]))throw new Error('Missing or invalid '+key+' data');
+  });
+  ['budgets','goals','loans'].forEach(function(key){
+    if(parsed[key]!==undefined&&!Array.isArray(parsed[key]))throw new Error('Invalid '+key+' data');
+  });
+  ['categories'].forEach(function(key){
+    if(parsed[key]!==undefined&&!Array.isArray(parsed[key]))throw new Error('Invalid categories data');
+  });
+  if(parsed.settings!==undefined&&(!parsed.settings||typeof parsed.settings!=='object'||Array.isArray(parsed.settings)))throw new Error('Invalid settings data');
+  var total=parsed.accounts.length+parsed.transactions.length+parsed.persons.length+
+    (parsed.budgets||[]).length+(parsed.goals||[]).length+(parsed.loans||[]).length;
+  if(total>100000)throw new Error('Backup contains too many records');
+  return parsed;
+}
+function exportData(){
+  try{
+    var snapshot=JSON.parse(JSON.stringify(state));
+    validateBackupData(snapshot);
+    snapshot.backupMeta={format:'FinTrack JSON Backup',schemaVersion:1,exportedAt:new Date().toISOString(),appVersion:'2.4.2'};
+    var dataStr=JSON.stringify(snapshot,null,2), filename='fintrack_backup_'+today()+'.json';
+    if(window.FinTrackNative && typeof window.FinTrackNative.exportBackup==='function'){
+      window.FinTrackNative.exportBackup(dataStr,filename);
+      showToast('Choose a location to save your JSON backup','success');
+      return;
+    }
+    var blob=new Blob([dataStr],{type:'application/json;charset=utf-8'}), url=URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+    showToast('Backup download started','success');
+  }catch(e){
+    console.error('FinTrack backup export failed',e);
+    showToast('Backup export failed: '+(e&&e.message?e.message:'unknown error'),'error');
+  }
 }
 function importBackupText(text){
+  var previousState=state;
   try{
-    var parsed=JSON.parse(text);
-    if(!parsed||!Array.isArray(parsed.accounts)||!Array.isArray(parsed.transactions)||!Array.isArray(parsed.persons))throw new Error('Invalid backup');
-    if(!confirm('Replace all current FinTrack data with this backup? This cannot be undone.'))return;
-    if(!Array.isArray(parsed.categories))parsed.categories=JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
-    if(!Array.isArray(parsed.budgets))parsed.budgets=[];
-    if(!Array.isArray(parsed.goals))parsed.goals=[];
-    if(!Array.isArray(parsed.loans))parsed.loans=[];
-    if(!parsed.settings)parsed.settings={currency:'₹',name:'FinTrack',version:'4.0'};
-    state=parsed;save();renderCurrentPage();showToast('Data imported successfully','success');
-  }catch(e){showToast('Invalid backup file','error');}
+    if(typeof text!=='string'||!text.trim()||text.length>20*1024*1024)throw new Error('Backup file is empty or too large');
+    var parsed=validateBackupData(JSON.parse(text));
+    if(!confirm('Replace all current FinTrack data with this backup? This cannot be undone.'))return false;
+    var restored=JSON.parse(JSON.stringify(parsed));
+    delete restored.backupMeta;
+    if(!Array.isArray(restored.categories))restored.categories=JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+    if(!Array.isArray(restored.budgets))restored.budgets=[];
+    if(!Array.isArray(restored.goals))restored.goals=[];
+    if(!Array.isArray(restored.loans))restored.loans=[];
+    if(!restored.settings)restored.settings={currency:'₹',name:'FinTrack',version:'4.0'};
+    state=restored;
+    if(!save()){
+      state=previousState;
+      showToast('Restore failed. Your existing FinTrack data was kept unchanged.','error');
+      return false;
+    }
+    renderCurrentPage();
+    showToast('Backup restored successfully','success');
+    return true;
+  }catch(e){
+    state=previousState;
+    console.error('FinTrack backup import failed',e);
+    showToast('Backup import failed: '+(e&&e.message?e.message:'invalid file'),'error');
+    return false;
+  }
 }
 function triggerImport(){
-  if(window.FinTrackBridge && typeof window.FinTrackBridge.importBackup==='function'){
-    window.FinTrackBridge.importBackup();return;
+  if(window.FinTrackNative && typeof window.FinTrackNative.importBackup==='function'){
+    window.FinTrackNative.importBackup();return;
   }
   document.getElementById('importFileInput').click();
 }
@@ -2162,6 +2457,9 @@ function init(){
   buildTypeGrid();
   document.getElementById('txnDate').value = today();
   showPage('dashboard');
+  // Populate native-backed settings immediately so the placeholder never remains
+  // when users open Settings later in the same WebView session.
+  try { renderSmartReminders(); } catch (error) { console.warn('Smart reminder UI could not render', error); }
   window.addEventListener('resize', function(){
     if(currentPage==='reports') renderReports();
   });
@@ -2173,7 +2471,19 @@ if(document.readyState==='loading'){
   init();
 }
 
+function openQuickAddMenu(){
+  openModal('quickadd');
+}
+function openQuickAdd(type){
+  if(!TXN_TYPES.some(function(t){return t.id===type;})) return;
+  closeModal('quickadd');
+  openModal('txn');
+  setTxnType(type);
+}
+
 /* Expose global functions */
+window.openQuickAddMenu = openQuickAddMenu;
+window.openQuickAdd = openQuickAdd;
 window.showPage = showPage;
 window.fabAction = fabAction;
 window.setTxnType = setTxnType;
@@ -2211,8 +2521,34 @@ window.openQuickSubcategory = openQuickSubcategory;
 window.closeQuickSubcategory = closeQuickSubcategory;
 window.saveQuickSubcategory = saveQuickSubcategory;
 window.handleSubcategorySelect = handleSubcategorySelect;
+window.openPlannerModal = openPlannerModal;
+window.closePlannerModal = closePlannerModal;
+window.savePlannerItem = savePlannerItem;
+window.editPlannerItem = editPlannerItem;
+window.deletePlannerItem = deletePlannerItem;
+window.applyCustomReportRange = applyCustomReportRange;
+window.exportTransactionReport = exportTransactionReport;
+window.renderSmartReminders = renderSmartReminders;
+window.saveSmartReminders = saveSmartReminders;
+window.addSmartReminder = addSmartReminder;
+window.removeSmartReminder = removeSmartReminder;
+window.testSmartReminder = testSmartReminder;
+window.saveReminderConfigDirect = saveReminderConfigDirect;
+window.collectSmartReminderConfig = collectSmartReminderConfig;
+window.handleAndroidBack = handleAndroidBack;
 
 })();
+
+// Keep the actively edited control visible when the Android IME changes viewport size.
+document.addEventListener('focusin', function(event){
+  var target = event.target;
+  if(!target || !target.matches || !target.matches('input,select,textarea')) return;
+  var sheet = target.closest('.sheet');
+  if(!sheet) return;
+  window.setTimeout(function(){
+    try{ target.scrollIntoView({block:'nearest',inline:'nearest',behavior:'auto'}); }catch(e){}
+  }, 120);
+});
 </script>
 
 <!-- ============================================================
@@ -2361,6 +2697,131 @@ window.handleSubcategorySelect = handleSubcategorySelect;
     init();
   }
 })();
+
+/* ============================================================
+   SMART REMINDERS - native Android notification bridge
+============================================================ */
+function getReminderConfig(){
+  var fallback={enabled:false,memeMode:true,weekends:true,sound:true,reminders:[
+    {id:'morning',label:'Morning',time:'09:00',enabled:true},
+    {id:'afternoon',label:'Afternoon',time:'13:30',enabled:true},
+    {id:'evening',label:'Evening',time:'18:30',enabled:true},
+    {id:'night',label:'Night',time:'21:00',enabled:true}
+  ]};
+  try{
+    if(window.FinTrackNative && window.FinTrackNative.getReminderSettings){
+      var raw=window.FinTrackNative.getReminderSettings();
+      if(raw) return JSON.parse(raw);
+    }
+  }catch(e){console.warn('Reminder settings unavailable',e);}
+  return fallback;
+}
+function renderSmartReminders(){
+  var host=document.getElementById('smartReminderControls');
+  if(!host) return;
+  var cfg=getReminderConfig();
+  var reminders=Array.isArray(cfg.reminders)?cfg.reminders:[];
+  var rows=reminders.map(function(r){
+    return '<div class="set-item" style="gap:10px;padding:12px 0;border-bottom:1px solid var(--border);">'+
+      '<div class="set-mid"><div class="set-name">'+escHtml(r.label||'Reminder')+'</div><div class="set-desc">'+(r.id&&r.id.indexOf('custom-')===0?'Custom schedule':'Daily reminder')+'</div></div>'+
+      '<input aria-label="'+escHtml(r.label||'Reminder')+' time" type="time" value="'+escHtml(r.time||'09:00')+'" data-reminder-time="'+escHtml(r.id)+'" style="width:112px;padding:8px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text);">'+
+      '<label style="display:flex;align-items:center;gap:5px;color:var(--text2);font-size:12px;"><input type="checkbox" data-reminder-enabled="'+escHtml(r.id)+'" '+(r.enabled!==false?'checked':'')+'> On</label>'+
+      '<button class="pill-btn" aria-label="Remove '+escHtml(r.label||'reminder')+'" style="padding:6px 9px;" onclick="removeSmartReminder(\''+escHtml(r.id)+'\')">✕</button>'+
+    '</div>';
+  }).join('');
+  host.innerHTML=
+    '<div class="set-item" style="padding:4px 0 14px;">'+
+      '<div class="set-icon">🔔</div><div class="set-mid"><div class="set-name">Enable Smart Reminders</div><div class="set-desc">Daily prompts to record income and expenses</div></div>'+
+      '<input id="smartMaster" type="checkbox" '+(cfg.enabled?'checked':'')+' aria-label="Enable smart reminders">'+
+    '</div>'+
+    '<div style="font-size:12px;color:var(--text2);margin:4px 0 8px;">REMINDER TIMES</div>'+rows+
+    '<div style="display:flex;gap:8px;align-items:center;margin-top:12px;">'+
+      '<input id="newReminderTime" type="time" value="20:00" aria-label="New reminder time" style="flex:1;min-width:0;padding:9px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text);">'+
+      '<button class="pill-btn" onclick="addSmartReminder()">＋ Add custom time</button>'+
+    '</div>'+
+    '<div style="height:1px;background:var(--border);margin:14px 0;"></div>'+
+    '<div class="set-item" style="padding:8px 0;"><div class="set-icon">😂</div><div class="set-mid"><div class="set-name">Meme Mode</div><div class="set-desc">Funny, friendly money reminders</div></div><input id="smartMeme" type="checkbox" '+(cfg.memeMode!==false?'checked':'')+'></div>'+
+    '<div class="set-item" style="padding:8px 0;"><div class="set-icon">📅</div><div class="set-mid"><div class="set-name">Reminder frequency</div><div class="set-desc">Choose daily or weekdays only</div></div><select id="smartFrequency" style="max-width:130px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:8px;"><option value="daily" '+(cfg.frequency!=="weekdays"?'selected':'')+'>Every day</option><option value="weekdays" '+(cfg.frequency==="weekdays"?'selected':'')+'>Weekdays</option></select></div>'+
+    '<div class="set-item" style="padding:8px 0;"><div class="set-icon">📅</div><div class="set-mid"><div class="set-name">Weekend reminders</div><div class="set-desc">Include Saturday and Sunday</div></div><input id="smartWeekends" type="checkbox" '+(cfg.weekends!==false?'checked':'')+'></div>'+
+    '<div class="set-item" style="padding:8px 0;"><div class="set-icon">🔊</div><div class="set-mid"><div class="set-name">Notification tone</div><div class="set-desc">System default sound or silent</div></div><select id="smartSound" style="max-width:125px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:8px;"><option value="on" '+(cfg.sound!==false?'selected':'')+'>Default</option><option value="off" '+(cfg.sound===false?'selected':'')+'>Silent</option></select></div>'+
+    '<div style="font-size:12px;color:var(--text2);margin:12px 0 6px;">CUSTOM MEME MESSAGES (ONE PER LINE)</div>'+
+    '<textarea id="smartMemeLibrary" rows="3" placeholder="Add your own friendly finance reminders…" style="width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px;">'+escHtml((cfg.memeMessages||[]).join("\n"))+'</textarea>'+
+    '<div style="display:flex;gap:8px;margin-top:14px;">'+
+      '<button class="btn btn-primary" style="flex:1;" onclick="saveSmartReminders()">Save reminders</button>'+
+      '<button class="btn" style="flex:1;" onclick="testSmartReminder()">Test notification</button>'+
+    '</div>'+
+    '<div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5;">Reminders are stored on this device and work offline. Android may delay background delivery due to battery and system policies. Allow notifications in Android settings for alerts to appear.</div>';
+}
+function collectSmartReminderConfig(){
+  var old=getReminderConfig();
+  var reminders=(old.reminders||[]).map(function(r){
+    var time=document.querySelector('[data-reminder-time="'+r.id+'"]');
+    var enabled=document.querySelector('[data-reminder-enabled="'+r.id+'"]');
+    return {id:r.id,label:r.label,time:time?time.value:r.time,enabled:enabled?enabled.checked:r.enabled!==false};
+  });
+  return {
+    enabled:!!document.getElementById('smartMaster').checked,
+    memeMode:!!document.getElementById('smartMeme').checked,
+    weekends:document.getElementById('smartFrequency').value==='weekdays'?false:!!document.getElementById('smartWeekends').checked,
+    frequency:document.getElementById('smartFrequency').value,
+    sound:document.getElementById('smartSound').value==='on',
+    memeMessages:document.getElementById('smartMemeLibrary').value.split("\n").map(function(s){return s.trim();}).filter(Boolean),
+    reminders:reminders
+  };
+}
+function validateReminderTimes(config){
+  var reminders=Array.isArray(config.reminders)?config.reminders:[];
+  for(var i=0;i<reminders.length;i++){
+    var reminder=reminders[i];
+    if(reminder.enabled!==false && !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(reminder.time||''))){
+      showToast('Set a valid time for '+(reminder.label||'each enabled reminder'),'error');
+      var input=document.querySelector('[data-reminder-time="'+reminder.id+'"]');
+      if(input){input.focus();if(input.reportValidity)input.reportValidity();}
+      return false;
+    }
+  }
+  return true;
+}
+function saveSmartReminders(){
+  var config=collectSmartReminderConfig();
+  if(!validateReminderTimes(config))return;
+  if(!window.FinTrackNative || !window.FinTrackNative.saveReminderSettings){
+    showToast('Native reminder service is unavailable in this build','error');return;
+  }
+  var ok=window.FinTrackNative.saveReminderSettings(JSON.stringify(config));
+  if(ok){showToast(config.enabled?'Smart reminders saved. Allow notifications if prompted.':'Smart reminders disabled','success');renderSmartReminders();}
+  else showToast('Could not save reminder settings','error');
+}
+function addSmartReminder(){
+  var timeInput=document.getElementById('newReminderTime');
+  var value=timeInput?timeInput.value:'';
+  if(!value){showToast('Choose a reminder time first','error');return;}
+  if(!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(value)){showToast('Use a valid time such as 20:00','error');return;}
+  // Start from visible controls, not stale persisted settings, so unsaved edits survive.
+  var cfg=collectSmartReminderConfig();cfg.reminders=cfg.reminders||[];
+  if(!validateReminderTimes(cfg))return;
+  var normalized=value.length===4?'0'+value:value;
+  if(cfg.reminders.some(function(r){return r.time===normalized;})){showToast('A reminder already exists at that time','error');return;}
+  cfg.reminders.push({id:'custom-'+Date.now(),label:'Custom reminder',time:normalized,enabled:true});
+  saveReminderConfigDirect(cfg);
+}
+function removeSmartReminder(id){
+  // Preserve pending edits in the visible controls instead of discarding them.
+  var cfg=collectSmartReminderConfig();
+  cfg.reminders=(cfg.reminders||[]).filter(function(r){return r.id!==id;});
+  if(!validateReminderTimes(cfg))return;
+  saveReminderConfigDirect(cfg);
+}
+function saveReminderConfigDirect(cfg){
+  if(!window.FinTrackNative || !window.FinTrackNative.saveReminderSettings){showToast('Native reminder service unavailable','error');return;}
+  var ok=window.FinTrackNative.saveReminderSettings(JSON.stringify(cfg));
+  if(ok){showToast('Reminder schedule updated','success');renderSmartReminders();}else showToast('Could not update schedule','error');
+}
+function testSmartReminder(){
+  if(!window.FinTrackNative || !window.FinTrackNative.testReminder){showToast('Test notifications are available in the Android app','error');return;}
+  var posted=window.FinTrackNative.testReminder();
+  showToast(posted?'Test notification sent':'Notifications are blocked. Allow FinTrack notifications in Android settings.',posted?'success':'error');
+}
 </script>
 </body>
 </html>
