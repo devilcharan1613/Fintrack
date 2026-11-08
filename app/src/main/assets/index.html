@@ -2404,6 +2404,9 @@ function init(){
   buildTypeGrid();
   document.getElementById('txnDate').value = today();
   showPage('dashboard');
+  // Populate native-backed settings immediately so the placeholder never remains
+  // when users open Settings later in the same WebView session.
+  try { renderSmartReminders(); } catch (error) { console.warn('Smart reminder UI could not render', error); }
   window.addEventListener('resize', function(){
     if(currentPage==='reports') renderReports();
   });
