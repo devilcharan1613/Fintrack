@@ -29,6 +29,7 @@ import org.json.JSONObject
 class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private var pageReady = false
+    private var pendingNotificationType: String? = null
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private val pendingBackupFile get() = java.io.File(cacheDir, "fintrack_pending_backup.json")
     private var pendingImportJson: String? = null
@@ -277,16 +278,20 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleNotificationIntent(source: Intent?) {
-        val type = source?.getStringExtra("fintrack_open_transaction") ?: return
-        if (!pageReady) return
-        val safeType = if (type == "income") "income" else "expense"
+        val type = source?.getStringExtra("fintrack_open_transaction")
+        if (!type.isNullOrBlank()) {
+            pendingNotificationType = if (type == "income") "income" else "expense"
+            source.removeExtra("fintrack_open_transaction")
+        }
+        if (!pageReady || !::webView.isInitialized) return
+        val safeType = pendingNotificationType ?: return
+        pendingNotificationType = null
         webView.post {
             webView.evaluateJavascript(
                 "(function(){showPage('dashboard');openModal('txn');setTxnType('$safeType');})();",
                 null
             )
         }
-        source.removeExtra("fintrack_open_transaction")
     }
 
     override fun onDestroy() {
