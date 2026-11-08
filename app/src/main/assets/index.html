@@ -595,6 +595,23 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
       <div class="set-item"><div class="set-icon">✨</div><div class="set-mid"><div class="set-name">Premium Liquid Glass</div><div class="set-desc">Choose your FinTrack look. Your choice is saved on this device.</div></div></div>
       <div class="theme-choice"><button id="themeDarkBtn" onclick="setFinTrackTheme('dark')">🌙 Dark Glass</button><button id="themeLightBtn" onclick="setFinTrackTheme('light')">☀️ Light Glass</button></div>
     </div>
+    <div class="section-title">Daily Offline Reminder</div>
+    <div class="card">
+      <div class="set-item">
+        <div class="set-icon">🔔</div>
+        <div class="set-mid">
+          <div class="set-name">Daily money check-in</div>
+          <div class="set-desc">A private reminder scheduled on this phone. No internet needed.</div>
+        </div>
+        <input id="dailyReminderEnabled" type="checkbox" aria-label="Enable daily reminder" style="width:22px;height:22px;accent-color:var(--primary)">
+      </div>
+      <div class="row2" style="padding:10px 2px">
+        <div class="field" style="margin:0"><label for="dailyReminderTime">Reminder time</label><input id="dailyReminderTime" type="time" value="20:00"></div>
+        <div class="field" style="margin:0;display:flex;align-items:flex-end"><label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:12px"><input id="dailyReminderMeme" type="checkbox" style="width:18px;height:18px;accent-color:var(--primary)"> Fun reminder messages</label></div>
+      </div>
+      <button class="btn btn-primary" onclick="saveReminderSettings()">Save Reminder Settings</button>
+    </div>
+
     <div class="section-title">Data Management</div>
     <div class="card">
       <div class="set-item" onclick="exportData()" style="cursor:pointer;">
@@ -605,12 +622,24 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
         <div class="set-icon">📥</div>
         <div class="set-mid"><div class="set-name">Import Data</div><div class="set-desc">Restore local JSON backup</div></div>
       </div>
+      <div class="set-item" onclick="exportExcelWorkbook()" style="cursor:pointer;">
+        <div class="set-icon">📊</div>
+        <div class="set-mid"><div class="set-name">Export Excel Workbook</div><div class="set-desc">Save accounts, transactions, budgets, goals and loans as .xlsx</div></div>
+      </div>
       <div class="set-item" onclick="resetData()" style="cursor:pointer;">
         <div class="set-icon">🗑️</div>
         <div class="set-mid"><div class="set-name">Reset All Data</div><div class="set-desc">Delete all local finance data</div></div>
       </div>
     </div>
     <input type="file" id="importFileInput" accept="application/json" class="hidden">
+
+    <div class="section-title">App Update</div>
+    <div class="card">
+      <div class="set-item" onclick="chooseOfflineApkUpdate()" style="cursor:pointer">
+        <div class="set-icon">📦</div>
+        <div class="set-mid"><div class="set-name">Install Update from APK</div><div class="set-desc">Choose an APK file already saved on this phone. Android will show its installer.</div></div>
+      </div>
+    </div>
 
     <div class="section-title">Privacy</div>
     <div class="card">
@@ -1709,6 +1738,57 @@ function renderSettings(){
   document.getElementById('infoAccCount').textContent = state.accounts.length;
   document.getElementById('infoTxnCount').textContent = state.transactions.length;
   document.getElementById('infoPersonCount').textContent = state.persons.length;
+  loadReminderSettings();
+}
+
+function loadReminderSettings(){
+  var config={enabled:false,time:'20:00',memeMode:false};
+  try{
+    var raw=localStorage.getItem('fintrack_reminder_settings');
+    if(raw){var parsed=JSON.parse(raw);if(parsed&&typeof parsed==='object')config=Object.assign(config,parsed);}
+  }catch(e){}
+  var enabled=document.getElementById('dailyReminderEnabled');
+  var time=document.getElementById('dailyReminderTime');
+  var meme=document.getElementById('dailyReminderMeme');
+  if(enabled)enabled.checked=!!config.enabled;
+  if(time)time.value=(typeof config.time==='string'&&config.time.length===5)?config.time:'20:00';
+  if(meme)meme.checked=!!config.memeMode;
+}
+
+function saveReminderSettings(){
+  var enabled=document.getElementById('dailyReminderEnabled');
+  var time=document.getElementById('dailyReminderTime');
+  var meme=document.getElementById('dailyReminderMeme');
+  var value=time&&time.value?time.value:'20:00';
+  var parts=value.split(':').map(Number);
+  if(parts.length!==2||!Number.isInteger(parts[0])||!Number.isInteger(parts[1])||parts[0]<0||parts[0]>23||parts[1]<0||parts[1]>59){
+    showToast('Choose a valid reminder time','error');return;
+  }
+  var config={enabled:!!(enabled&&enabled.checked),time:value,memeMode:!!(meme&&meme.checked)};
+  try{localStorage.setItem('fintrack_reminder_settings',JSON.stringify(config));}catch(e){}
+  if(window.FinTrackBridge&&typeof window.FinTrackBridge.scheduleDailyReminder==='function'){
+    window.FinTrackBridge.scheduleDailyReminder(config.enabled,parts[0],parts[1],config.memeMode);
+    showToast(config.enabled?'Offline reminder scheduled':'Offline reminder disabled','success');
+  }else{
+    showToast('Reminder scheduling is available in the installed Android app','error');
+  }
+}
+
+function exportExcelWorkbook(){
+  try{
+    if(!window.FinTrackBridge||typeof window.FinTrackBridge.exportWorkbook!=='function'){
+      showToast('Excel workbook export is available in the installed Android app','error');return;
+    }
+    window.FinTrackBridge.exportWorkbook(JSON.stringify(state),'fintrack_workbook_'+today()+'.xlsx');
+  }catch(e){showToast('Excel export could not be started','error');}
+}
+
+function chooseOfflineApkUpdate(){
+  if(window.FinTrackBridge&&typeof window.FinTrackBridge.installApk==='function'){
+    window.FinTrackBridge.installApk();
+  }else{
+    showToast('APK installation is available in the installed Android app','error');
+  }
 }
 
 /* ============================================================
@@ -2461,6 +2541,23 @@ if(document.readyState==='loading'){
 }
 
 /* Expose global functions */
+window.finTrackHandleNotificationAction = function(type){
+  if(type!=='income'&&type!=='expense')return;
+  showPage('dashboard');
+  openModal('txn');
+  setTxnType(type);
+  showToast(type==='income'?'Add income from notification':'Add expense from notification','success');
+};
+window.finTrackHandleBack = function(){
+  var overlay=document.querySelector('.overlay.show');
+  if(!overlay)return false;
+  var id=overlay.id.replace('overlay-','');
+  if(id==='planner')closePlannerModal();else closeModal(id);
+  return true;
+};
+window.exportExcelWorkbook = exportExcelWorkbook;
+window.saveReminderSettings = saveReminderSettings;
+window.chooseOfflineApkUpdate = chooseOfflineApkUpdate;
 window.setFinTrackTheme = setFinTrackTheme;
 window.addGoalContribution = addGoalContribution;
 window.addLoanRepayment = addLoanRepayment;
