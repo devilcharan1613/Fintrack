@@ -14,9 +14,10 @@ import androidx.room.RoomDatabase
         LoanEntity::class,
         CategoryEntity::class,
         PersonEntity::class,
-        LoanPaymentEntity::class
+        LoanPaymentEntity::class,
+        GoalContributionEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class FinTrackDatabase : RoomDatabase() {
@@ -34,7 +35,7 @@ abstract class FinTrackDatabase : RoomDatabase() {
                     context.applicationContext,
                     FinTrackDatabase::class.java,
                     "fintrack_database"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build()
 
                 INSTANCE = instance
                 instance
@@ -167,6 +168,28 @@ abstract class FinTrackDatabase : RoomDatabase() {
                     val values = android.content.ContentValues().apply { put(paiseColumn, paise) }
                     db.update(table, values, "id = ?", arrayOf(id.toString()))
                 }
+            }
+        }
+
+
+        /** V4 -> V5 preserves additional legacy fields and savings contribution history. */
+        private val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE accounts ADD COLUMN creditLimit REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE accounts ADD COLUMN creditLimitPaise INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE transactions ADD COLUMN paymentMethod TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE transactions ADD COLUMN upiApp TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE budgets ADD COLUMN period TEXT NOT NULL DEFAULT 'Monthly'")
+                db.execSQL("ALTER TABLE categories ADD COLUMN subcategoriesJson TEXT NOT NULL DEFAULT '[]'")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS goal_contributions (" +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "goalId INTEGER NOT NULL, amount REAL NOT NULL, timestamp INTEGER NOT NULL, " +
+                        "note TEXT NOT NULL DEFAULT '', stableUid TEXT NOT NULL DEFAULT '', " +
+                        "amountPaise INTEGER NOT NULL DEFAULT 0)"
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_goal_contributions_stableUid ON goal_contributions(stableUid)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_goal_contributions_goalId_timestamp ON goal_contributions(goalId, timestamp)")
             }
         }
 
