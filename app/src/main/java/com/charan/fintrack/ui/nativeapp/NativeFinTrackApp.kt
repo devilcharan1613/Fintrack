@@ -123,6 +123,11 @@ private fun NativeFinTrackContent(
     var editor by remember { mutableStateOf(EditorKind.NONE) }
     var selectedGoal by remember { mutableStateOf<GoalEntity?>(null) }
     var selectedLoan by remember { mutableStateOf<LoanEntity?>(null) }
+    var selectedTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
+    var selectedAccount by remember { mutableStateOf<AccountEntity?>(null) }
+    var selectedPerson by remember { mutableStateOf<PersonEntity?>(null) }
+    var selectedBudget by remember { mutableStateOf<BudgetEntity?>(null) }
+    var selectedCategory by remember { mutableStateOf<CategoryEntity?>(null) }
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(message) {
@@ -162,15 +167,42 @@ private fun NativeFinTrackContent(
                 )
                 when (page) {
                     FinPage.HOME -> DashboardScreen(accounts, transactions, totals, { editor = EditorKind.ACCOUNT }, { page = FinPage.TRANSACTIONS })
-                    FinPage.TRANSACTIONS -> TransactionsScreen(transactions, viewModel::deleteTransaction)
-                    FinPage.ACCOUNTS -> AccountsScreen(accounts, transactions, viewModel::archiveAccount)
+                    FinPage.TRANSACTIONS -> TransactionsScreen(
+                        transactions, viewModel::deleteTransaction,
+                        onEdit = { selectedTransaction = it; editor = EditorKind.TRANSACTION }
+                    )
+                    FinPage.ACCOUNTS -> AccountsScreen(
+                        accounts, transactions, viewModel::archiveAccount,
+                        onEdit = { selectedAccount = it; editor = EditorKind.ACCOUNT }
+                    )
                     FinPage.REPORTS -> ReportsScreen(accounts, transactions, totals)
                     FinPage.MORE -> MoreScreen { page = it }
-                    FinPage.PEOPLE -> PeopleScreen(people, transactions, viewModel::deletePerson)
-                    FinPage.BUDGETS -> BudgetsScreen(budgets, transactions, viewModel::deleteBudget)
-                    FinPage.GOALS -> GoalsScreen(goals, { selectedGoal = it; editor = EditorKind.CONTRIBUTION }, viewModel::deleteGoal)
-                    FinPage.LOANS -> LoansScreen(loans, { selectedLoan = it; editor = EditorKind.REPAYMENT }, viewModel::deleteLoan)
-                    FinPage.CATEGORIES -> CategoriesScreen(categories, viewModel::deleteCategory)
+                    FinPage.PEOPLE -> PeopleScreen(
+                        people, transactions, viewModel::deletePerson,
+                        onEdit = { selectedPerson = it; editor = EditorKind.PERSON }
+                    )
+                    FinPage.BUDGETS -> BudgetsScreen(
+                        budgets, transactions, viewModel::deleteBudget,
+                        onEdit = { selectedBudget = it; editor = EditorKind.BUDGET }
+                    )
+                    FinPage.GOALS -> GoalsScreen(
+                        goals,
+                        onContribute = { selectedGoal = it; editor = EditorKind.CONTRIBUTION },
+                        onDelete = viewModel::deleteGoal,
+                        onEdit = { selectedGoal = it; editor = EditorKind.GOAL },
+                        viewModel = viewModel
+                    )
+                    FinPage.LOANS -> LoansScreen(
+                        loans,
+                        onRepay = { selectedLoan = it; editor = EditorKind.REPAYMENT },
+                        onDelete = viewModel::deleteLoan,
+                        onEdit = { selectedLoan = it; editor = EditorKind.LOAN },
+                        viewModel = viewModel
+                    )
+                    FinPage.CATEGORIES -> CategoriesScreen(
+                        categories, viewModel::deleteCategory,
+                        onEdit = { selectedCategory = it; editor = EditorKind.CATEGORY }
+                    )
                     FinPage.SETTINGS -> SettingsScreen(
                         darkTheme, onThemeChange, onExportBackup, onImportBackup,
                         onExportCsv, onExportXlsx, onExportPdf
@@ -181,29 +213,75 @@ private fun NativeFinTrackContent(
 
         if (editor != EditorKind.NONE) {
             NativeEditorDialog(
-                kind = editor, accounts = accounts, selectedGoal = selectedGoal, selectedLoan = selectedLoan,
-                onDismiss = { editor = EditorKind.NONE; selectedGoal = null; selectedLoan = null },
+                kind = editor, accounts = accounts, people = people,
+                selectedGoal = selectedGoal, selectedLoan = selectedLoan,
+                selectedTransaction = selectedTransaction, selectedAccount = selectedAccount,
+                selectedPerson = selectedPerson, selectedBudget = selectedBudget,
+                selectedCategory = selectedCategory,
+                onDismiss = {
+                    editor = EditorKind.NONE
+                    selectedGoal = null; selectedLoan = null; selectedTransaction = null
+                    selectedAccount = null; selectedPerson = null; selectedBudget = null; selectedCategory = null
+                },
                 onSave = { values ->
                     when (editor) {
-                        EditorKind.ACCOUNT -> viewModel.addAccount(values["name"].orEmpty(), values["type"].orEmpty(), values["amount"].orEmpty())
-                        EditorKind.TRANSACTION -> viewModel.addTransaction(
-                            values["type"].orEmpty(), values["amount"].orEmpty(),
-                            values["accountId"]?.toLongOrNull() ?: 0L,
-                            values["category"].orEmpty(), values["note"].orEmpty(),
-                            values["toAccountId"]?.toLongOrNull()
-                        )
-                        EditorKind.PERSON -> viewModel.addPerson(values["name"].orEmpty(), values["phone"].orEmpty(), values["note"].orEmpty())
-                        EditorKind.CATEGORY -> viewModel.addCategory(values["name"].orEmpty(), values["type"].orEmpty())
-                        EditorKind.BUDGET -> viewModel.addBudget(values["category"].orEmpty(), values["amount"].orEmpty(), values["period"].orEmpty())
-                        EditorKind.GOAL -> viewModel.addGoal(values["name"].orEmpty(), values["amount"].orEmpty())
-                        EditorKind.LOAN -> viewModel.addLoan(values["name"].orEmpty(), values["amount"].orEmpty(), values["monthly"].orEmpty(), values["interest"].orEmpty())
-                        EditorKind.CONTRIBUTION -> selectedGoal?.let { viewModel.contribute(it.id, values["amount"].orEmpty()) }
+                        EditorKind.ACCOUNT -> {
+                            val current = selectedAccount
+                            if (current == null) viewModel.addAccount(values["name"].orEmpty(), values["type"].orEmpty(), values["amount"].orEmpty(), values["creditLimit"].orEmpty())
+                            else viewModel.updateAccount(current, values["name"].orEmpty(), values["type"].orEmpty(), values["amount"].orEmpty(), values["creditLimit"].orEmpty())
+                        }
+                        EditorKind.TRANSACTION -> {
+                            val current = selectedTransaction
+                            if (current == null) viewModel.addTransaction(
+                                values["type"].orEmpty(), values["amount"].orEmpty(),
+                                values["accountId"]?.toLongOrNull() ?: 0L,
+                                values["category"].orEmpty(), values["note"].orEmpty(),
+                                values["toAccountId"]?.toLongOrNull(),
+                                values["personId"]?.toLongOrNull(),
+                                values["paymentMethod"].orEmpty(), values["upiApp"].orEmpty(),
+                                values["date"].orEmpty(), values["time"].orEmpty()
+                            ) else viewModel.updateTransaction(
+                                current, values["type"].orEmpty(), values["amount"].orEmpty(),
+                                values["accountId"]?.toLongOrNull() ?: current.accountId,
+                                values["category"].orEmpty(), values["note"].orEmpty(),
+                                values["toAccountId"]?.toLongOrNull(),
+                                values["personId"]?.toLongOrNull(),
+                                values["paymentMethod"].orEmpty(), values["upiApp"].orEmpty(),
+                                values["date"].orEmpty(), values["time"].orEmpty()
+                            )
+                        }
+                        EditorKind.PERSON -> {
+                            val current = selectedPerson
+                            if (current == null) viewModel.addPerson(values["name"].orEmpty(), values["phone"].orEmpty(), values["note"].orEmpty())
+                            else viewModel.updatePerson(current, values["name"].orEmpty(), values["phone"].orEmpty(), values["note"].orEmpty())
+                        }
+                        EditorKind.CATEGORY -> {
+                            val current = selectedCategory
+                            if (current == null) viewModel.addCategory(values["name"].orEmpty(), values["type"].orEmpty())
+                            else viewModel.updateCategory(current, values["name"].orEmpty(), values["type"].orEmpty(), values["icon"].orEmpty())
+                        }
+                        EditorKind.BUDGET -> {
+                            val current = selectedBudget
+                            if (current == null) viewModel.addBudget(values["category"].orEmpty(), values["amount"].orEmpty(), values["month"].orEmpty(), values["period"].orEmpty())
+                            else viewModel.updateBudget(current, values["category"].orEmpty(), values["amount"].orEmpty(), values["month"].orEmpty(), values["period"].orEmpty())
+                        }
+                        EditorKind.GOAL -> {
+                            val current = selectedGoal
+                            if (current == null) viewModel.addGoal(values["name"].orEmpty(), values["amount"].orEmpty())
+                            else viewModel.updateGoal(current, values["name"].orEmpty(), values["amount"].orEmpty())
+                        }
+                        EditorKind.LOAN -> {
+                            val current = selectedLoan
+                            if (current == null) viewModel.addLoan(values["name"].orEmpty(), values["amount"].orEmpty(), values["monthly"].orEmpty(), values["interest"].orEmpty())
+                            else viewModel.updateLoan(current, values["name"].orEmpty(), values["amount"].orEmpty(), values["monthly"].orEmpty(), values["interest"].orEmpty())
+                        }
+                        EditorKind.CONTRIBUTION -> selectedGoal?.let { viewModel.contribute(it.id, values["amount"].orEmpty(), values["note"].orEmpty()) }
                         EditorKind.REPAYMENT -> selectedLoan?.let { viewModel.repay(it.id, values["amount"].orEmpty(), values["note"].orEmpty()) }
                         EditorKind.NONE -> Unit
                     }
                     editor = EditorKind.NONE
-                    selectedGoal = null
-                    selectedLoan = null
+                    selectedGoal = null; selectedLoan = null; selectedTransaction = null
+                    selectedAccount = null; selectedPerson = null; selectedBudget = null; selectedCategory = null
                 }
             )
         }
