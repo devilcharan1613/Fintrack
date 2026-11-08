@@ -363,6 +363,68 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
 .theme-choice button{flex:1;border:1px solid var(--border);border-radius:14px;padding:12px 8px;background:var(--bg2);color:var(--text);font-weight:900}
 .theme-choice button.active{border-color:var(--primary);background:var(--primary-dim);box-shadow:0 0 18px rgba(0,210,190,.15)}
 
+
+
+  /* ===== FinTrack 2.5 visual refresh: luminous teal glass ===== */
+  :root{
+    --bg:#04131a; --bg2:rgba(9,35,47,.70); --bg3:rgba(13,48,62,.78);
+    --border:rgba(115,220,239,.24); --primary:#18f2d0; --primary-dim:rgba(24,242,208,.16);
+    --text:#f4fbff; --text2:#b1c7d5; --text3:#7894a6;
+    --shadow:0 14px 34px rgba(0,0,0,.30);
+    --radius:23px; --radius-sm:15px; --nav-h:82px;
+  }
+  html,body{background:#031018;color:var(--text);}
+  body{background:radial-gradient(ellipse at 82% 5%,rgba(0,235,205,.18),transparent 34%),radial-gradient(ellipse at 4% 58%,rgba(0,156,211,.14),transparent 36%),linear-gradient(145deg,#031018,#071c29 55%,#080f20);}
+  #shell{background:radial-gradient(ellipse at 85% 0%,rgba(0,242,210,.16),transparent 32%),radial-gradient(ellipse at 0% 65%,rgba(0,157,215,.12),transparent 38%),linear-gradient(145deg,#031018,#071a27 58%,#090f20);}
+  .topbar{background:rgba(3,17,25,.72);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);padding-top:calc(14px + max(env(safe-area-inset-top),var(--safe-top)));}
+  .brand-mark{filter:drop-shadow(0 0 10px rgba(24,242,208,.55));}
+  .topbar h1{font-size:25px;letter-spacing:-.04em;}
+  .topbar .sub{font-size:14px;color:#c0d4df;}
+  .pill-btn{border:1px solid rgba(24,242,208,.62);border-radius:28px;background:linear-gradient(135deg,rgba(0,238,207,.24),rgba(0,123,171,.18));box-shadow:0 0 18px rgba(0,226,204,.20),inset 0 1px 0 rgba(255,255,255,.24);padding:12px 20px;font-size:15px;}
+  .page{padding-left:clamp(18px,5vw,28px);padding-right:clamp(18px,5vw,28px);padding-top:12px;}
+  .section-title{font-size:15px;color:#c2d6e2;letter-spacing:.075em;margin:26px 0 14px;}
+  .card,.qs-card,.chart-card,.planner-card,.more-tile,.sheet,.info-panel,.report-card{
+    background:linear-gradient(145deg,rgba(16,52,68,.78),rgba(8,27,42,.82));
+    border:1px solid rgba(159,220,235,.25);border-radius:24px;
+    box-shadow:0 12px 28px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.10);
+    backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  }
+  .hero{border:1px solid rgba(153,238,244,.55);border-radius:32px;padding:25px 22px;background:linear-gradient(135deg,rgba(0,210,185,.30),rgba(0,102,126,.26) 52%,rgba(29,34,91,.42));box-shadow:0 0 0 1px rgba(72,245,229,.10),0 14px 36px rgba(0,214,205,.18),inset 0 1px 0 rgba(255,255,255,.28);}
+  .hero::after{top:-65px;right:-55px;width:245px;height:180px;border-radius:48%;background:linear-gradient(145deg,rgba(0,255,223,.36),rgba(49,86,219,.20) 65%,transparent);filter:blur(5px);}
+  .hero .label{font-size:14px;color:#d0e7ed;}
+  .hero .amount{font-size:40px;}
+  .hero .stats{gap:12px;}
+  .hero .stat{border:1px solid rgba(173,239,242,.12);border-radius:22px;padding:16px 10px;background:linear-gradient(145deg,rgba(116,224,225,.15),rgba(10,48,65,.52));box-shadow:inset 0 1px 0 rgba(255,255,255,.08);}
+  .hero .stat .v{font-size:19px;}
+  .hero .stat .l{font-size:13px;color:#d0e0e9;}
+  .qs-grid{gap:12px;}
+  .qs-card{min-height:142px;padding:18px;border-radius:27px;background:linear-gradient(145deg,rgba(27,67,86,.66),rgba(18,28,47,.88));border:1px solid rgba(181,224,238,.28);box-shadow:0 10px 25px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.12);}
+  .qs-icon{width:48px;height:48px;border-radius:17px;font-size:22px;box-shadow:0 0 16px rgba(0,220,222,.12);}
+  .qs-val{font-size:21px;}
+  .qs-label{font-size:13px;color:#b5c9d8;}
+  .add-acc-mini{border:2px dashed rgba(92,216,235,.62);border-radius:24px;background:rgba(7,39,54,.35);min-height:124px;color:#d4e9f1;}
+  .acc-card{border:1px solid rgba(147,231,241,.32);border-radius:25px;box-shadow:0 12px 28px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.18);}
+  .txn-row{border-bottom-color:rgba(151,207,226,.16);padding:14px 2px;}
+  .txn-icon{border:1px solid rgba(154,225,239,.18);box-shadow:0 4px 14px rgba(0,0,0,.18);}
+  .chips .chip,.period-tab,.type-opt{background:rgba(11,42,57,.78);border-color:rgba(145,212,230,.24);color:#c2d7e2;border-radius:16px;}
+  .chips .chip.active,.period-tab.active,.type-opt.active{background:rgba(0,225,196,.18);border-color:rgba(24,242,208,.7);color:#42f5dc;box-shadow:0 0 15px rgba(24,242,208,.12);}
+  .field input,.field select,.field textarea{background:rgba(6,29,42,.88);border:1px solid rgba(151,216,232,.27);border-radius:15px;padding:13px 14px;color:#f4fbff;}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:#18f2d0;box-shadow:0 0 0 3px rgba(24,242,208,.12);}
+  .btn{border-radius:16px;}
+  .btn-primary{background:linear-gradient(135deg,#29f5d4,#00b9d0);color:#04202a;box-shadow:0 6px 20px rgba(0,220,200,.24);}
+  .btn-secondary{background:rgba(13,48,64,.85);border:1px solid rgba(149,218,235,.28);color:#eaf8fc;}
+  .sheet{background:linear-gradient(160deg,rgba(10,42,56,.98),rgba(5,20,34,.99));border:1px solid rgba(132,221,234,.28);border-bottom:0;border-radius:30px 30px 0 0;}
+  .overlay{background:rgba(0,7,14,.76);backdrop-filter:blur(12px);}
+  .fab{display:none;}
+  .bottomnav{left:14px;right:14px;bottom:max(12px,env(safe-area-inset-bottom));height:78px;padding:0 8px;border:1px solid rgba(155,225,239,.34);border-radius:30px;background:linear-gradient(145deg,rgba(22,64,83,.88),rgba(8,27,45,.94));box-shadow:0 0 24px rgba(0,181,207,.16),0 12px 34px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.17);backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);}
+  @media (min-width:520px){.bottomnav{left:50%;right:auto;width:min(calc(100% - 28px),532px);transform:translateX(-50%);}}
+  .nav-item{gap:5px;color:#c2d4df;border-radius:20px;}
+  .nav-item .ic{font-size:23px;}
+  .nav-item .lb{font-size:11px;}
+  .nav-item.active{color:#2df6dc;background:linear-gradient(145deg,rgba(0,231,207,.25),rgba(0,116,150,.20));box-shadow:0 0 20px rgba(0,231,207,.20),inset 0 1px 0 rgba(255,255,255,.15);}
+  .nav-add{flex-basis:58px;width:58px;height:58px;border:1px solid rgba(194,255,249,.7);background:linear-gradient(145deg,#42ffe0,#00b7d4);box-shadow:0 0 24px rgba(0,238,215,.48),inset 0 1px 0 rgba(255,255,255,.65);font-size:34px;transform:translateY(-13px);}
+  @media (max-width:380px){.qs-card{min-height:126px;padding:14px}.hero{padding:21px 18px}.bottomnav{left:8px;right:8px}.nav-item .lb{font-size:10px}}
+
 </style>
 <script>
   window.finTrackApplyInsets = function(left, top, right, bottom, imeBottom) {
