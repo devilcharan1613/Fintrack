@@ -416,8 +416,9 @@ class MainActivity : ComponentActivity() {
         Thread {
             try {
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+                val boundsStream = contentResolver.openInputStream(uri)
                     ?: throw IllegalStateException("Unable to read selected photo")
+                boundsStream.use { BitmapFactory.decodeStream(it, null, bounds) }
                 if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
                     throw IllegalArgumentException("Selected file is not a supported image")
                 }
