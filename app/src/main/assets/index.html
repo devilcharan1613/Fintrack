@@ -2342,31 +2342,71 @@ function exportRecoveryBackup(){
   }catch(e){showToast('Recovery export failed','error');}
 }
 
+function validateBackupData(parsed){
+  if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('Backup must be a JSON object');
+  ['accounts','transactions','persons'].forEach(function(key){
+    if(!Array.isArray(parsed[key]))throw new Error('Missing or invalid '+key+' data');
+  });
+  ['budgets','goals','loans'].forEach(function(key){
+    if(parsed[key]!==undefined&&!Array.isArray(parsed[key]))throw new Error('Invalid '+key+' data');
+  });
+  ['categories'].forEach(function(key){
+    if(parsed[key]!==undefined&&!Array.isArray(parsed[key]))throw new Error('Invalid categories data');
+  });
+  if(parsed.settings!==undefined&&(!parsed.settings||typeof parsed.settings!=='object'||Array.isArray(parsed.settings)))throw new Error('Invalid settings data');
+  var total=parsed.accounts.length+parsed.transactions.length+parsed.persons.length+
+    (parsed.budgets||[]).length+(parsed.goals||[]).length+(parsed.loans||[]).length;
+  if(total>100000)throw new Error('Backup contains too many records');
+  return parsed;
+}
 function exportData(){
   try{
-    var dataStr=JSON.stringify(state,null,2), filename='fintrack_backup_'+today()+'.json';
+    var snapshot=JSON.parse(JSON.stringify(state));
+    validateBackupData(snapshot);
+    snapshot.backupMeta={format:'FinTrack JSON Backup',schemaVersion:1,exportedAt:new Date().toISOString(),appVersion:'2.4.2'};
+    var dataStr=JSON.stringify(snapshot,null,2), filename='fintrack_backup_'+today()+'.json';
     if(window.FinTrackNative && typeof window.FinTrackNative.exportBackup==='function'){
       window.FinTrackNative.exportBackup(dataStr,filename);
-      showToast('Choose where to save your backup','success');
+      showToast('Choose a location to save your JSON backup','success');
       return;
     }
-    var blob=new Blob([dataStr],{type:'application/json'}), url=URL.createObjectURL(blob), a=document.createElement('a');
-    a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-    showToast('Backup downloaded','success');
-  }catch(e){showToast('Export failed','error');}
+    var blob=new Blob([dataStr],{type:'application/json;charset=utf-8'}), url=URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+    showToast('Backup download started','success');
+  }catch(e){
+    console.error('FinTrack backup export failed',e);
+    showToast('Backup export failed: '+(e&&e.message?e.message:'unknown error'),'error');
+  }
 }
 function importBackupText(text){
+  var previousState=state;
   try{
-    var parsed=JSON.parse(text);
-    if(!parsed||!Array.isArray(parsed.accounts)||!Array.isArray(parsed.transactions)||!Array.isArray(parsed.persons))throw new Error('Invalid backup');
-    if(!confirm('Replace all current FinTrack data with this backup? This cannot be undone.'))return;
-    if(!Array.isArray(parsed.categories))parsed.categories=JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
-    if(!Array.isArray(parsed.budgets))parsed.budgets=[];
-    if(!Array.isArray(parsed.goals))parsed.goals=[];
-    if(!Array.isArray(parsed.loans))parsed.loans=[];
-    if(!parsed.settings)parsed.settings={currency:'₹',name:'FinTrack',version:'4.0'};
-    state=parsed;save();renderCurrentPage();showToast('Data imported successfully','success');
-  }catch(e){showToast('Invalid backup file','error');}
+    if(typeof text!=='string'||!text.trim()||text.length>20*1024*1024)throw new Error('Backup file is empty or too large');
+    var parsed=validateBackupData(JSON.parse(text));
+    if(!confirm('Replace all current FinTrack data with this backup? This cannot be undone.'))return false;
+    var restored=JSON.parse(JSON.stringify(parsed));
+    delete restored.backupMeta;
+    if(!Array.isArray(restored.categories))restored.categories=JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+    if(!Array.isArray(restored.budgets))restored.budgets=[];
+    if(!Array.isArray(restored.goals))restored.goals=[];
+    if(!Array.isArray(restored.loans))restored.loans=[];
+    if(!restored.settings)restored.settings={currency:'₹',name:'FinTrack',version:'4.0'};
+    state=restored;
+    if(!save()){
+      state=previousState;
+      showToast('Restore failed. Your existing FinTrack data was kept unchanged.','error');
+      return false;
+    }
+    renderCurrentPage();
+    showToast('Backup restored successfully','success');
+    return true;
+  }catch(e){
+    state=previousState;
+    console.error('FinTrack backup import failed',e);
+    showToast('Backup import failed: '+(e&&e.message?e.message:'invalid file'),'error');
+    return false;
+  }
 }
 function triggerImport(){
   if(window.FinTrackNative && typeof window.FinTrackNative.importBackup==='function'){
