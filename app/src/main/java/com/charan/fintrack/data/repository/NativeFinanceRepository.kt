@@ -40,7 +40,7 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
             borrowedPaise = NativeLedgerCalculator.borrowedPaise(transactionRows),
             lentPaise = NativeLedgerCalculator.lentPaise(transactionRows),
             netWorthPaise = NativeLedgerCalculator.netWorthPaise(accountRows, transactionRows),
-            transactionCount = transactionRows.size
+            transactionCount = transactionRows.count { !it.type.equals("TRANSFER_IN", true) }
         )
     }
 

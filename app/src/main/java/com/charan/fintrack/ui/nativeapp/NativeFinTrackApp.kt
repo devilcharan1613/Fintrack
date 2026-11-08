@@ -168,7 +168,7 @@ private fun NativeFinTrackContent(
                 when (page) {
                     FinPage.HOME -> DashboardScreen(accounts, transactions, totals, { editor = EditorKind.ACCOUNT }, { page = FinPage.TRANSACTIONS })
                     FinPage.TRANSACTIONS -> TransactionsScreen(
-                        transactions, viewModel::deleteTransaction,
+                        transactions, accounts, viewModel::deleteTransaction,
                         onEdit = { selectedTransaction = it; editor = EditorKind.TRANSACTION }
                     )
                     FinPage.ACCOUNTS -> AccountsScreen(
@@ -400,7 +400,7 @@ private fun DashboardScreen(
             TextButton(onClick = onTransactions) { Text("View all") }
         }
         if (transactions.isEmpty()) GlassCard { Text("Your latest transactions will appear here.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        else transactions.take(5).forEach { TransactionItem(it, null) }
+        else transactions.filterNot { it.type.equals("TRANSFER_IN", true) }.take(5).forEach { TransactionItem(it, null) }
         Spacer(Modifier.height(8.dp))
     }
 }
@@ -408,35 +408,95 @@ private fun DashboardScreen(
 @Composable
 private fun TransactionsScreen(
     transactions: List<TransactionEntity>,
+    accounts: List<AccountEntity>,
     onDelete: (TransactionEntity) -> Unit,
     onEdit: (TransactionEntity) -> Unit
 ) {
     var search by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf("ALL") }
-    val filtered = transactions.filter { row ->
-        (filter == "ALL" || row.type.equals(filter, true) || (filter == "TRANSFER" && row.type.startsWith("TRANSFER", true))) &&
-            (search.isBlank() || row.note.contains(search, true) || row.category.contains(search, true) ||
-                row.type.contains(search, true) || row.amountPaise.toString().contains(search))
+    var accountFilter by remember { mutableStateOf("ALL") }
+    var accountExpanded by remember { mutableStateOf(false) }
+    var fromDate by remember { mutableStateOf("") }
+    var toDate by remember { mutableStateOf("") }
+    var sort by remember { mutableStateOf("Newest first") }
+    var sortExpanded by remember { mutableStateOf(false) }
+
+    val visibleRows = transactions.filterNot { it.type.equals("TRANSFER_IN", true) }
+    val fromBound = parseDateBound(fromDate, endOfDay = false)
+    val toBound = parseDateBound(toDate, endOfDay = true)
+    val filtered = visibleRows.filter { row ->
+        val typeMatches = filter == "ALL" || row.type.equals(filter, true) ||
+            (filter == "TRANSFER" && row.type.startsWith("TRANSFER", true))
+        val accountMatches = accountFilter == "ALL" || row.accountId.toString() == accountFilter
+        val textMatches = search.isBlank() || row.note.contains(search, true) ||
+            row.category.contains(search, true) || row.type.contains(search, true) ||
+            row.amountPaise.toString().contains(search)
+        val fromMatches = fromBound == null || row.timestamp >= fromBound
+        val toMatches = toBound == null || row.timestamp <= toBound
+        typeMatches && accountMatches && textMatches && fromMatches && toMatches
+    }.let { rows ->
+        when (sort) {
+            "Oldest first" -> rows.sortedBy { it.timestamp }
+            "Highest amount" -> rows.sortedByDescending { it.amountPaise }
+            else -> rows.sortedByDescending { it.timestamp }
+        }
     }
+
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         OutlinedTextField(
             value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(),
             singleLine = true, leadingIcon = { Icon(Icons.Filled.Search, null) },
-            placeholder = { Text("Search transactions") }
+            placeholder = { Text("Search transactions, notes or amount") }
         )
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             listOf("ALL", "INCOME", "EXPENSE", "TRANSFER", "BORROW", "LEND").forEach { item ->
                 FilterChip(selected = filter == item, onClick = { filter = item }, label = { Text(item) })
             }
         }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ExposedDropdownMenuBox(
+                expanded = accountExpanded,
+                onExpandedChange = { accountExpanded = it },
+                modifier = Modifier.weight(1f)
+            ) {
+                OutlinedTextField(
+                    value = if (accountFilter == "ALL") "All accounts" else accounts.firstOrNull { it.id.toString() == accountFilter }?.name ?: "All accounts",
+                    onValueChange = {}, readOnly = true, label = { Text("Account") },
+                    modifier = Modifier.menuAnchor().fillMaxWidth(), singleLine = true
+                )
+                ExposedDropdownMenu(expanded = accountExpanded, onDismissRequest = { accountExpanded = false }) {
+                    DropdownMenuItem(text = { Text("All accounts") }, onClick = { accountFilter = "ALL"; accountExpanded = false })
+                    accounts.forEach { account ->
+                        DropdownMenuItem(text = { Text(account.name) }, onClick = { accountFilter = account.id.toString(); accountExpanded = false })
+                    }
+                }
+            }
+            ExposedDropdownMenuBox(expanded = sortExpanded, onExpandedChange = { sortExpanded = it }) {
+                OutlinedTextField(
+                    value = sort, onValueChange = {}, readOnly = true, label = { Text("Sort") },
+                    modifier = Modifier.menuAnchor().width(142.dp), singleLine = true
+                )
+                ExposedDropdownMenu(expanded = sortExpanded, onDismissRequest = { sortExpanded = false }) {
+                    listOf("Newest first", "Oldest first", "Highest amount").forEach { option ->
+                        DropdownMenuItem(text = { Text(option) }, onClick = { sort = option; sortExpanded = false })
+                    }
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(fromDate, { fromDate = it }, modifier = Modifier.weight(1f), label = { Text("From date") }, placeholder = { Text("YYYY-MM-DD") }, singleLine = true)
+            OutlinedTextField(toDate, { toDate = it }, modifier = Modifier.weight(1f), label = { Text("To date") }, placeholder = { Text("YYYY-MM-DD") }, singleLine = true)
+        }
+        if ((fromDate.isNotBlank() && fromBound == null) || (toDate.isNotBlank() && toBound == null)) {
+            Text("Dates must use YYYY-MM-DD.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+        }
         Text(filtered.size.toString() + " transactions", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
-        if (filtered.isEmpty()) EmptyState("No matching transactions", "Add income, expenses, transfers, borrowing or lending records.")
+        if (filtered.isEmpty()) EmptyState("No matching transactions", "Change the search or filters, or add a new transaction.")
         else LazyColumn(contentPadding = PaddingValues(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(filtered, key = { it.stableUid }) { row -> TransactionItem(row, onDelete, onEdit) }
         }
     }
 }
-
 @Composable
 private fun AccountsScreen(
     accounts: List<AccountEntity>,
@@ -1107,8 +1167,9 @@ private fun TransactionItem(
     onDelete: ((TransactionEntity) -> Unit)?,
     onEdit: ((TransactionEntity) -> Unit)? = null
 ) {
-    val positive = transaction.type in setOf("INCOME", "BORROW", "TRANSFER_IN")
-    val tint = if (positive) Color(0xFF18D6A4) else Color(0xFFFF7180)
+    val transfer = transaction.type.startsWith("TRANSFER", true)
+    val positive = transaction.type in setOf("INCOME", "BORROW")
+    val tint = if (transfer) Color(0xFF37D8EA) else if (positive) Color(0xFF18D6A4) else Color(0xFFFF7180)
     GlassCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(40.dp).clip(CircleShape).background(tint.copy(alpha = .14f)), contentAlignment = Alignment.Center) {
@@ -1120,7 +1181,7 @@ private fun TransactionItem(
                 Text(transaction.type + " • " + SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(transaction.timestamp)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (transaction.note.isNotBlank()) Text(transaction.note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
-            Text(money(transaction.amountPaise), color = tint, fontWeight = FontWeight.Bold)
+            Text((if (transfer) "↔ " else if (positive) "+" else "−") + money(transaction.amountPaise), color = tint, fontWeight = FontWeight.Bold)
             if (onEdit != null) TextButton(onClick = { onEdit(transaction) }) { Text("Edit") }
             if (onEdit != null) TextButton(onClick = { onEdit(transaction) }) { Text("Edit") }
             if (onDelete != null) IconButton(onClick = { onDelete(transaction) }) {
@@ -1182,6 +1243,21 @@ private fun EmptyState(title: String, description: String) {
             Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+private fun parseDateBound(value: String, endOfDay: Boolean): Long? {
+    if (value.isBlank()) return null
+    val parsed = runCatching {
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }.parse(value)
+    }.getOrNull() ?: return null
+    val calendar = Calendar.getInstance().apply {
+        time = parsed
+        set(Calendar.HOUR_OF_DAY, if (endOfDay) 23 else 0)
+        set(Calendar.MINUTE, if (endOfDay) 59 else 0)
+        set(Calendar.SECOND, if (endOfDay) 59 else 0)
+        set(Calendar.MILLISECOND, if (endOfDay) 999 else 0)
+    }
+    return calendar.timeInMillis
 }
 
 private fun budgetWindow(budget: BudgetEntity): Pair<Long, Long> {
