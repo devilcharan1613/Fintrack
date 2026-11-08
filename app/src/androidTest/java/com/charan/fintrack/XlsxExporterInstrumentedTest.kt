@@ -41,6 +41,8 @@ class XlsxExporterInstrumentedTest {
         assertTrue(entries["xl/workbook.xml"].orEmpty().contains("Transactions"))
         assertTrue(entries["xl/worksheets/sheet1.xml"].orEmpty().contains("FinTrack Export Summary"))
         assertTrue(entries["xl/worksheets/sheet1.xml"].orEmpty().contains("150.0"))
+        assertTrue(entries["xl/worksheets/sheet1.xml"].orEmpty().contains("Generated at"))
+        assertTrue(entries["xl/worksheets/sheet1.xml"].orEmpty().contains("Income INR"))
         assertTrue(entries["xl/worksheets/sheet2.xml"].orEmpty().contains("Daily Cash"))
         assertTrue(entries["xl/worksheets/sheet3.xml"].orEmpty().contains("expense"))
         assertTrue(entries["xl/worksheets/sheet5.xml"].orEmpty().contains("4000.0"))
