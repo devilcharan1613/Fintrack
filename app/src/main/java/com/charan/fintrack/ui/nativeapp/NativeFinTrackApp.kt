@@ -320,7 +320,7 @@ private fun TransactionsScreen(transactions: List<TransactionEntity>, onDelete: 
 
 @Composable
 private fun AccountsScreen(accounts: List<AccountEntity>, transactions: List<TransactionEntity>, onArchive: (Long) -> Unit) {
-    if (accounts.isEmpty()) EmptyState("No accounts and wallets", "Create a cash, bank or digital wallet account using Add.")
+    if (accounts.isEmpty()) EmptyState("Accounts and wallets", "Create a cash, bank or digital wallet account using Add.")
     else LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 16.dp),
         contentPadding = PaddingValues(bottom = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)
