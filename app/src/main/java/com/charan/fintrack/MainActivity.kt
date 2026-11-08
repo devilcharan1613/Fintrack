@@ -27,6 +27,8 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -251,10 +253,26 @@ class MainActivity : ComponentActivity() {
             settings.allowFileAccess = true
             settings.allowContentAccess = true
             settings.setSupportZoom(false)
+            settings.javaScriptCanOpenWindowsAutomatically = false
+            settings.setSupportMultipleWindows(false)
+            settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                settings.safeBrowsingEnabled = true
+            }
             settings.allowFileAccessFromFileURLs = false
             settings.allowUniversalAccessFromFileURLs = false
             addJavascriptInterface(FinTrackBridge(), "FinTrackBridge")
             webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                    if (!request.isForMainFrame) return false
+                    return handleWebViewNavigation(request.url)
+                }
+
+                @Suppress("DEPRECATION")
+                override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                    return handleWebViewNavigation(Uri.parse(url))
+                }
+
                 override fun onPageFinished(view: WebView, url: String) {
                     super.onPageFinished(view, url)
                     pageReady = true
@@ -297,6 +315,23 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         pendingQuickAction = intent.getStringExtra(EXTRA_QUICK_ACTION)
         flushPendingQuickAction()
+    }
+
+    private fun handleWebViewNavigation(uri: Uri): Boolean {
+        val scheme = uri.scheme?.lowercase()
+        if (scheme == "file" && uri.toString().startsWith("file:///android_asset/")) {
+            return false
+        }
+        if (scheme == "https" || scheme == "http") {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, uri))
+            } catch (error: Exception) {
+                Toast.makeText(this, "No app can open this link.", Toast.LENGTH_SHORT).show()
+            }
+        }
+        // Only the bundled asset is allowed inside this WebView because it exposes
+        // the native FinTrackBridge. Block all other main-frame schemes/URLs.
+        return true
     }
 
     private fun flushPendingQuickAction() {
