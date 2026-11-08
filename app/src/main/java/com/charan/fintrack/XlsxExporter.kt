@@ -194,7 +194,9 @@ $sheets
         }.joinToString("")
         return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
 <sheetData>$body</sheetData>
+${if (rows.size > 1 && rows.firstOrNull()?.isNotEmpty() == true) "<autoFilter ref=\"A1:${columnName(rows.maxOfOrNull { it.size } ?: 1)}${rows.size}\"/>" else ""}
 </worksheet>"""
     }
 
@@ -208,7 +210,7 @@ $sheets
         if (value is Boolean) {
             return """<c r="$reference" s="$style" t="b"><v>${if (value) 1 else 0}</v></c>"""
         }
-        return """<c r="$reference" t="inlineStr"><is><t xml:space="preserve">${xml(value.toString())}</t></is></c>"""
+        return """<c r="$reference" s="$style" t="inlineStr"><is><t xml:space="preserve">${xml(value.toString())}</t></is></c>"""
     }
 
     private fun columnName(number: Int): String {
