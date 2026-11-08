@@ -563,8 +563,8 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
     <div class="filter-grid">
       <div class="filter-field filter-account"><label for="txnAccountFilter">Account</label><select id="txnAccountFilter" onchange="renderTransactions()" aria-label="Filter by account"><option value="">All accounts</option></select></div>
       <div class="filter-field filter-account"><label for="txnDatePreset">Quick date range</label><select id="txnDatePreset" onchange="applyTxnDatePreset(this.value)" aria-label="Quick date range"><option value="">All dates</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="thisWeek">This week</option><option value="last7">Last 7 days</option><option value="thisMonth">This month</option><option value="lastMonth">Last month</option><option value="custom">Custom date range</option></select></div>
-      <div class="filter-field"><label for="txnFromFilter">From date</label><input id="txnFromFilter" type="date" onchange="renderTransactions()" aria-label="From date"></div>
-      <div class="filter-field"><label for="txnToFilter">To date</label><input id="txnToFilter" type="date" onchange="renderTransactions()" aria-label="To date"></div>
+      <div class="filter-field"><label for="txnFromFilter">From date</label><input id="txnFromFilter" type="date" onchange="document.getElementById('txnDatePreset').value='custom';renderTransactions()" aria-label="From date"></div>
+      <div class="filter-field"><label for="txnToFilter">To date</label><input id="txnToFilter" type="date" onchange="document.getElementById('txnDatePreset').value='custom';renderTransactions()" aria-label="To date"></div>
       <button class="clear-filter-btn" onclick="clearTxnAdvancedFilters()">Clear filters</button>
     </div>
     <div id="txnFilterHint" class="filter-hint" aria-live="polite"></div>
