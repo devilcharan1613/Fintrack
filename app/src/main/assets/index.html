@@ -1155,15 +1155,22 @@ function renderTransactions(){
     wrap.innerHTML = '<div class="empty-state"><div class="icn">📋</div><div class="ti">No Transactions</div><div class="su">Try a different filter or add a new transaction</div></div>';
     return;
   }
-  var groups = {};
-  var order = [];
+  var months = {};
+  var monthOrder = [];
   list.forEach(function(t){
-    if(!groups[t.date]){ groups[t.date]=[]; order.push(t.date); }
-    groups[t.date].push(t);
+    var key=(t.date||'').slice(0,7)||'undated';
+    if(!months[key]){months[key]=[];monthOrder.push(key);}
+    months[key].push(t);
   });
   var html = '';
-  order.forEach(function(date){
-    html += '<div class="date-group-label">'+fmtDate(date)+'</div><div class="card">'+groups[date].map(txnRowHtml).join('')+'</div>';
+  monthOrder.forEach(function(month){
+    var monthItems=months[month], monthIncome=0, monthExpense=0;
+    monthItems.forEach(function(t){if(t.type==='income')monthIncome+=Number(t.amount)||0;if(t.type==='expense')monthExpense+=Number(t.amount)||0;});
+    var monthLabel=month==='undated'?'Undated':new Date(month+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 2px 8px;font-size:12px;font-weight:900;color:var(--text2);text-transform:uppercase"><span>'+monthLabel+'</span><span style="font-size:10px;color:var(--primary);text-transform:none">In '+fmt(monthIncome)+' · Out '+fmt(monthExpense)+'</span></div>';
+    var days={},dayOrder=[];
+    monthItems.forEach(function(t){if(!days[t.date]){days[t.date]=[];dayOrder.push(t.date);}days[t.date].push(t);});
+    dayOrder.forEach(function(date){html+='<div class="date-group-label">'+fmtDate(date)+'</div><div class="card">'+days[date].map(txnRowHtml).join('')+'</div>';});
   });
   wrap.innerHTML = html;
 }
