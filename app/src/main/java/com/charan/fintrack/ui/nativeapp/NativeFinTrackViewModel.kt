@@ -74,6 +74,20 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
         )
     }
 
+    fun updateAccount(account: AccountEntity, name: String, type: String, openingRupees: String, creditLimitRupees: String) = perform {
+        val opening = MoneyPaise.fromSignedRupees(openingRupees)
+        val credit = MoneyPaise.fromRupees(creditLimitRupees.ifBlank { "0" })
+        repository.updateAccount(
+            account.copy(
+                name = name.trim(), accountType = type.trim(),
+                balance = opening.toRupeesDecimal().toDouble(),
+                openingBalancePaise = opening.paise,
+                creditLimit = credit.toRupeesDecimal().toDouble(),
+                creditLimitPaise = credit.paise
+            )
+        )
+    }
+
     fun archiveAccount(id: Long) = perform { repository.archiveAccount(id) }
 
     fun addTransaction(
@@ -109,6 +123,39 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    fun updateTransaction(
+        original: TransactionEntity,
+        type: String,
+        amountRupees: String,
+        accountId: Long,
+        category: String,
+        note: String,
+        destinationAccountId: Long?,
+        personId: Long?,
+        paymentMethod: String,
+        upiApp: String,
+        date: String,
+        time: String
+    ) = perform {
+        val amount = MoneyPaise.fromRupees(amountRupees)
+        val timestamp = parseDateTime(date, time)
+        repository.replaceTransaction(
+            original.copy(
+                accountId = accountId,
+                type = type,
+                amount = amount.toRupeesDecimal().toDouble(),
+                amountPaise = amount.paise,
+                category = if (type.equals("TRANSFER", true)) "Transfer" else category,
+                note = note,
+                timestamp = timestamp,
+                personId = personId,
+                paymentMethod = paymentMethod,
+                upiApp = upiApp
+            ),
+            destinationAccountId
+        )
+    }
+
     fun deleteTransaction(transaction: TransactionEntity) = perform {
         repository.deleteTransaction(transaction)
     }
@@ -117,16 +164,42 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
         repository.addPerson(name, phone, notes)
     }
 
+    fun updatePerson(person: PersonEntity, name: String, phone: String, notes: String) = perform {
+        repository.updatePerson(person.copy(name = name.trim(), phone = phone.trim(), notes = notes.trim()))
+    }
+
     fun addCategory(name: String, type: String) = perform {
         repository.addCategory(name, type)
+    }
+
+    fun updateCategory(category: CategoryEntity, name: String, type: String, icon: String) = perform {
+        repository.updateCategory(category.copy(name = name.trim(), type = type.uppercase(), icon = icon))
     }
 
     fun addBudget(category: String, limitRupees: String, month: String, period: String) = perform {
         repository.addBudget(category, MoneyPaise.fromRupees(limitRupees), month, period)
     }
 
+    fun updateBudget(item: BudgetEntity, category: String, limitRupees: String, month: String, period: String) = perform {
+        val limit = MoneyPaise.fromRupees(limitRupees)
+        repository.updateBudget(
+            item.copy(
+                category = category.trim(), limitAmount = limit.toRupeesDecimal().toDouble(),
+                limitAmountPaise = limit.paise, month = month, period = period
+            )
+        )
+    }
+
     fun addGoal(name: String, targetRupees: String) = perform {
         repository.addGoal(name, MoneyPaise.fromRupees(targetRupees))
+    }
+
+    fun updateGoal(goal: GoalEntity, name: String, targetRupees: String) = perform {
+        val target = MoneyPaise.fromRupees(targetRupees)
+        require(goal.savedAmountPaise <= target.paise) { "Target cannot be lower than the amount already saved" }
+        repository.updateGoal(
+            goal.copy(name = name.trim(), targetAmount = target.toRupeesDecimal().toDouble(), targetAmountPaise = target.paise)
+        )
     }
 
     fun contribute(goalId: Long, amountRupees: String, note: String = "") = perform {
@@ -146,6 +219,24 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
 
     fun repay(loanId: Long, amountRupees: String, note: String) = perform {
         repository.addLoanRepayment(loanId, MoneyPaise.fromRupees(amountRupees), note)
+    }
+
+    fun updateLoan(loan: LoanEntity, name: String, principalRupees: String, monthlyRupees: String, interestRate: String) = perform {
+        val principal = MoneyPaise.fromRupees(principalRupees)
+        val monthly = MoneyPaise.fromRupees(monthlyRupees.ifBlank { "0" })
+        require(principal.paise >= loan.paidAmountPaise) { "Principal cannot be lower than amounts already repaid" }
+        val rate = interestRate.toDoubleOrNull() ?: throw IllegalArgumentException("Enter a valid interest rate")
+        require(rate >= 0.0 && rate.isFinite()) { "Interest rate cannot be negative" }
+        repository.updateLoan(
+            loan.copy(
+                name = name.trim(),
+                principal = principal.toRupeesDecimal().toDouble(),
+                principalPaise = principal.paise,
+                monthlyPayment = monthly.toRupeesDecimal().toDouble(),
+                monthlyPaymentPaise = monthly.paise,
+                interestRate = rate
+            )
+        )
     }
 
     fun goalContributions(goalId: Long): Flow<List<GoalContributionEntity>> =
