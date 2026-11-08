@@ -11,6 +11,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.Icon
 import android.net.Uri
@@ -34,6 +36,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.util.Calendar
 
 internal object ReminderTime {
@@ -91,17 +94,22 @@ class DailyReminderReceiver : android.content.BroadcastReceiver() {
         if (!prefs.getBoolean("enabled", false)) return
         val memeMode = prefs.getBoolean("memeMode", false)
         val normal = listOf(
-            "Take a moment to review today's spending.",
-            "Your daily money check-in is ready.",
-            "A quick review today can help tomorrow."
+            "Your daily money check-in is ready. Add today's income and expenses to keep your balance accurate.",
+            "A one-minute update helps you stay on top of your money. Log today's transactions in FinTrack.",
+            "Small daily updates make monthly reports useful. Add any income or expenses you made today."
         )
         val funny = listOf(
-            "Your wallet called. It wants a quick review. 😄",
-            "Small expenses have big group chats. Check today's spending.",
-            "Be the boss of your budget, not its mystery guest."
+            "Your wallet called. It wants today's transactions logged 😄 Add your income and expenses!",
+            "Receipts are not a filing system 😂 Add today's transactions in FinTrack.",
+            "Your budget is waiting for its daily update 🍀 Log today's income and expenses.",
+            "Money moved? Tell FinTrack about it before you forget 😅 Add a transaction now."
         )
         val messages = if (memeMode) funny else normal
-        val message = messages[(System.currentTimeMillis() % messages.size).toInt()]
+        val messageKey = if (memeMode) "last_meme_index" else "last_normal_index"
+        val previousIndex = prefs.getInt(messageKey, -1)
+        val nextIndex = (previousIndex + 1) % messages.size
+        prefs.edit().putInt(messageKey, nextIndex).apply()
+        val message = messages[nextIndex]
         createChannel(context)
 
         val openApp = PendingIntent.getActivity(
@@ -167,6 +175,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var csvSaveLauncher: ActivityResultLauncher<String>
     private lateinit var backupOpenLauncher: ActivityResultLauncher<Array<String>>
     private lateinit var apkOpenLauncher: ActivityResultLauncher<Array<String>>
+    private lateinit var backgroundOpenLauncher: ActivityResultLauncher<Array<String>>
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
     private lateinit var installSettingsLauncher: ActivityResultLauncher<Intent>
 
@@ -203,14 +212,20 @@ class MainActivity : ComponentActivity() {
         apkOpenLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) {
             handleSelectedApk(it)
         }
+        backgroundOpenLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) {
+            handleSelectedBackgroundImage(it)
+        }
         notificationPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) { granted ->
             val reminder = pendingReminder
             pendingReminder = null
-            if (granted && reminder != null) applyReminder(reminder)
-            else if (reminder?.enabled == true) {
-                Toast.makeText(this, "Allow notifications to enable daily reminders.", Toast.LENGTH_LONG).show()
+            if (granted && reminder != null) {
+                applyReminder(reminder)
+                notifyReminderPermissionResult(true)
+            } else if (reminder?.enabled == true) {
+                notifyReminderPermissionResult(false)
+                Toast.makeText(this, "Allow FinTrack notifications in Android Settings to enable reminders.", Toast.LENGTH_LONG).show()
             }
         }
         installSettingsLauncher = registerForActivityResult(
@@ -385,6 +400,70 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun notifyReminderPermissionResult(granted: Boolean) {
+        if (!::webView.isInitialized || !pageReady) return
+        runOnUiThread {
+            webView.evaluateJavascript(
+                "if(window.finTrackReminderPermissionResult){window.finTrackReminderPermissionResult($granted);}",
+                null
+            )
+        }
+    }
+
+    private fun handleSelectedBackgroundImage(uri: Uri?) {
+        if (uri == null) return
+        Thread {
+            try {
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+                    ?: throw IllegalStateException("Unable to read selected photo")
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                    throw IllegalArgumentException("Selected file is not a supported image")
+                }
+                var sample = 1
+                while (bounds.outWidth / sample > 1600 || bounds.outHeight / sample > 1600) sample *= 2
+                val options = BitmapFactory.Options().apply { inSampleSize = sample }
+                val decoded = contentResolver.openInputStream(uri)?.use {
+                    BitmapFactory.decodeStream(it, null, options)
+                } ?: throw IllegalStateException("Unable to decode selected photo")
+                val maxEdge = 1280
+                val scale = minOf(1.0, maxEdge.toDouble() / maxOf(decoded.width, decoded.height))
+                val outputBitmap = if (scale < 1.0) {
+                    Bitmap.createScaledBitmap(
+                        decoded,
+                        (decoded.width * scale).toInt().coerceAtLeast(1),
+                        (decoded.height * scale).toInt().coerceAtLeast(1),
+                        true
+                    )
+                } else decoded
+                val bytes = ByteArrayOutputStream().use { output ->
+                    outputBitmap.compress(Bitmap.CompressFormat.JPEG, 72, output)
+                    output.toByteArray()
+                }
+                if (outputBitmap !== decoded) outputBitmap.recycle()
+                decoded.recycle()
+                if (bytes.size > 1_500_000) {
+                    throw IllegalArgumentException("Photo is too large. Choose a smaller image.")
+                }
+                val dataUrl = "data:image/jpeg;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
+                runOnUiThread {
+                    webView.evaluateJavascript(
+                        "if(window.setFinTrackBackgroundFromNative){window.setFinTrackBackgroundFromNative(\${JSONObject.quote(dataUrl)});}",
+                        null
+                    )
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        "Background photo could not be saved: " + (error.message ?: "unsupported image"),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }.start()
+    }
+
     private fun applyReminder(config: ReminderConfig) {
         getSharedPreferences(REMINDER_PREFS, Context.MODE_PRIVATE).edit()
             .putBoolean("enabled", config.enabled)
@@ -462,7 +541,17 @@ class MainActivity : ComponentActivity() {
                 ) {
                     pendingReminder = config
                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                } else applyReminder(config)
+                } else {
+                    applyReminder(config)
+                    notifyReminderPermissionResult(true)
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun chooseBackgroundImage() {
+            runOnUiThread {
+                backgroundOpenLauncher.launch(arrayOf("image/*"))
             }
         }
 
