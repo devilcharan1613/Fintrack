@@ -667,6 +667,7 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
         <div class="photo-theme-desc">Choose a photo stored on your phone. It stays on this device.</div>
         <div class="photo-theme-actions"><button class="btn btn-secondary" onclick="chooseFinTrackBackground()">＋ Add photo</button><button class="btn btn-secondary" onclick="removeFinTrackBackground()">Remove photo</button></div>
         <div id="backgroundPhotoStatus" class="filter-hint">No custom photo selected.</div>
+        <div id="backgroundPhotoPreview" class="photo-theme-preview" aria-label="Custom background preview"></div>
         <label class="visibility-label" for="backgroundVisibility">Photo visibility <strong id="backgroundVisibilityValue">35%</strong></label>
         <input id="backgroundVisibility" class="visibility-slider" type="range" min="0" max="100" step="1" value="35" oninput="setFinTrackBackgroundVisibility(this.value)">
       </div>
@@ -1165,9 +1166,11 @@ function applyFinTrackBackground(dataUrl){
   if(dataUrl){
     root.style.setProperty('--ft-custom-bg-image','url("'+dataUrl+'")');
     var status=document.getElementById('backgroundPhotoStatus');if(status)status.textContent='Custom background photo is active on this device.';
+    var preview=document.getElementById('backgroundPhotoPreview');if(preview)preview.style.backgroundImage='url("'+dataUrl+'")';
   }else{
     root.style.setProperty('--ft-custom-bg-image','none');
     var status=document.getElementById('backgroundPhotoStatus');if(status)status.textContent='No custom photo selected.';
+    var preview=document.getElementById('backgroundPhotoPreview');if(preview)preview.style.backgroundImage='none';
   }
 }
 function setFinTrackBackgroundFromNative(dataUrl){
@@ -1549,7 +1552,7 @@ function inRange(dateStr, range){
 function renderReports(){
   var tabs = document.getElementById('reportPeriodTabs');
   tabs.innerHTML = REPORT_PERIODS.map(function(p){
-    return '<button class="period-tab '+(reportPeriod===p?'active':'')+'" onclick="setReportPeriod(\''+p+'\')">'+p+'</button>';
+    return '<button class="period-tab '+(!reportCustomRange&&reportPeriod===p?'active':'')+'" onclick="setReportPeriod(\''+p+'\')">'+p+'</button>';
   }).join('');
 
   var periodTxns;
@@ -3054,10 +3057,14 @@ html[data-theme="light"] .reminder-save-btn,html[data-theme="light"] .btn-primar
 #shell{isolation:isolate}
 #shell::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background-image:var(--ft-custom-bg-image,none);background-size:cover;background-position:center;background-repeat:no-repeat;opacity:var(--ft-photo-opacity,0);transition:opacity .22s ease}
 #shell>*{z-index:1}
+#shell>.topbar{z-index:5}
+#shell>.bottomnav{z-index:30}
+#shell>.overlay{z-index:100}
 .bottomnav{left:14px!important;right:14px!important;bottom:max(10px,env(safe-area-inset-bottom))!important;height:calc(78px + env(safe-area-inset-bottom))!important;padding-bottom:env(safe-area-inset-bottom)!important;border:1.5px solid rgba(145,225,240,.46)!important;border-bottom:1.5px solid rgba(145,225,240,.46)!important;border-radius:30px!important}
 @media(min-width:520px){.bottomnav{left:50%!important;right:auto!important;width:min(calc(100% - 28px),532px)!important;transform:translateX(-50%)!important}}
 @media(max-width:390px){.report-toolbar{align-items:flex-start;flex-direction:column}.report-toolbar .period-tabs{width:100%}.report-toolbar .export-action{align-self:flex-end}.filter-grid{gap:8px}.filter-field input,.filter-field select{font-size:13px;padding-left:9px;padding-right:9px}.report-date-grid{gap:8px}}
 
+.photo-theme-preview{height:76px;margin:8px 0 4px;border:1.5px solid rgba(130,220,238,.40);border-radius:14px;background:linear-gradient(135deg,rgba(0,214,163,.12),rgba(105,95,220,.14));background-size:cover;background-position:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
 </style>
 
 <script>
