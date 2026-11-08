@@ -224,6 +224,7 @@ class MainActivity : ComponentActivity() {
                 applyReminder(reminder)
                 notifyReminderPermissionResult(true)
             } else if (reminder?.enabled == true) {
+                applyReminder(reminder.copy(enabled = false))
                 notifyReminderPermissionResult(false)
                 Toast.makeText(this, "Allow FinTrack notifications in Android Settings to enable reminders.", Toast.LENGTH_LONG).show()
             }
@@ -448,7 +449,7 @@ class MainActivity : ComponentActivity() {
                 val dataUrl = "data:image/jpeg;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
                 runOnUiThread {
                     webView.evaluateJavascript(
-                        "if(window.setFinTrackBackgroundFromNative){window.setFinTrackBackgroundFromNative(\${JSONObject.quote(dataUrl)});}",
+                        "if(window.setFinTrackBackgroundFromNative){window.setFinTrackBackgroundFromNative(${JSONObject.quote(dataUrl)});}",
                         null
                     )
                 }
