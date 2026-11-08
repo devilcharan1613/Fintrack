@@ -177,7 +177,6 @@ private fun NativeFinTrackContent(
     backgroundOpacity: Float,
     onChooseBackground: () -> Unit,
     onRemoveBackground: () -> Unit,
-    backgroundOpacity: Float,
     onBackgroundOpacity: (Float) -> Unit,
     onInstallApk: () -> Unit
 ) {
