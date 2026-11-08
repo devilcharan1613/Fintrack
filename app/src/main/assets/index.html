@@ -742,6 +742,17 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
       <div class="info-row"><span class="l">Storage</span><span class="v">Local Device</span></div>
     </div>
 
+    <div class="section-title">Native UI Preview</div>
+    <div class="card">
+      <div class="set-item" onclick="openNativeComposePreview()" style="cursor:pointer">
+        <div class="set-icon">✨</div>
+        <div class="set-mid">
+          <div class="set-name">Open Native Compose Preview</div>
+          <div class="set-desc">Preview the new Kotlin and Jetpack Compose screens. The existing offline app remains unchanged.</div>
+        </div>
+      </div>
+    </div>
+
     <div class="section-title">About</div>
     <div class="card about-box">
       <div class="icn">💰</div>
@@ -2044,6 +2055,14 @@ function deletePlannerItem(type,id){
 /* ============================================================
    RENDER: SETTINGS
 ============================================================ */
+function openNativeComposePreview(){
+  if(window.FinTrackBridge&&typeof window.FinTrackBridge.openNativePreview==='function'){
+    window.FinTrackBridge.openNativePreview();
+  }else{
+    showToast('Native Compose preview is available in the installed Android app','error');
+  }
+}
+
 function renderSettings(){
   document.getElementById('infoAccCount').textContent = state.accounts.length;
   document.getElementById('infoTxnCount').textContent = state.transactions.length;

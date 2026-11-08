@@ -37,6 +37,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.WindowCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.charan.fintrack.ui.nativeapp.NativeFinTrackActivity
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.util.Calendar
@@ -547,6 +548,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private inner class FinTrackBridge {
+        @JavascriptInterface
+        fun openNativePreview() {
+            runOnUiThread {
+                startActivity(Intent(this@MainActivity, NativeFinTrackActivity::class.java))
+            }
+        }
+
         @JavascriptInterface
         fun exportBackup(json: String, fileName: String) {
             runOnUiThread {
