@@ -51,6 +51,7 @@ import com.charan.fintrack.data.NativeLedgerCalculator
 import com.charan.fintrack.data.local.*
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Calendar
 import java.util.Locale
 
 private enum class FinPage(val label: String) {
@@ -477,7 +478,10 @@ private fun BudgetsScreen(budgets: List<BudgetEntity>, transactions: List<Transa
     if (budgets.isEmpty()) EmptyState("No budgets created", "Set category spending limits and monitor progress.")
     else LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         items(budgets, key = { it.stableUid }) { budget ->
-            val spent = NativeLedgerCalculator.categoryExpensePaise(transactions, budget.category)
+            val range = budgetWindow(budget)
+            val spent = NativeLedgerCalculator.categoryExpensePaise(
+                transactions, budget.category, range.first, range.second
+            )
             val ratio = if (budget.limitAmountPaise <= 0) 0f else (spent.toDouble() / budget.limitAmountPaise).toFloat().coerceIn(0f, 1.2f)
             GlassCard {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -832,6 +836,45 @@ private fun EmptyState(title: String, description: String) {
             Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+private fun budgetWindow(budget: BudgetEntity): Pair<Long, Long> {
+    val now = Calendar.getInstance()
+    val start = Calendar.getInstance()
+    val end = Calendar.getInstance()
+    when (budget.period.lowercase(Locale.ROOT)) {
+        "daily" -> {
+            start.set(Calendar.HOUR_OF_DAY, 0); start.set(Calendar.MINUTE, 0)
+            start.set(Calendar.SECOND, 0); start.set(Calendar.MILLISECOND, 0)
+            end.timeInMillis = start.timeInMillis
+            end.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        "weekly" -> {
+            start.set(Calendar.HOUR_OF_DAY, 0); start.set(Calendar.MINUTE, 0)
+            start.set(Calendar.SECOND, 0); start.set(Calendar.MILLISECOND, 0)
+            val day = (start.get(Calendar.DAY_OF_WEEK) + 5) % 7
+            start.add(Calendar.DAY_OF_YEAR, -day)
+            end.timeInMillis = start.timeInMillis
+            end.add(Calendar.DAY_OF_YEAR, 7)
+        }
+        "yearly" -> {
+            start.set(Calendar.DAY_OF_YEAR, 1)
+            start.set(Calendar.HOUR_OF_DAY, 0); start.set(Calendar.MINUTE, 0)
+            start.set(Calendar.SECOND, 0); start.set(Calendar.MILLISECOND, 0)
+            end.timeInMillis = start.timeInMillis
+            end.add(Calendar.YEAR, 1)
+        }
+        else -> {
+            val parts = budget.month.split("-")
+            val year = parts.getOrNull(0)?.toIntOrNull() ?: now.get(Calendar.YEAR)
+            val month = (parts.getOrNull(1)?.toIntOrNull()?.minus(1))?.coerceIn(0, 11) ?: now.get(Calendar.MONTH)
+            start.set(year, month, 1, 0, 0, 0)
+            start.set(Calendar.MILLISECOND, 0)
+            end.timeInMillis = start.timeInMillis
+            end.add(Calendar.MONTH, 1)
+        }
+    }
+    return start.timeInMillis to end.timeInMillis
 }
 
 private fun money(paise: Long): String = MoneyPaise.fromSignedPaise(paise).formatInr()
