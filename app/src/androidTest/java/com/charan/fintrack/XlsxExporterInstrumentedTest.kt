@@ -13,7 +13,7 @@ import java.util.zip.ZipInputStream
 @RunWith(AndroidJUnit4::class)
 class XlsxExporterInstrumentedTest {
     @Test
-    fun exportCreatesWorkbookWithFinanceSheetsAndValues() {
+    fun exportCreatesFormattedWorkbookWithSummaryAndFinanceSheets() {
         val state = JSONObject()
             .put("accounts", JSONArray().put(JSONObject().put("name", "Daily Cash").put("balance", 1250.0)))
             .put("transactions", JSONArray().put(JSONObject().put("type", "expense").put("amount", 150.0).put("category", "Food")))
@@ -37,11 +37,16 @@ class XlsxExporterInstrumentedTest {
         }
 
         assertNotNull(entries["[Content_Types].xml"])
+        assertTrue(entries["xl/workbook.xml"].orEmpty().contains("Summary"))
         assertTrue(entries["xl/workbook.xml"].orEmpty().contains("Transactions"))
-        assertTrue(entries["xl/worksheets/sheet1.xml"].orEmpty().contains("Daily Cash"))
-        assertTrue(entries["xl/worksheets/sheet2.xml"].orEmpty().contains("expense"))
-        assertTrue(entries["xl/worksheets/sheet4.xml"].orEmpty().contains("4000.0"))
+        assertTrue(entries["xl/worksheets/sheet1.xml"].orEmpty().contains("FinTrack Export Summary"))
+        assertTrue(entries["xl/worksheets/sheet1.xml"].orEmpty().contains("150.0"))
+        assertTrue(entries["xl/worksheets/sheet2.xml"].orEmpty().contains("Daily Cash"))
+        assertTrue(entries["xl/worksheets/sheet3.xml"].orEmpty().contains("expense"))
+        assertTrue(entries["xl/worksheets/sheet5.xml"].orEmpty().contains("4000.0"))
         assertTrue(entries["xl/worksheets/sheet7.xml"].orEmpty().contains("Education Loan"))
-        assertTrue(entries["xl/worksheets/sheet7.xml"].orEmpty().contains("2026-11-08"))
+        assertTrue(entries["xl/worksheets/sheet8.xml"].orEmpty().contains("2026-11-08"))
+        assertTrue(entries["xl/worksheets/sheet3.xml"].orEmpty().contains("state=\"frozen\""))
+        assertTrue(entries["xl/worksheets/sheet3.xml"].orEmpty().contains("<autoFilter"))
     }
 }
