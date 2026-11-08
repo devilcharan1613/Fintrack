@@ -2432,6 +2432,10 @@ function openExportDialog(source){
   var data=[header].concat(rows.map(function(t){var a=getAcc(t.accountId),c=getCat(t.category);return [t.date,t.type,t.amount,c.name||t.category,a&&a.name||'',t.notes||t.note||''];}));
   if(format==='csv'){
     var csv=data.map(function(row){return row.map(function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}).join(',');}).join('\r\n');
+    if(window.FinTrackBridge&&typeof window.FinTrackBridge.exportCsv==='function'){
+      window.FinTrackBridge.exportCsv(csv,'fintrack_transactions_'+today()+'.csv');
+      showToast('Choose where to save your CSV','success');return;
+    }
     var blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');
     link.href=url;link.download='fintrack_transactions_'+today()+'.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
     showToast('CSV export ready','success');return;
@@ -2445,6 +2449,10 @@ function openExportDialog(source){
     '</head><body><h2>FinTrack transaction statement</h2><p>' + escapeHtml(start) + ' to ' + escapeHtml(end) + '</p>' +
     '<table><thead><tr>' + header.map(function(value){return '<th>' + escapeHtml(value) + '</th>';}).join('') +
     '</tr></thead><tbody>' + tableRows + '</tbody></table></body></html>';
+  if(window.FinTrackBridge&&typeof window.FinTrackBridge.printDocument==='function'){
+    window.FinTrackBridge.printDocument(printHtml,'FinTrack_Statement_'+today());
+    showToast('Use the Android print dialog to save this statement as PDF','success');return;
+  }
   var win = window.open('', '_blank');
   if(!win){showToast('Allow pop-ups to print PDF','error');return;}
   win.document.open();
