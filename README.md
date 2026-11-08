@@ -1,10 +1,10 @@
-# FinTrack
+# 💰 FinTrack
 
-**Version 2.5.0 · Offline edition · Android**
+**📱 Version 2.5.0 · Offline Edition · Android**
 
 FinTrack is an offline-first personal finance tracker. This README documents features present in the development-branch source and distinguishes implementation from runtime verification. A feature being present in source code does not mean it has passed device testing.
 
-## Feature status legend
+## 🧭 Feature status legend
 
 - **Implemented (source):** corresponding UI or code is present in this branch.
 - **Partial:** a basic implementation exists, but completeness or all expected cases are not verified.
@@ -72,7 +72,7 @@ FinTrack is an offline-first personal finance tracker. This README documents fea
 - **Needs testing:** open generated XLSX files in spreadsheet applications; verify custom-range contents, CSV encoding, PDF page layout and backup compatibility with older app data.
 - **Important:** Android Print to PDF depends on the print service available on the device. FinTrack does not claim a separate direct PDF-file generator.
 
-### Export file layouts
+### 🗂️ Export file layouts
 
 **Excel (.xlsx)**
 
@@ -138,7 +138,7 @@ This is a development-branch README, not a release certification.
 
 Do not treat a successful APK compilation as proof that every feature works correctly. Report bugs with the device model, Android version and steps to reproduce.
 
-## Build
+## ⚙️ Build
 
 Prerequisites: JDK 17 and Android SDK Platform 35.
 
@@ -152,7 +152,7 @@ Debug APK output:
 
 The GitHub Actions workflow is configured to build the debug APK and publish the `FinTrack-debug-apk` artifact when the workflow succeeds. Confirm the artifact is present for the latest development-branch commit before downloading.
 
-## Application identity
+## 📦 Application identity
 
 | Property | Value |
 |---|---|
@@ -166,4 +166,6 @@ The GitHub Actions workflow is configured to build the debug APK and publish the
 
 ---
 
-**FinTrack v2.5.0 Offline Edition · Development branch documentation**
+**Made for simple, private, offline-first money management. 💚**
+
+*FinTrack v2.5.0 Offline Edition · Development branch documentation*
