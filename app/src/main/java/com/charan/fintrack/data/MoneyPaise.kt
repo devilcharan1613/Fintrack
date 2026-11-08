@@ -57,6 +57,16 @@ value class MoneyPaise(val paise: Long) : Comparable<MoneyPaise> {
             return MoneyPaise(paise)
         }
 
+        /** HALF_UP conversion for signed opening balances, including credit balances. */
+        fun fromLegacySignedRupees(value: Double): MoneyPaise {
+            require(value.isFinite()) { "Legacy balance must be finite" }
+            val paise = BigDecimal.valueOf(value)
+                .movePointRight(2)
+                .setScale(0, RoundingMode.HALF_UP)
+                .longValueExact()
+            return MoneyPaise(paise)
+        }
+
         /** Signed factory for internal ledger deltas and balance adjustments. */
         fun fromSignedPaise(paise: Long): MoneyPaise = MoneyPaise(paise)
     }
