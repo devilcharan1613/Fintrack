@@ -16,6 +16,7 @@ internal object XlsxExporter {
     fun create(json: String): ByteArray {
         val state = JSONObject(json)
         val sheets = listOf(
+            SheetData("Summary", buildSummaryRows(state)),
             SheetData("Accounts", buildRows(state.optJSONArray("accounts"), listOf(
                 "Name" to "name", "Type" to "type", "Balance" to "balance",
                 "Currency" to "currency", "Institution" to "institution",
@@ -48,6 +49,33 @@ internal object XlsxExporter {
             )))
         )
         return zipWorkbook(sheets)
+    }
+
+    private fun buildSummaryRows(state: JSONObject): List<List<Any?>> {
+        val metadata = state.optJSONObject("exportMetadata")
+        val transactions = state.optJSONArray("transactions") ?: JSONArray()
+        var income = 0.0
+        var expense = 0.0
+        for (i in 0 until transactions.length()) {
+            val txn = transactions.optJSONObject(i) ?: continue
+            when (txn.optString("type")) {
+                "income" -> income += txn.optDouble("amount", 0.0)
+                "expense" -> expense += txn.optDouble("amount", 0.0)
+            }
+        }
+        return listOf(
+            listOf("FinTrack Export Summary", "Value"),
+            listOf("Export type", metadata?.optString("type", "full") ?: "full"),
+            listOf("From date", metadata?.optString("from", "All records") ?: "All records"),
+            listOf("To date", metadata?.optString("to", "All records") ?: "All records"),
+            listOf("Generated at", metadata?.optString("generatedAt", java.time.Instant.now().toString()) ?: java.time.Instant.now().toString()),
+            listOf("Transactions included", transactions.length()),
+            listOf("Income INR", income),
+            listOf("Expense INR", expense),
+            listOf("Net savings INR", income - expense),
+            listOf("Accounts included", state.optJSONArray("accounts")?.length() ?: 0),
+            listOf("People included", state.optJSONArray("persons")?.length() ?: 0)
+        )
     }
 
     private fun buildRows(array: JSONArray?, columns: List<Pair<String, String>>): List<List<Any?>> {
@@ -149,18 +177,18 @@ $sheets
 
     private fun styles(): String = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="1"><font><sz val="11"/><name val="Aptos"/></font></fonts>
-<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
-<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+<fonts count="2"><font><sz val="11"/><name val="Aptos"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Aptos Display"/></font></fonts>
+<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF073746"/><bgColor indexed="64"/></patternFill></fill></fills>
+<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFD5E5EA"/></left><right style="thin"><color rgb="FFD5E5EA"/></right><top style="thin"><color rgb="FFD5E5EA"/></top><bottom style="thin"><color rgb="FFD5E5EA"/></bottom><diagonal/></border></borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>
+<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/></cellXfs>
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>"""
 
     private fun worksheet(rows: List<List<Any?>>): String {
         val body = rows.mapIndexed { rowIndex, row ->
             val cells = row.mapIndexed { columnIndex, value ->
-                cell(columnName(columnIndex + 1) + (rowIndex + 1), value)
+                cell(columnName(columnIndex + 1) + (rowIndex + 1), value, if (rowIndex == 0) 1 else 0)
             }.joinToString("")
             """<row r="${rowIndex + 1}">$cells</row>"""
         }.joinToString("")
@@ -170,15 +198,15 @@ $sheets
 </worksheet>"""
     }
 
-    private fun cell(reference: String, value: Any?): String {
+    private fun cell(reference: String, value: Any?, style: Int = 0): String {
         if (value == null || value == JSONObject.NULL) {
-            return """<c r="$reference" t="inlineStr"><is><t></t></is></c>"""
+            return """<c r="$reference" s="$style" t="inlineStr"><is><t></t></is></c>"""
         }
         if (value is Number && value.toDouble().isFinite()) {
-            return """<c r="$reference"><v>$value</v></c>"""
+            return """<c r="$reference" s="$style"><v>$value</v></c>"""
         }
         if (value is Boolean) {
-            return """<c r="$reference" t="b"><v>${if (value) 1 else 0}</v></c>"""
+            return """<c r="$reference" s="$style" t="b"><v>${if (value) 1 else 0}</v></c>"""
         }
         return """<c r="$reference" t="inlineStr"><is><t xml:space="preserve">${xml(value.toString())}</t></is></c>"""
     }
