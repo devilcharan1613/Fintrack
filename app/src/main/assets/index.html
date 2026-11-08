@@ -1021,12 +1021,20 @@ var quickWalletTarget = 'from';
 ============================================================ */
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function fmt(n){
-  n = Number(n)||0;
+  n = roundMoney(n);
   var neg = n < 0;
   var v = Math.abs(n).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:2});
   return (neg?'-':'') + '₹' + v;
 }
-function today(){ return new Date().toISOString().split('T')[0]; }
+function today(){
+  var now=new Date(),pad=function(value){return String(value).padStart(2,'0');};
+  return now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
+}
+function roundMoney(value){
+  var number=Number(value);
+  if(!Number.isFinite(number))return 0;
+  return Math.round((number+Number.EPSILON)*100)/100;
+}
 function fmtDate(d){
   try{
     return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
@@ -1742,7 +1750,7 @@ function openPlannerModal(type,id){
 }
 function closePlannerModal(){closeModal('planner');}
 function savePlannerItem(){
-  var name=document.getElementById('plannerName').value.trim(),amount=Number(document.getElementById('plannerAmount').value),progress=Number(document.getElementById('plannerProgress').value||0),emi=Number(document.getElementById('plannerEmi').value||0);
+  var name=document.getElementById('plannerName').value.trim(),amount=roundMoney(document.getElementById('plannerAmount').value),progress=roundMoney(document.getElementById('plannerProgress').value||0),emi=roundMoney(document.getElementById('plannerEmi').value||0);
   if(!name||!Number.isFinite(amount)||amount<=0||!Number.isFinite(progress)||progress<0||!Number.isFinite(emi)||emi<0){showToast('Enter a name and valid amounts','error');return;}
   if(plannerType==='goals'&&progress>amount){showToast('Saved amount cannot exceed the target','error');return;}
   if(plannerType==='loans'&&progress>amount){showToast('Repaid amount cannot exceed principal','error');return;}
@@ -1759,7 +1767,7 @@ function savePlannerItem(){
 function addGoalContribution(id){
   var goal=state.goals.find(function(g){return String(g.id)===String(id);});if(!goal)return;
   var raw=prompt('Contribution amount (₹)');if(raw===null)return;
-  var amount=Number(raw);if(!Number.isFinite(amount)||amount<=0){showToast('Enter a valid contribution','error');return;}
+  var amount=roundMoney(raw);if(!Number.isFinite(amount)||amount<=0){showToast('Enter a valid contribution','error');return;}
   if(Number(goal.saved||0)+amount>Number(goal.target||0)){showToast('Contribution exceeds the remaining goal amount','error');return;}
   goal.saved=Number(goal.saved||0)+amount;
   if(!Array.isArray(goal.contributions))goal.contributions=[];
@@ -2181,15 +2189,15 @@ function editTxn(id){
 }
 
 function applyTxnEffect(t, sign){
-  var amt = Number(t.amount) * sign;
+  var amt = roundMoney(Number(t.amount) * sign);
   if(t.type==='income' || t.type==='borrow'){
-    var acc = getAcc(t.accountId); if(acc) acc.balance = Number(acc.balance) + amt;
+    var acc = getAcc(t.accountId); if(acc) acc.balance = roundMoney(Number(acc.balance) + amt);
   } else if(t.type==='expense' || t.type==='lend'){
-    var acc2 = getAcc(t.accountId); if(acc2) acc2.balance = Number(acc2.balance) - amt;
+    var acc2 = getAcc(t.accountId); if(acc2) acc2.balance = roundMoney(Number(acc2.balance) - amt);
   } else if(t.type==='transfer'){
     var from = getAcc(t.accountId), to = getAcc(t.toAccountId);
-    if(from) from.balance = Number(from.balance) - amt;
-    if(to) to.balance = Number(to.balance) + amt;
+    if(from) from.balance = roundMoney(Number(from.balance) - amt);
+    if(to) to.balance = roundMoney(Number(to.balance) + amt);
   }
 }
 
@@ -2203,7 +2211,7 @@ function toggleTxnUpi(){
 }
 function saveTxn(){
   var id = document.getElementById('txnId').value;
-  var amount = parseFloat(document.getElementById('txnAmount').value);
+  var amount = roundMoney(parseFloat(document.getElementById('txnAmount').value));
   var accountId = document.getElementById('txnAccount').value;
   var toAccountId = document.getElementById('txnToAccount').value;
   var category = document.getElementById('txnCategory').value;
@@ -2316,10 +2324,10 @@ function saveAccount(){
 
   if(id){
     var a = getAcc(id);
-    if(a){ a.name=name; a.type=type; a.balance=balance; a.creditLimit=creditLimit; }
+    if(a){ a.name=name; a.type=type; a.balance=roundMoney(balance); a.creditLimit=roundMoney(creditLimit); }
     showToast('Account updated', 'success');
   } else {
-    state.accounts.push({id:uid(), name:name, type:type, balance:balance, creditLimit:creditLimit, createdAt:new Date().toISOString()});
+    state.accounts.push({id:uid(), name:name, type:type, balance:roundMoney(balance), creditLimit:roundMoney(creditLimit), createdAt:new Date().toISOString()});
     showToast('Account added', 'success');
   }
   save();
