@@ -2034,7 +2034,7 @@ function exportExcelDateRange(){
   if(!start)return;
   var end=prompt('Excel end date (YYYY-MM-DD)',today());
   if(!end)return;
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(start)||!/^\\d{4}-\\d{2}-\\d{2}$/.test(end)||start>end){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||start>end){
     showToast('Enter a valid Excel date range','error');return;
   }
   var filtered=state.transactions.filter(function(t){return (t.date||'')>=start&&(t.date||'')<=end;});
