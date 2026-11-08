@@ -1,12 +1,12 @@
 # FinTrack
 
-**Version 2.4.0**
+**Version 2.5.0**
 
 FinTrack is an offline-first Android personal finance tracker.
 
-## 2.4.0 update
+## 2.5.0 update
 
-- Updated the Android version to 2.4.0 (version code 24).
+- Updated the Android version to 2.5.0 (version code 27).
 - Tightened the top safe-area spacing so the toolbar clears the display notch without a large empty band.
 - Corrected bottom navigation inset ownership to prevent the Android navigation inset being counted twice.
 - Reduced excessive bottom scroll padding while keeping screen content clear of the app navigation bar.
@@ -50,7 +50,7 @@ GitHub Actions uploads the build as `FinTrack-debug-apk`.
 
 - App name: FinTrack
 - Application ID: `com.charan.fintrack`
-- Version name: `2.4.0`
-- Version code: `24`
+- Version name: `2.5.0`
+- Version code: `27`
 - Minimum Android SDK: 23
 - Target Android SDK: 35
