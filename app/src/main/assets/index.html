@@ -705,6 +705,10 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
         <div class="set-icon">📊</div>
         <div class="set-mid"><div class="set-name">Export Excel Workbook</div><div class="set-desc">Save accounts, transactions, budgets, goals and loans as .xlsx</div></div>
       </div>
+      <div class="set-item" onclick="exportExcelDateRange()" style="cursor:pointer;">
+        <div class="set-icon">📅</div>
+        <div class="set-mid"><div class="set-name">Export Date-Range Excel</div><div class="set-desc">Save a workbook with transactions from a selected start and end date</div></div>
+      </div>
       <div class="set-item" onclick="resetData()" style="cursor:pointer;">
         <div class="set-icon">🗑️</div>
         <div class="set-mid"><div class="set-name">Reset All Data</div><div class="set-desc">Delete all local finance data</div></div>
@@ -2024,6 +2028,29 @@ function exportExcelWorkbook(){
   }catch(e){showToast('Excel export could not be started','error');}
 }
 
+function exportExcelDateRange(){
+  var defaultStart=new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10);
+  var start=prompt('Excel start date (YYYY-MM-DD)',defaultStart);
+  if(!start)return;
+  var end=prompt('Excel end date (YYYY-MM-DD)',today());
+  if(!end)return;
+  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(start)||!/^\\d{4}-\\d{2}-\\d{2}$/.test(end)||start>end){
+    showToast('Enter a valid Excel date range','error');return;
+  }
+  var filtered=state.transactions.filter(function(t){return (t.date||'')>=start&&(t.date||'')<=end;});
+  if(!filtered.length){showToast('No transactions in the selected date range','error');return;}
+  if(!window.FinTrackBridge||typeof window.FinTrackBridge.exportWorkbook!=='function'){
+    showToast('Excel export is available in the installed Android app','error');return;
+  }
+  try{
+    var rangeState=JSON.parse(JSON.stringify(state));
+    rangeState.transactions=filtered;
+    rangeState.exportMetadata={type:'custom-date-range',from:start,to:end,generatedAt:new Date().toISOString()};
+    window.FinTrackBridge.exportWorkbook(JSON.stringify(rangeState),'fintrack_workbook_'+start+'_to_'+end+'.xlsx');
+    showToast('Choose where to save the date-range Excel workbook','success');
+  }catch(e){showToast('Date-range Excel export could not be started','error');}
+}
+
 function chooseOfflineApkUpdate(){
   if(window.FinTrackBridge&&typeof window.FinTrackBridge.installApk==='function'){
     window.FinTrackBridge.installApk();
@@ -2828,6 +2855,7 @@ window.finTrackHandleBack = function(){
   return true;
 };
 window.exportExcelWorkbook = exportExcelWorkbook;
+window.exportExcelDateRange = exportExcelDateRange;
 window.saveReminderSettings = saveReminderSettings;
 window.chooseOfflineApkUpdate = chooseOfflineApkUpdate;
 window.setFinTrackTheme = setFinTrackTheme;
