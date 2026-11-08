@@ -452,6 +452,7 @@
 
   <!-- ================= REPORTS ================= -->
   <div class="page" id="page-reports">
+    <div style="display:flex;justify-content:flex-end;margin:0 0 8px"><button onclick="openExportDialog('reports')" aria-label="Download report" style="width:42px;height:42px;border-radius:50%;border:1px solid rgba(0,214,163,.4);background:var(--primary-dim);color:var(--primary);font-size:22px">↓</button></div>
     <div class="period-tabs" id="reportPeriodTabs"></div>
 
     <div class="card" style="margin-bottom:16px;">
@@ -593,8 +594,11 @@
 
       <div class="row2">
         <div class="field"><label>Date</label><input type="date" id="txnDate"></div>
-        <div class="field"><label>Notes</label><input type="text" id="txnNotes" placeholder="Optional note"></div>
+        <div class="field"><label>Time</label><input type="time" id="txnTime"></div>
       </div>
+      <div class="field"><label>Payment Method (optional)</label><select id="txnPaymentMethod" onchange="toggleTxnUpi()"><option value="">Not specified</option><option>UPI</option><option>Cash</option><option>Debit Card</option><option>Credit Card</option><option>Bank Transfer</option><option>Wallet</option><option>Other</option></select></div>
+      <div class="field hidden" id="txnUpiField"><label>UPI App</label><select id="txnUpiApp"><option value="">Select app</option><option>Google Pay</option><option>PhonePe</option><option>Paytm</option><option>BHIM</option><option>Amazon Pay</option><option>Other</option></select></div>
+      <div class="field"><label>Notes</label><input type="text" id="txnNotes" placeholder="Optional note"></div>
 
       <button class="btn btn-primary" onclick="saveTxn()">Save Transaction</button>
       <div class="btn-row" id="txnDeleteRow" style="display:none;">
@@ -1793,6 +1797,10 @@ function resetTxnForm(){
   document.getElementById('txnAmount').value = '';
   document.getElementById('txnNotes').value = '';
   document.getElementById('txnDate').value = today();
+  document.getElementById('txnTime').value = new Date().toTimeString().slice(0,5);
+  document.getElementById('txnPaymentMethod').value = '';
+  document.getElementById('txnUpiApp').value = '';
+  toggleTxnUpi();
   document.getElementById('txnDeleteRow').style.display = 'none';
   document.getElementById('txnModalTitle').textContent = 'Add Transaction';
   populateAccountSelects();
@@ -1826,6 +1834,10 @@ function editTxn(id){
   document.getElementById('txnToAccount').value = t.toAccountId||'';
   document.getElementById('txnPerson').value = t.personId||'';
   document.getElementById('txnDate').value = t.date;
+  document.getElementById('txnTime').value = t.time || '12:00';
+  document.getElementById('txnPaymentMethod').value = t.paymentMethod || '';
+  document.getElementById('txnUpiApp').value = t.upiApp || '';
+  toggleTxnUpi();
   document.getElementById('txnNotes').value = t.notes||'';
   document.getElementById('txnModalTitle').textContent = 'Edit Transaction';
   document.getElementById('txnDeleteRow').style.display = 'flex';
@@ -1846,6 +1858,10 @@ function applyTxnEffect(t, sign){
   }
 }
 
+function toggleTxnUpi(){
+  var isUpi=document.getElementById('txnPaymentMethod').value==='UPI';
+  document.getElementById('txnUpiField').classList.toggle('hidden',!isUpi);
+}
 function saveTxn(){
   var id = document.getElementById('txnId').value;
   var amount = parseFloat(document.getElementById('txnAmount').value);
@@ -1855,6 +1871,9 @@ function saveTxn(){
   var subcategory = document.getElementById('txnSubcategory').value;
   var personId = document.getElementById('txnPerson').value;
   var date = document.getElementById('txnDate').value || today();
+  var time = document.getElementById('txnTime').value || new Date().toTimeString().slice(0,5);
+  var paymentMethod = document.getElementById('txnPaymentMethod').value || '';
+  var upiApp = paymentMethod==='UPI' ? (document.getElementById('txnUpiApp').value||'') : '';
   var notes = document.getElementById('txnNotes').value.trim();
 
   if(!amount || amount<=0){ showToast('Enter a valid amount', 'error'); return; }
@@ -1876,7 +1895,10 @@ function saveTxn(){
     subcategory: (currentTxnType==='income'||currentTxnType==='expense') ? subcategory : '',
     personId: ['borrow','lend'].indexOf(currentTxnType)>=0 ? personId : '',
     notes: notes,
-    date: date
+    date: date,
+    time: time,
+    paymentMethod: paymentMethod,
+    upiApp: upiApp
   };
 
   if(id){
