@@ -403,6 +403,10 @@
 
   <!-- ================= TRANSACTIONS ================= -->
   <div class="page" id="page-transactions">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
+      <input id="txnSearch" type="search" placeholder="Search transactions..." oninput="renderTransactions()" style="flex:1;min-width:0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px;color:var(--text)">
+      <button onclick="openExportDialog('transactions')" aria-label="Download transactions" style="width:42px;height:42px;border-radius:50%;border:1px solid rgba(0,214,163,.4);background:var(--primary-dim);color:var(--primary);font-size:22px">↓</button>
+    </div>
     <div class="chips" id="txnFilterChips"></div>
     <div id="txnList"></div>
   </div>
