@@ -132,10 +132,7 @@ abstract class FinTrackDatabase : RoomDatabase() {
                     val values = android.content.ContentValues().apply {
                         put("stableUid", java.util.UUID.randomUUID().toString())
                     }
-                    db.update(table, androidx.sqlite.db.SupportSQLiteQueryBuilder
-                        .builder(table).columns(arrayOf("id")).selection("id = ?", arrayOf(id.toString())).create().let { _ ->
-                            values
-                        }, "id = ?", arrayOf(id.toString()))
+                    db.update(table, values, "id = ?", arrayOf(id.toString()))
                 }
             }
         }
