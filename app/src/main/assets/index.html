@@ -2891,9 +2891,17 @@ function importBackupText(text){
   try{
     var parsed=JSON.parse(text);
     if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('Backup must be a JSON object');
-    ['accounts','transactions','persons'].forEach(function(k){if(!Array.isArray(parsed[k]))throw new Error('Missing '+k+' list');});
+    ['accounts','transactions'].forEach(function(k){if(!Array.isArray(parsed[k]))throw new Error('Missing '+k+' list');});
+    if(parsed.persons!==undefined&&!Array.isArray(parsed.persons))throw new Error('Invalid persons list');
     ['categories','budgets','goals','loans'].forEach(function(k){if(parsed[k]!==undefined&&!Array.isArray(parsed[k]))throw new Error('Invalid '+k+' list');});
     var clean=JSON.parse(JSON.stringify(parsed));
+    clean.persons=Array.isArray(clean.persons)?clean.persons:[];
+    clean.transactions=clean.transactions.map(function(t){
+      if(!t||typeof t!=='object')return t;
+      var item=Object.assign({},t);
+      if(item.notes===undefined&&item.note!==undefined)item.notes=item.note;
+      return item;
+    });
     clean.categories=Array.isArray(clean.categories)?clean.categories:JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
     ['budgets','goals','loans'].forEach(function(k){clean[k]=Array.isArray(clean[k])?clean[k]:[];});
     clean.settings=clean.settings&&typeof clean.settings==='object'?clean.settings:{currency:'₹',name:'FinTrack',version:'2.5.0'};
