@@ -295,7 +295,7 @@ class MainActivity : ComponentActivity() {
                 ?: throw IllegalStateException("Unable to open selected file")
             Toast.makeText(this, "File saved successfully.", Toast.LENGTH_LONG).show()
         } catch (error: Exception) {
-            Toast.makeText(this, "Save failed: ${error.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Save failed: " + (error.message ?: "unknown error"), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -313,7 +313,7 @@ class MainActivity : ComponentActivity() {
                 }
             } catch (error: Exception) {
                 runOnUiThread {
-                    Toast.makeText(this, "Backup import failed: ${error.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Backup import failed: " + (error.message ?: "unknown error"), Toast.LENGTH_LONG).show()
                 }
             }
         }.start()
@@ -344,7 +344,7 @@ class MainActivity : ComponentActivity() {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             })
         } catch (error: Exception) {
-            Toast.makeText(this, "Could not open Android package installer: ${error.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Could not open Android package installer: " + (error.message ?: "unknown error"), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -383,7 +383,7 @@ class MainActivity : ComponentActivity() {
                     }
                 } catch (error: Exception) {
                     runOnUiThread {
-                        Toast.makeText(this@MainActivity, "Excel export failed: ${error.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@MainActivity, "Excel export failed: " + (error.message ?: "unknown error"), Toast.LENGTH_LONG).show()
                     }
                 }
             }.start()
