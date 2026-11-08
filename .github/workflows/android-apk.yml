@@ -21,6 +21,26 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Check inline JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          html = Path("app/src/main/assets/index.html").read_text(encoding="utf-8")
+          blocks = re.findall(r'<script\\b([^>]*)>(.*?)</script\\s*>', html, flags=re.IGNORECASE | re.DOTALL)
+          count = 0
+          for attrs, body in blocks:
+              if re.search(r'\\bsrc\\s*=', attrs, flags=re.IGNORECASE) or not body.strip():
+                  continue
+              target = Path(f"/tmp/fintrack-inline-{count}.js")
+              target.write_text(body, encoding="utf-8")
+              count += 1
+          if count == 0:
+              raise SystemExit("No inline JavaScript blocks found")
+          print(f"Extracted {count} inline JavaScript blocks")
+          PY
+          for script in /tmp/fintrack-inline-*.js; do node --check "$script"; done
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
