@@ -555,17 +555,18 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
 
   <!-- ================= TRANSACTIONS ================= -->
   <div class="page" id="page-transactions">
-    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
-      <input id="txnSearch" type="search" placeholder="Search transactions..." oninput="renderTransactions()" style="flex:1;min-width:0;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px;color:var(--text)">
-      <button onclick="openExportDialog('transactions')" aria-label="Download transactions" style="width:42px;height:42px;border-radius:50%;border:1px solid rgba(0,214,163,.4);background:var(--primary-dim);color:var(--primary);font-size:22px">↓</button>
+    <div class="txn-toolbar">
+      <input id="txnSearch" type="search" placeholder="Search transactions..." oninput="renderTransactions()" aria-label="Search transactions">
+      <button class="export-action" onclick="openExportDialog('transactions')" aria-label="Export transactions"><span class="export-glyph" aria-hidden="true">⇩</span><span>Export</span></button>
     </div>
     <div class="chips" id="txnFilterChips"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 12px">
-      <select id="txnAccountFilter" onchange="renderTransactions()" aria-label="Filter by account" style="min-width:0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--text)"><option value="">All accounts</option></select>
-      <input id="txnFromFilter" type="date" onchange="renderTransactions()" aria-label="From date" style="min-width:0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--text)">
-      <input id="txnToFilter" type="date" onchange="renderTransactions()" aria-label="To date" style="min-width:0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--text)">
-      <button class="chip" onclick="clearTxnAdvancedFilters()">Clear filters</button>
+    <div class="filter-grid">
+      <div class="filter-field filter-account"><label for="txnAccountFilter">Account</label><select id="txnAccountFilter" onchange="renderTransactions()" aria-label="Filter by account"><option value="">All accounts</option></select></div>
+      <div class="filter-field"><label for="txnFromFilter">From date</label><input id="txnFromFilter" type="date" onchange="renderTransactions()" aria-label="From date"></div>
+      <div class="filter-field"><label for="txnToFilter">To date</label><input id="txnToFilter" type="date" onchange="renderTransactions()" aria-label="To date"></div>
+      <button class="clear-filter-btn" onclick="clearTxnAdvancedFilters()">Clear filters</button>
     </div>
+    <div id="txnFilterHint" class="filter-hint" aria-live="polite"></div>
     <div id="txnList"></div>
   </div>
 
@@ -610,8 +611,16 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
 
   <!-- ================= REPORTS ================= -->
   <div class="page" id="page-reports">
-    <div style="display:flex;justify-content:flex-end;margin:0 0 8px"><button onclick="openExportDialog('reports')" aria-label="Download report" style="width:42px;height:42px;border-radius:50%;border:1px solid rgba(0,214,163,.4);background:var(--primary-dim);color:var(--primary);font-size:22px">↓</button></div>
-    <div class="period-tabs" id="reportPeriodTabs"></div>
+    <div class="report-toolbar"><div class="period-tabs" id="reportPeriodTabs"></div><button class="export-action" onclick="openExportDialog('reports')" aria-label="Export report"><span class="export-glyph" aria-hidden="true">⇩</span><span>Export</span></button></div>
+    <div class="report-date-card">
+      <div class="report-date-title">Custom date range</div>
+      <div class="report-date-grid">
+        <div class="filter-field"><label for="reportFromDate">From date</label><input id="reportFromDate" type="date" aria-label="Report start date"></div>
+        <div class="filter-field"><label for="reportToDate">To date</label><input id="reportToDate" type="date" aria-label="Report end date"></div>
+      </div>
+      <div class="report-date-actions"><button class="btn btn-primary" onclick="applyReportDateRange()">Apply range</button><button class="clear-filter-btn" onclick="clearReportDateRange()">Clear</button></div>
+      <div id="reportRangeHint" class="filter-hint" aria-live="polite">Choose dates to view a custom report.</div>
+    </div>
 
     <div class="card" style="margin-bottom:16px;">
       <div class="section-title" style="margin-top:0;">Summary</div>
@@ -653,6 +662,14 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
     <div class="card">
       <div class="set-item"><div class="set-icon">✨</div><div class="set-mid"><div class="set-name">Premium Liquid Glass</div><div class="set-desc">Choose your FinTrack look. Your choice is saved on this device.</div></div></div>
       <div class="theme-choice"><button id="themeDarkBtn" onclick="setFinTrackTheme('dark')">🌙 Dark Glass</button><button id="themeLightBtn" onclick="setFinTrackTheme('light')">☀️ Light Glass</button></div>
+      <div class="photo-theme-settings">
+        <div class="photo-theme-title">Personal background photo</div>
+        <div class="photo-theme-desc">Choose a photo stored on your phone. It stays on this device.</div>
+        <div class="photo-theme-actions"><button class="btn btn-secondary" onclick="chooseFinTrackBackground()">＋ Add photo</button><button class="btn btn-secondary" onclick="removeFinTrackBackground()">Remove photo</button></div>
+        <div id="backgroundPhotoStatus" class="filter-hint">No custom photo selected.</div>
+        <label class="visibility-label" for="backgroundVisibility">Photo visibility <strong id="backgroundVisibilityValue">35%</strong></label>
+        <input id="backgroundVisibility" class="visibility-slider" type="range" min="0" max="100" step="1" value="35" oninput="setFinTrackBackgroundVisibility(this.value)">
+      </div>
     </div>
     <div class="section-title">Daily Offline Reminder</div>
     <div class="card">
@@ -668,7 +685,8 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
         <div class="field" style="margin:0"><label for="dailyReminderTime">Reminder time</label><input id="dailyReminderTime" type="time" value="20:00"></div>
         <div class="field" style="margin:0;display:flex;align-items:flex-end"><label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:12px"><input id="dailyReminderMeme" type="checkbox" style="width:18px;height:18px;accent-color:var(--primary)"> Fun reminder messages</label></div>
       </div>
-      <button class="btn btn-primary" onclick="saveReminderSettings()">Save Reminder Settings</button>
+      <div id="reminderPermissionHint" class="filter-hint">Notifications are requested only when you enable and save reminders.</div>
+      <button class="btn btn-primary reminder-save-btn" onclick="saveReminderSettings()">Save Reminder Settings</button>
     </div>
 
     <div class="section-title">Data Management</div>
@@ -691,6 +709,7 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
       </div>
     </div>
     <input type="file" id="importFileInput" accept="application/json" class="hidden">
+    <input type="file" id="backgroundPhotoInput" accept="image/*" class="hidden" onchange="handleFinTrackBackgroundFile(this)">
 
     <div class="section-title">App Update</div>
     <div class="card">
@@ -732,7 +751,7 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
     <button class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><span class="ic">🏠</span><span class="lb">Home</span></button>
     <button class="nav-item" data-page="accounts" onclick="showPage('accounts')"><span class="ic">💳</span><span class="lb">Accounts</span></button>
     <button class="nav-add" aria-label="Add transaction" onclick="openModal('txn')">+</button>
-    <button class="nav-item" data-page="reports" onclick="showPage('reports')"><span class="ic">📊</span><span class="lb">Reports</span></button>
+    <button class="nav-item" data-page="transactions" onclick="showPage('transactions')"><span class="ic">🧾</span><span class="lb">Transactions</span></button>
     <button class="nav-item" data-page="more" onclick="showPage('more')"><span class="ic">☰</span><span class="lb">More</span></button>
   </div>
 
@@ -1013,6 +1032,7 @@ var currentTxnType = 'expense';
 var currentPage = 'dashboard';
 var txnFilter = 'All';
 var reportPeriod = 'Monthly';
+var reportCustomRange = null;
 var currentPersonDetailId = null;
 var quickWalletTarget = 'from';
 
@@ -1132,10 +1152,65 @@ function applyFinTrackTheme(theme){
   if(d)d.classList.toggle('active',selected==='dark');
   if(l)l.classList.toggle('active',selected==='light');
 }
-function initFinTrackTheme(){
-  var saved='dark';
-  try{saved=localStorage.getItem('fintrack_theme')||'dark';}catch(e){}
-  applyFinTrackTheme(saved);
+function setFinTrackBackgroundVisibility(value){
+  var amount=Math.max(0,Math.min(100,Number(value)||0));
+  document.documentElement.style.setProperty('--ft-photo-opacity',String(amount/100));
+  var slider=document.getElementById('backgroundVisibility'),label=document.getElementById('backgroundVisibilityValue');
+  if(slider&&Number(slider.value)!==amount)slider.value=String(amount);
+  if(label)label.textContent=amount+'%';
+  try{localStorage.setItem('fintrack_background_visibility',String(amount));}catch(e){}
+}
+function applyFinTrackBackground(dataUrl){
+  var root=document.documentElement;
+  if(dataUrl){
+    root.style.setProperty('--ft-custom-bg-image','url("'+dataUrl+'")');
+    var status=document.getElementById('backgroundPhotoStatus');if(status)status.textContent='Custom background photo is active on this device.';
+  }else{
+    root.style.setProperty('--ft-custom-bg-image','none');
+    var status=document.getElementById('backgroundPhotoStatus');if(status)status.textContent='No custom photo selected.';
+  }
+}
+function setFinTrackBackgroundFromNative(dataUrl){
+  if(!dataUrl||dataUrl.indexOf('data:image/')!==0)return;
+  try{localStorage.setItem('fintrack_custom_background',dataUrl);}catch(e){showToast('Photo is too large to save. Choose a smaller image.','error');return;}
+  applyFinTrackBackground(dataUrl);
+  showToast('Background photo saved on this phone','success');
+}
+function chooseFinTrackBackground(){
+  if(window.FinTrackBridge&&typeof window.FinTrackBridge.chooseBackgroundImage==='function'){
+    window.FinTrackBridge.chooseBackgroundImage();return;
+  }
+  var input=document.getElementById('backgroundPhotoInput');if(input)input.click();
+}
+function handleFinTrackBackgroundFile(input){
+  var file=input&&input.files&&input.files[0];if(!file)return;
+  if(!file.type||file.type.indexOf('image/')!==0){showToast('Choose an image file','error');input.value='';return;}
+  var reader=new FileReader();
+  reader.onload=function(event){
+    var image=new Image();
+    image.onload=function(){
+      var max=1280,scale=Math.min(1,max/Math.max(image.width,image.height));
+      var canvas=document.createElement('canvas');canvas.width=Math.round(image.width*scale);canvas.height=Math.round(image.height*scale);
+      var ctx=canvas.getContext('2d');ctx.drawImage(image,0,0,canvas.width,canvas.height);
+      setFinTrackBackgroundFromNative(canvas.toDataURL('image/jpeg',0.72));
+      input.value='';
+    };
+    image.onerror=function(){showToast('Unable to read this photo','error');input.value='';};
+    image.src=event.target.result;
+  };
+  reader.onerror=function(){showToast('Unable to read this photo','error');input.value='';};
+  reader.readAsDataURL(file);
+}
+function removeFinTrackBackground(){
+  try{localStorage.removeItem('fintrack_custom_background');}catch(e){}
+  applyFinTrackBackground(null);
+  showToast('Custom background removed','success');
+}
+function initFinTrackBackground(){
+  var dataUrl=null,visibility=35;
+  try{dataUrl=localStorage.getItem('fintrack_custom_background');visibility=Number(localStorage.getItem('fintrack_background_visibility')||35);}catch(e){}
+  applyFinTrackBackground(dataUrl);
+  setFinTrackBackgroundVisibility(visibility);
 }
 
 function initState(){
@@ -1351,6 +1426,7 @@ function renderAccounts(){
 var TXN_FILTERS = ['All','Income','Expense','Transfer','Borrow','Lend'];
 function clearTxnAdvancedFilters(){
   ['txnAccountFilter','txnFromFilter','txnToFilter'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  var hint=document.getElementById('txnFilterHint');if(hint)hint.textContent='';
   renderTransactions();
 }
 function renderTransactions(){
@@ -1369,6 +1445,13 @@ function renderTransactions(){
   var accountValue=accountSelect?accountSelect.value:'';
   var fromValue=(document.getElementById('txnFromFilter')||{}).value||'';
   var toValue=(document.getElementById('txnToFilter')||{}).value||'';
+  var filterHint=document.getElementById('txnFilterHint');
+  if(fromValue&&toValue&&fromValue>toValue){
+    if(filterHint)filterHint.textContent='Start date must be on or before the end date.';
+    document.getElementById('txnList').innerHTML='<div class="empty-state"><div class="ti">Invalid date range</div><div class="su">Choose a valid start and end date.</div></div>';
+    return;
+  }
+  if(filterHint)filterHint.textContent=(fromValue||toValue)?('Showing '+(fromValue||'earliest')+' to '+(toValue||'latest')):'';
   if(accountValue)list=list.filter(function(t){return String(t.accountId)===String(accountValue)||String(t.toAccountId)===String(accountValue);});
   if(fromValue)list=list.filter(function(t){return (t.date||'')>=fromValue;});
   if(toValue)list=list.filter(function(t){return (t.date||'')<=toValue;});
@@ -1469,8 +1552,17 @@ function renderReports(){
     return '<button class="period-tab '+(reportPeriod===p?'active':'')+'" onclick="setReportPeriod(\''+p+'\')">'+p+'</button>';
   }).join('');
 
-  var range = periodRange(reportPeriod);
-  var periodTxns = state.transactions.filter(function(t){ return inRange(t.date, range); });
+  var periodTxns;
+  if(reportCustomRange){
+    periodTxns=state.transactions.filter(function(t){return (t.date||'')>=reportCustomRange.from&&(t.date||'')<=reportCustomRange.to;});
+    var rangeHint=document.getElementById('reportRangeHint');
+    if(rangeHint)rangeHint.textContent='Custom report: '+reportCustomRange.from+' to '+reportCustomRange.to;
+  }else{
+    var range = periodRange(reportPeriod);
+    periodTxns = state.transactions.filter(function(t){ return inRange(t.date, range); });
+    var rangeHint=document.getElementById('reportRangeHint');
+    if(rangeHint)rangeHint.textContent='Using '+reportPeriod.toLowerCase()+' report period. Choose dates above for a custom range.';
+  }
 
   var income = periodTxns.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+Number(t.amount);},0);
   var expense = periodTxns.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+Number(t.amount);},0);
@@ -1486,7 +1578,26 @@ function renderReports(){
   renderPersonSummary();
   renderAccBalances();
 }
-function setReportPeriod(p){ reportPeriod=p; renderReports(); }
+function setReportPeriod(p){
+  reportPeriod=p;reportCustomRange=null;
+  var from=document.getElementById('reportFromDate'),to=document.getElementById('reportToDate');
+  if(from)from.value='';if(to)to.value='';
+  renderReports();
+}
+function applyReportDateRange(){
+  var from=document.getElementById('reportFromDate').value;
+  var to=document.getElementById('reportToDate').value;
+  if(!from||!to){showToast('Choose both start and end dates','error');return;}
+  if(from>to){showToast('Start date must be on or before end date','error');return;}
+  reportCustomRange={from:from,to:to};
+  renderReports();
+}
+function clearReportDateRange(){
+  reportCustomRange=null;
+  var from=document.getElementById('reportFromDate'),to=document.getElementById('reportToDate');
+  if(from)from.value='';if(to)to.value='';
+  renderReports();
+}
 
 function resolveColor(cssVar){
   var probe = document.createElement('div');
@@ -1821,8 +1932,9 @@ function loadReminderSettings(){
   if(enabled)enabled.checked=!!config.enabled;
   if(time)time.value=(typeof config.time==='string'&&config.time.length===5)?config.time:'20:00';
   if(meme)meme.checked=!!config.memeMode;
+  var hint=document.getElementById('reminderPermissionHint');
+  if(hint)hint.textContent=config.enabled?'Reminder is enabled on this device. Android may delay delivery to save battery.':'Turn on reminders and save to request notification permission.';
 }
-
 function saveReminderSettings(){
   var enabled=document.getElementById('dailyReminderEnabled');
   var time=document.getElementById('dailyReminderTime');
@@ -1835,11 +1947,26 @@ function saveReminderSettings(){
   var config={enabled:!!(enabled&&enabled.checked),time:value,memeMode:!!(meme&&meme.checked)};
   try{localStorage.setItem('fintrack_reminder_settings',JSON.stringify(config));}catch(e){}
   if(window.FinTrackBridge&&typeof window.FinTrackBridge.scheduleDailyReminder==='function'){
+    var hint=document.getElementById('reminderPermissionHint');
+    if(hint)hint.textContent=config.enabled?'Requesting notification permission and scheduling reminder…':'Turning reminders off…';
     window.FinTrackBridge.scheduleDailyReminder(config.enabled,parts[0],parts[1],config.memeMode);
-    showToast(config.enabled?'Offline reminder scheduled':'Offline reminder disabled','success');
   }else{
-    showToast('Reminder scheduling is available in the installed Android app','error');
+    showToast('Install the FinTrack Android app to schedule notifications','error');
   }
+}
+window.finTrackReminderPermissionResult=function(granted){
+  var enabled=document.getElementById('dailyReminderEnabled');
+  var hint=document.getElementById('reminderPermissionHint');
+  if(!granted){
+    if(enabled)enabled.checked=false;
+    var time=document.getElementById('dailyReminderTime'),meme=document.getElementById('dailyReminderMeme');
+    try{localStorage.setItem('fintrack_reminder_settings',JSON.stringify({enabled:false,time:time&&time.value||'20:00',memeMode:!!(meme&&meme.checked)}));}catch(e){}
+    if(hint)hint.textContent='Notifications are off. Allow FinTrack notifications in Android Settings, then save again.';
+    showToast('Notification permission is required for reminders','error');
+    return;
+  }
+  if(hint)hint.textContent='Reminder is saved on this device. Android may adjust the delivery time.';
+  showToast('Offline reminder saved','success');
 }
 
 function exportExcelWorkbook(){
@@ -2622,6 +2749,7 @@ function resetData(){
 ============================================================ */
 function init(){
   initFinTrackTheme();
+  initFinTrackBackground();
 initState();
   buildTypeGrid();
   document.getElementById('txnDate').value = today();
@@ -2638,6 +2766,7 @@ if(document.readyState==='loading'){
 }
 
 /* Expose global functions */
+window.setFinTrackBackgroundFromNative=setFinTrackBackgroundFromNative;
 window.finTrackHandleNotificationAction = function(type){
   if(type!=='income'&&type!=='expense')return;
   showPage('dashboard');
@@ -2876,6 +3005,58 @@ window.handleSubcategorySelect = handleSubcategorySelect;
     html[data-theme] .page.active {animation:none}
     *,*::before,*::after {scroll-behavior:auto!important;transition:none!important}
   }
+
+
+/* v2.5.0 feedback fixes: labelled filters, export controls, stronger contrast and safe-area borders */
+.txn-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;margin-bottom:12px}
+.txn-toolbar input{width:100%;min-width:0;min-height:50px;padding:12px 14px;color:var(--text);background:var(--bg2);border:1.5px solid rgba(120,220,238,.42);border-radius:16px;font-size:15px}
+.export-action{min-height:48px;min-width:88px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 14px;border:1.5px solid rgba(24,242,208,.72);border-radius:16px;background:linear-gradient(135deg,rgba(0,225,205,.22),rgba(0,118,160,.20));color:#56ffe8;font-size:14px;font-weight:900;box-shadow:0 0 16px rgba(0,220,210,.12),inset 0 1px 0 rgba(255,255,255,.18)}
+.export-glyph{font-size:22px;line-height:1;font-weight:1000}
+.filter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0 8px}
+.filter-account{grid-column:1/-1}
+.filter-field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.filter-field label{font-size:12px;font-weight:900;letter-spacing:.035em;color:var(--text2)}
+.filter-field input,.filter-field select{width:100%;min-width:0;height:48px;padding:0 12px;border:1.5px solid rgba(130,210,230,.46);border-radius:14px;background:rgba(5,29,43,.92);color:#f3fbff;font-size:14px;font-weight:700;color-scheme:dark;outline:none}
+.filter-field input:focus,.filter-field select:focus{border-color:#27f1d5;box-shadow:0 0 0 3px rgba(24,242,208,.16)}
+.filter-field input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.9}
+.clear-filter-btn{min-height:48px;align-self:end;border:1.5px solid rgba(135,205,224,.48);border-radius:15px;background:rgba(8,38,54,.82);color:#d4e8f1;font-weight:900;padding:10px 14px}
+.filter-hint{min-height:18px;margin:4px 2px 8px;font-size:11px;line-height:1.45;font-weight:700;color:var(--text2)}
+.report-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:4px 0 12px}
+.report-toolbar .period-tabs{flex:1;min-width:0;overflow-x:auto;display:flex;gap:7px}
+.report-toolbar .period-tabs .period-tab{flex:1;min-width:64px}
+.report-date-card{padding:14px;margin:0 0 14px;border:1.5px solid rgba(125,220,238,.34);border-radius:20px;background:linear-gradient(145deg,rgba(11,48,62,.78),rgba(8,28,45,.88));box-shadow:0 8px 22px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.10)}
+.report-date-title{font-size:14px;font-weight:1000;color:#e6f7fb;margin:0 0 10px}
+.report-date-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.report-date-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
+.report-date-actions .btn,.report-date-actions .clear-filter-btn{min-height:46px}
+.photo-theme-settings{padding:12px 2px 4px;border-top:1px solid rgba(130,210,230,.20);margin-top:8px}
+.photo-theme-title{font-size:14px;font-weight:1000;color:var(--text)}
+.photo-theme-desc{font-size:12px;line-height:1.5;color:var(--text2);margin:4px 0 10px}
+.photo-theme-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.photo-theme-actions .btn{min-height:44px;padding:9px 8px;font-size:12px}
+.visibility-label{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:12px 2px 4px;color:var(--text2);font-size:12px;font-weight:900}
+.visibility-label strong{color:var(--primary);font-size:14px}
+.visibility-slider{width:100%;height:28px;accent-color:#19e7d0;cursor:pointer}
+.reminder-save-btn{min-height:54px;width:100%;border:2px solid rgba(110,255,235,.8)!important;color:#002a35!important;font-size:15px;font-weight:1000;text-shadow:none!important;box-shadow:0 0 18px rgba(0,230,210,.24),inset 0 1px 0 rgba(255,255,255,.45)!important}
+.btn-primary{border:1.5px solid rgba(105,255,234,.72)!important;color:#002a35!important;font-weight:1000;text-shadow:none!important}
+html[data-theme="dark"] .card,html[data-theme="dark"] .sheet,html[data-theme="dark"] .chart-card,html[data-theme="dark"] .planner-card,html[data-theme="dark"] .acc-card,html[data-theme="dark"] .person-card,html[data-theme="dark"] .more-tile{border-color:rgba(149,226,239,.40)!important}
+html[data-theme="dark"] .set-name,html[data-theme="dark"] .txn-title,html[data-theme="dark"] .section-title,html[data-theme="dark"] .chart-card h3,html[data-theme="dark"] .field label{color:#f1f9fc}
+html[data-theme="dark"] .set-desc,html[data-theme="dark"] .txn-sub,html[data-theme="dark"] .muted,html[data-theme="dark"] .info-row .l{color:#c0d4df}
+html[data-theme="light"] .filter-field input,html[data-theme="light"] .filter-field select{background:rgba(255,255,255,.94);color:#173747;border-color:rgba(50,120,145,.42);color-scheme:light}
+html[data-theme="light"] .filter-field input[type=date]::-webkit-calendar-picker-indicator{filter:none;opacity:.8}
+html[data-theme="light"] .filter-field label,html[data-theme="light"] .filter-hint{color:#496779}
+html[data-theme="light"] .export-action{background:linear-gradient(135deg,#c4fff5,#daf5ff);color:#07546a;border-color:rgba(0,150,145,.48)}
+html[data-theme="light"] .clear-filter-btn{background:rgba(255,255,255,.88);color:#234e62;border-color:rgba(55,125,145,.35)}
+html[data-theme="light"] .report-date-card{background:linear-gradient(145deg,#ffffff,#e9f6f9);border-color:rgba(55,140,160,.34)}
+html[data-theme="light"] .report-date-title,html[data-theme="light"] .photo-theme-title{color:#173747}
+html[data-theme="light"] .photo-theme-desc{color:#557385}
+html[data-theme="light"] .reminder-save-btn,html[data-theme="light"] .btn-primary{color:#063846!important;border-color:rgba(0,130,135,.45)!important}
+#shell{isolation:isolate}
+#shell::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background-image:var(--ft-custom-bg-image,none);background-size:cover;background-position:center;background-repeat:no-repeat;opacity:var(--ft-photo-opacity,0);transition:opacity .22s ease}
+#shell>*{z-index:1}
+.bottomnav{left:14px!important;right:14px!important;bottom:max(10px,env(safe-area-inset-bottom))!important;height:calc(78px + env(safe-area-inset-bottom))!important;padding-bottom:env(safe-area-inset-bottom)!important;border:1.5px solid rgba(145,225,240,.46)!important;border-bottom:1.5px solid rgba(145,225,240,.46)!important;border-radius:30px!important}
+@media(min-width:520px){.bottomnav{left:50%!important;right:auto!important;width:min(calc(100% - 28px),532px)!important;transform:translateX(-50%)!important}}
+@media(max-width:390px){.report-toolbar{align-items:flex-start;flex-direction:column}.report-toolbar .period-tabs{width:100%}.report-toolbar .export-action{align-self:flex-end}.filter-grid{gap:8px}.filter-field input,.filter-field select{font-size:13px;padding-left:9px;padding-right:9px}.report-date-grid{gap:8px}}
 
 </style>
 
