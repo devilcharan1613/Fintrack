@@ -395,17 +395,46 @@ class MainActivity : ComponentActivity() {
         if (uri == null) return
         Thread {
             try {
-                val json = contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
-                    ?: throw IllegalStateException("Unable to read selected backup")
+                val json = contentResolver.openInputStream(uri)?.use { input ->
+                    val output = ByteArrayOutputStream()
+                    val buffer = ByteArray(8 * 1024)
+                    var totalBytes = 0
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        totalBytes += count
+                        if (totalBytes > MAX_BACKUP_BYTES) {
+                            throw IllegalArgumentException("Backup is too large. Maximum supported size is 20 MB.")
+                        }
+                        output.write(buffer, 0, count)
+                    }
+                    String(output.toByteArray(), Charsets.UTF_8)
+                } ?: throw IllegalStateException("Unable to read selected backup")
+
+                val backup = JSONObject(json)
+                if (backup.optJSONArray("accounts") == null ||
+                    backup.optJSONArray("transactions") == null
+                ) {
+                    throw IllegalArgumentException("This is not a valid FinTrack backup.")
+                }
+
                 runOnUiThread {
-                    webView.evaluateJavascript(
-                        "if(window.__importBackupFromAndroid){window.__importBackupFromAndroid(${JSONObject.quote(json)});}",
-                        null
-                    )
+                    if (!isFinishing && !isDestroyed) {
+                        webView.evaluateJavascript(
+                            "if(window.__importBackupFromAndroid){window.__importBackupFromAndroid(${JSONObject.quote(json)});}",
+                            null
+                        )
+                    }
                 }
             } catch (error: Exception) {
                 runOnUiThread {
-                    Toast.makeText(this, "Backup import failed: " + (error.message ?: "unknown error"), Toast.LENGTH_LONG).show()
+                    if (!isFinishing && !isDestroyed) {
+                        Toast.makeText(
+                            this,
+                            "Backup import failed: " + (error.message ?: "unknown error"),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             }
         }.start()
@@ -620,5 +649,6 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_QUICK_ACTION = "fintrack.quick_action"
         private const val REMINDER_PREFS = "fintrack_reminders"
+        private const val MAX_BACKUP_BYTES = 20 * 1024 * 1024
     }
 }
