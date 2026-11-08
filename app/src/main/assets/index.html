@@ -1560,13 +1560,13 @@ function renderGoals(){
   var target=state.goals.reduce(function(a,b){return a+Number(b.target||0);},0), saved=state.goals.reduce(function(a,b){return a+Number(b.saved||0);},0);
   document.getElementById('goalSummary').innerHTML='<div class="planner-metric"><div class="k">GOAL TARGETS</div><div class="v">'+fmt(target)+'</div></div><div class="planner-metric"><div class="k">TOTAL SAVED</div><div class="v" style="color:var(--primary)">'+fmt(saved)+'</div></div>';
   var wrap=document.getElementById('goalsList');
-  wrap.innerHTML=state.goals.length?state.goals.map(function(g){var pct=Number(g.target)>0?100*Number(g.saved||0)/Number(g.target):0;return plannerCard(g.name,fmt(g.saved||0)+' / '+fmt(g.target), 'Savings goal',pct,'goals',g.id);}).join(''):'<div class="empty-state"><div class="icn">💎</div><div class="ti">No savings goals yet</div><div class="su">Create a goal and track how much you have saved.</div></div>';
+  wrap.innerHTML=state.goals.length?state.goals.map(function(g){var pct=Number(g.target)>0?100*Number(g.saved||0)/Number(g.target):0;return plannerCard(g.name,fmt(g.saved||0)+' / '+fmt(g.target), 'Savings goal',pct,'goals',g.id).replace('<div class="planner-actions">','<div class="planner-actions"><button onclick="addGoalContribution(\''+g.id+'\')">+ Add savings</button>');}).join(''):'<div class="empty-state"><div class="icn">💎</div><div class="ti">No savings goals yet</div><div class="su">Create a goal and track how much you have saved.</div></div>';
 }
 function renderLoans(){
   var principal=state.loans.reduce(function(a,b){return a+Number(b.principal||0);},0), paid=state.loans.reduce(function(a,b){return a+Number(b.paid||0);},0), emi=state.loans.reduce(function(a,b){return a+Number(b.emi||0);},0);
   document.getElementById('loanSummary').innerHTML='<div class="planner-metric"><div class="k">TOTAL LOAN</div><div class="v">'+fmt(principal)+'</div></div><div class="planner-metric"><div class="k">MONTHLY EMI</div><div class="v" style="color:var(--gold)">'+fmt(emi)+'</div></div>';
   var wrap=document.getElementById('loansList');
-  wrap.innerHTML=state.loans.length?state.loans.map(function(l){var remaining=Math.max(0,Number(l.principal||0)-Number(l.paid||0));var pct=Number(l.principal)>0?100*Number(l.paid||0)/Number(l.principal):0;return plannerCard(l.name,fmt(remaining)+' remaining','Paid '+fmt(l.paid||0)+' · EMI '+fmt(l.emi||0),pct,'loans',l.id,'var(--blue)');}).join(''):'<div class="empty-state"><div class="icn">🏦</div><div class="ti">No loans added</div><div class="su">Add a loan to track the outstanding balance and EMI.</div></div>';
+  wrap.innerHTML=state.loans.length?state.loans.map(function(l){var remaining=Math.max(0,Number(l.principal||0)-Number(l.paid||0));var pct=Number(l.principal)>0?100*Number(l.paid||0)/Number(l.principal):0;return plannerCard(l.name,fmt(remaining)+' remaining','Paid '+fmt(l.paid||0)+' · EMI '+fmt(l.emi||0),pct,'loans',l.id,'var(--blue)').replace('<div class="planner-actions">','<div class="planner-actions"><button onclick="addLoanRepayment(\''+l.id+'\')">+ Record repayment</button><button onclick="viewLoanRepayments(\''+l.id+'\')">History</button>');}).join(''):'<div class="empty-state"><div class="icn">🏦</div><div class="ti">No loans added</div><div class="su">Add a loan to track the outstanding balance and EMI.</div></div>';
 }
 function renderMore(){ /* Navigation tiles are static and do not need rerendering. */ }
 
@@ -1604,6 +1604,33 @@ function savePlannerItem(){
   var index=state[plannerType].findIndex(function(x){return String(x.id)===String(item.id);});
   if(index>=0)state[plannerType][index]=item;else state[plannerType].push(item);
   save();closePlannerModal();renderCurrentPage();showToast('Saved successfully','success');
+}
+function addGoalContribution(id){
+  var goal=state.goals.find(function(g){return String(g.id)===String(id);});if(!goal)return;
+  var raw=prompt('Contribution amount (₹)');if(raw===null)return;
+  var amount=Number(raw);if(!Number.isFinite(amount)||amount<=0){showToast('Enter a valid contribution','error');return;}
+  if(Number(goal.saved||0)+amount>Number(goal.target||0)){showToast('Contribution exceeds the remaining goal amount','error');return;}
+  goal.saved=Number(goal.saved||0)+amount;
+  if(!Array.isArray(goal.contributions))goal.contributions=[];
+  goal.contributions.push({amount:amount,date:today(),createdAt:new Date().toISOString()});
+  save();renderCurrentPage();showToast('Savings contribution recorded','success');
+}
+function addLoanRepayment(id){
+  var loan=state.loans.find(function(l){return String(l.id)===String(id);});if(!loan)return;
+  var raw=prompt('Repayment amount (₹)');if(raw===null)return;
+  var amount=Number(raw);if(!Number.isFinite(amount)||amount<=0){showToast('Enter a valid repayment','error');return;}
+  var remaining=Math.max(0,Number(loan.principal||0)-Number(loan.paid||0));
+  if(amount>remaining){showToast('Repayment exceeds outstanding principal','error');return;}
+  loan.paid=Number(loan.paid||0)+amount;
+  if(!Array.isArray(loan.repayments))loan.repayments=[];
+  loan.repayments.push({amount:amount,date:today(),createdAt:new Date().toISOString()});
+  save();renderCurrentPage();showToast('Loan repayment recorded','success');
+}
+function viewLoanRepayments(id){
+  var loan=state.loans.find(function(l){return String(l.id)===String(id);});if(!loan)return;
+  var rows=Array.isArray(loan.repayments)?loan.repayments:[];
+  var message=rows.length?rows.map(function(r,i){return (i+1)+'. '+(r.date||'')+'  '+fmt(r.amount);}).join('\\n'):'No repayment history recorded yet.';
+  alert(loan.name+' repayment history\\n\\n'+message);
 }
 function editPlannerItem(type,id){openPlannerModal(type,id);}
 function deletePlannerItem(type,id){
@@ -2360,7 +2387,7 @@ if(document.readyState==='loading'){
 }
 
 /* Expose global functions */
-window.setFinTrackTheme = setFinTrackTheme;
+window.setFinTrackTheme = setFinTrackTheme;\nwindow.addGoalContribution = addGoalContribution;\nwindow.addLoanRepayment = addLoanRepayment;\nwindow.viewLoanRepayments = viewLoanRepayments;
 window.showPage = showPage;
 window.fabAction = fabAction;
 window.setTxnType = setTxnType;
