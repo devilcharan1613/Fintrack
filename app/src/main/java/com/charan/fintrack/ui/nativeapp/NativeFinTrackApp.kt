@@ -762,46 +762,133 @@ private fun SettingsScreen(
 private fun NativeEditorDialog(
     kind: EditorKind,
     accounts: List<AccountEntity>,
+    people: List<PersonEntity>,
     selectedGoal: GoalEntity?,
     selectedLoan: LoanEntity?,
+    selectedTransaction: TransactionEntity?,
+    selectedAccount: AccountEntity?,
+    selectedPerson: PersonEntity?,
+    selectedBudget: BudgetEntity?,
+    selectedCategory: CategoryEntity?,
     onDismiss: () -> Unit,
     onSave: (Map<String, String>) -> Unit
 ) {
-    var name by remember(kind) { mutableStateOf(selectedGoal?.name ?: selectedLoan?.name.orEmpty()) }
-    var amount by remember(kind) { mutableStateOf("") }
-    var type by remember(kind) { mutableStateOf(if (kind == EditorKind.CATEGORY) "EXPENSE" else "INCOME") }
-    var category by remember(kind) { mutableStateOf("Other") }
-    var note by remember(kind) { mutableStateOf("") }
-    var phone by remember(kind) { mutableStateOf("") }
-    var accountId by remember(kind) { mutableStateOf(accounts.firstOrNull()?.id?.toString().orEmpty()) }
-    var toAccountId by remember(kind) { mutableStateOf(accounts.getOrNull(1)?.id?.toString().orEmpty()) }
-    var period by remember(kind) { mutableStateOf(SimpleDateFormat("yyyy-MM", Locale.US).format(Date())) }
-    var monthly by remember(kind) { mutableStateOf("") }
-    var interest by remember(kind) { mutableStateOf("0") }
+    fun rupees(paise: Long): String = MoneyPaise.fromSignedPaise(paise).toRupeesDecimal().toPlainString()
+    val selectedTimestamp = selectedTransaction?.timestamp ?: System.currentTimeMillis()
+    var name by remember(kind, selectedGoal?.id, selectedLoan?.id, selectedAccount?.id, selectedPerson?.id, selectedBudget?.id, selectedCategory?.id) {
+        mutableStateOf(
+            selectedAccount?.name ?: selectedPerson?.name ?: selectedBudget?.category ?:
+            selectedGoal?.name ?: selectedLoan?.name ?: selectedCategory?.name.orEmpty()
+        )
+    }
+    var amount by remember(kind, selectedTransaction?.id, selectedAccount?.id, selectedBudget?.id, selectedGoal?.id, selectedLoan?.id) {
+        mutableStateOf(
+            when (kind) {
+                EditorKind.TRANSACTION -> selectedTransaction?.let { rupees(it.amountPaise) }.orEmpty()
+                EditorKind.ACCOUNT -> selectedAccount?.let { rupees(it.openingBalancePaise) }.orEmpty()
+                EditorKind.BUDGET -> selectedBudget?.let { rupees(it.limitAmountPaise) }.orEmpty()
+                EditorKind.GOAL -> selectedGoal?.let { rupees(it.targetAmountPaise) }.orEmpty()
+                EditorKind.LOAN -> selectedLoan?.let { rupees(it.principalPaise) }.orEmpty()
+                else -> ""
+            }
+        )
+    }
+    var type by remember(kind, selectedTransaction?.id, selectedAccount?.id, selectedCategory?.id) {
+        mutableStateOf(
+            when (kind) {
+                EditorKind.TRANSACTION -> when (selectedTransaction?.type?.uppercase()) {
+                    "TRANSFER_OUT", "TRANSFER_IN" -> "TRANSFER"
+                    else -> selectedTransaction?.type?.uppercase() ?: "INCOME"
+                }
+                EditorKind.ACCOUNT -> selectedAccount?.accountType ?: "Wallet"
+                EditorKind.CATEGORY -> selectedCategory?.type ?: "EXPENSE"
+                else -> "INCOME"
+            }
+        )
+    }
+    var category by remember(kind, selectedTransaction?.id, selectedBudget?.id) {
+        mutableStateOf(selectedTransaction?.category ?: selectedBudget?.category ?: "Other")
+    }
+    var note by remember(kind, selectedTransaction?.id, selectedPerson?.id) {
+        mutableStateOf(selectedTransaction?.note ?: selectedPerson?.notes.orEmpty())
+    }
+    var phone by remember(kind, selectedPerson?.id) { mutableStateOf(selectedPerson?.phone.orEmpty()) }
+    var accountId by remember(kind, selectedTransaction?.id, accounts.firstOrNull()?.id) {
+        mutableStateOf(selectedTransaction?.accountId?.toString() ?: accounts.firstOrNull()?.id?.toString().orEmpty())
+    }
+    var toAccountId by remember(kind, selectedTransaction?.id, accounts.getOrNull(1)?.id) {
+        mutableStateOf(selectedTransaction?.transferAccountId?.toString() ?: accounts.getOrNull(1)?.id?.toString().orEmpty())
+    }
+    var personId by remember(kind, selectedTransaction?.id, people.firstOrNull()?.id) {
+        mutableStateOf(selectedTransaction?.personId?.toString() ?: people.firstOrNull()?.id?.toString().orEmpty())
+    }
+    var period by remember(kind, selectedBudget?.id) {
+        mutableStateOf(selectedBudget?.period ?: "Monthly")
+    }
+    var month by remember(kind, selectedBudget?.id) {
+        mutableStateOf(selectedBudget?.month ?: SimpleDateFormat("yyyy-MM", Locale.US).format(Date()))
+    }
+    var monthly by remember(kind, selectedLoan?.id) {
+        mutableStateOf(selectedLoan?.let { rupees(it.monthlyPaymentPaise) }.orEmpty())
+    }
+    var interest by remember(kind, selectedLoan?.id) {
+        mutableStateOf(selectedLoan?.interestRate?.toString() ?: "0")
+    }
+    var creditLimit by remember(kind, selectedAccount?.id) {
+        mutableStateOf(selectedAccount?.let { rupees(it.creditLimitPaise) }.orEmpty())
+    }
+    var icon by remember(kind, selectedCategory?.id) { mutableStateOf(selectedCategory?.icon ?: "🏷️") }
+    var date by remember(kind, selectedTransaction?.id) {
+        mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(selectedTimestamp)))
+    }
+    var time by remember(kind, selectedTransaction?.id) {
+        mutableStateOf(SimpleDateFormat("HH:mm", Locale.US).format(Date(selectedTimestamp)))
+    }
+    var paymentMethod by remember(kind, selectedTransaction?.id) {
+        mutableStateOf(selectedTransaction?.paymentMethod ?: "Cash")
+    }
+    var upiApp by remember(kind, selectedTransaction?.id) {
+        mutableStateOf(selectedTransaction?.upiApp.orEmpty())
+    }
     var typeExpanded by remember { mutableStateOf(false) }
     var accountExpanded by remember { mutableStateOf(false) }
     var toExpanded by remember { mutableStateOf(false) }
+    var personExpanded by remember { mutableStateOf(false) }
+    var paymentExpanded by remember { mutableStateOf(false) }
+    var periodExpanded by remember { mutableStateOf(false) }
+
+    val editing = selectedTransaction != null || selectedAccount != null || selectedPerson != null ||
+        selectedBudget != null || selectedGoal != null && kind == EditorKind.GOAL ||
+        selectedLoan != null && kind == EditorKind.LOAN || selectedCategory != null
     val title = when (kind) {
-        EditorKind.TRANSACTION -> "Add Transaction"
-        EditorKind.ACCOUNT -> "Add Account or Wallet"
-        EditorKind.PERSON -> "Add Person"
-        EditorKind.BUDGET -> "Create Budget"
-        EditorKind.GOAL -> "Create Savings Goal"
-        EditorKind.LOAN -> "Create Loan"
+        EditorKind.TRANSACTION -> if (editing) "Edit Transaction" else "Add Transaction"
+        EditorKind.ACCOUNT -> if (editing) "Edit Account or Wallet" else "Add Account or Wallet"
+        EditorKind.PERSON -> if (editing) "Edit Person" else "Add Person"
+        EditorKind.BUDGET -> if (editing) "Edit Budget" else "Create Budget"
+        EditorKind.GOAL -> if (editing) "Edit Savings Goal" else "Create Savings Goal"
+        EditorKind.LOAN -> if (editing) "Edit Loan" else "Create Loan"
         EditorKind.CONTRIBUTION -> "Add Goal Contribution"
         EditorKind.REPAYMENT -> "Record Loan Repayment"
-        EditorKind.CATEGORY -> "Add Category"
+        EditorKind.CATEGORY -> if (editing) "Edit Category" else "Add Category"
         EditorKind.NONE -> ""
     }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title, fontWeight = FontWeight.Bold) },
         text = {
-            Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Column(
+                Modifier.heightIn(max = 500.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
                 when (kind) {
                     EditorKind.TRANSACTION -> {
                         ExposedDropdownMenuBox(expanded = typeExpanded, onExpandedChange = { typeExpanded = it }) {
-                            OutlinedTextField(type, {}, readOnly = true, label = { Text("Transaction type") }, modifier = Modifier.menuAnchor().fillMaxWidth())
+                            OutlinedTextField(
+                                value = type, onValueChange = {}, readOnly = true,
+                                label = { Text("Transaction type") },
+                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
                             ExposedDropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
                                 listOf("INCOME", "EXPENSE", "BORROW", "LEND", "TRANSFER").forEach { option ->
                                     DropdownMenuItem(text = { Text(option) }, onClick = { type = option; typeExpanded = false })
@@ -811,34 +898,80 @@ private fun NativeEditorDialog(
                         MoneyField("Amount (₹)", amount) { amount = it }
                         ExposedDropdownMenuBox(expanded = accountExpanded, onExpandedChange = { accountExpanded = it }) {
                             OutlinedTextField(
-                                accounts.firstOrNull { it.id.toString() == accountId }?.name ?: "Select account",
-                                {}, readOnly = true, label = { Text(if (type == "TRANSFER") "From account" else "Account") },
+                                value = accounts.firstOrNull { it.id.toString() == accountId }?.name ?: "Select account",
+                                onValueChange = {}, readOnly = true,
+                                label = { Text(if (type == "TRANSFER") "From account" else "Account") },
                                 modifier = Modifier.menuAnchor().fillMaxWidth()
                             )
                             ExposedDropdownMenu(expanded = accountExpanded, onDismissRequest = { accountExpanded = false }) {
-                                accounts.forEach { account -> DropdownMenuItem(text = { Text(account.name) }, onClick = { accountId = account.id.toString(); accountExpanded = false }) }
+                                accounts.forEach { account ->
+                                    DropdownMenuItem(
+                                        text = { Text(account.name) },
+                                        onClick = { accountId = account.id.toString(); accountExpanded = false }
+                                    )
+                                }
                             }
                         }
                         if (type == "TRANSFER") {
                             ExposedDropdownMenuBox(expanded = toExpanded, onExpandedChange = { toExpanded = it }) {
                                 OutlinedTextField(
-                                    accounts.firstOrNull { it.id.toString() == toAccountId }?.name ?: "Select destination",
-                                    {}, readOnly = true, label = { Text("To account") }, modifier = Modifier.menuAnchor().fillMaxWidth()
+                                    value = accounts.firstOrNull { it.id.toString() == toAccountId }?.name ?: "Select destination",
+                                    onValueChange = {}, readOnly = true, label = { Text("To account") },
+                                    modifier = Modifier.menuAnchor().fillMaxWidth()
                                 )
                                 ExposedDropdownMenu(expanded = toExpanded, onDismissRequest = { toExpanded = false }) {
                                     accounts.filter { it.id.toString() != accountId }.forEach { account ->
-                                        DropdownMenuItem(text = { Text(account.name) }, onClick = { toAccountId = account.id.toString(); toExpanded = false })
+                                        DropdownMenuItem(
+                                            text = { Text(account.name) },
+                                            onClick = { toAccountId = account.id.toString(); toExpanded = false }
+                                        )
                                     }
                                 }
                             }
                         }
-                        if (type != "TRANSFER") OutlinedTextField(category, { category = it }, label = { Text("Category") }, modifier = Modifier.fillMaxWidth())
+                        if (type != "TRANSFER") {
+                            OutlinedTextField(category, { category = it }, label = { Text("Category") }, modifier = Modifier.fillMaxWidth())
+                        }
+                        if (type == "BORROW" || type == "LEND") {
+                            ExposedDropdownMenuBox(expanded = personExpanded, onExpandedChange = { personExpanded = it }) {
+                                OutlinedTextField(
+                                    value = people.firstOrNull { it.id.toString() == personId }?.name ?: "Select person",
+                                    onValueChange = {}, readOnly = true, label = { Text("Person") },
+                                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                                )
+                                ExposedDropdownMenu(expanded = personExpanded, onDismissRequest = { personExpanded = false }) {
+                                    people.forEach { person ->
+                                        DropdownMenuItem(
+                                            text = { Text(person.name) },
+                                            onClick = { personId = person.id.toString(); personExpanded = false }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        OutlinedTextField(date, { date = it }, label = { Text("Date (YYYY-MM-DD)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        OutlinedTextField(time, { time = it }, label = { Text("Time (HH:mm)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        ExposedDropdownMenuBox(expanded = paymentExpanded, onExpandedChange = { paymentExpanded = it }) {
+                            OutlinedTextField(
+                                paymentMethod, {}, readOnly = true, label = { Text("Payment method") },
+                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(expanded = paymentExpanded, onDismissRequest = { paymentExpanded = false }) {
+                                listOf("Cash", "Card", "UPI", "Bank Transfer", "Other").forEach { option ->
+                                    DropdownMenuItem(text = { Text(option) }, onClick = { paymentMethod = option; paymentExpanded = false })
+                                }
+                            }
+                        }
+                        if (paymentMethod == "UPI") {
+                            OutlinedTextField(upiApp, { upiApp = it }, label = { Text("UPI app") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        }
                         OutlinedTextField(note, { note = it }, label = { Text("Notes") }, modifier = Modifier.fillMaxWidth())
                     }
                     EditorKind.ACCOUNT -> {
                         OutlinedTextField(name, { name = it }, label = { Text("Account name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                        OutlinedTextField(type, { type = it }, label = { Text("Account type (Cash / Bank / Wallet)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        OutlinedTextField(type, { type = it }, label = { Text("Account type (Cash / Bank / Wallet / Credit)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                         MoneyField("Opening balance (₹)", amount) { amount = it }
+                        if (type.contains("credit", true)) MoneyField("Credit limit (₹)", creditLimit) { creditLimit = it }
                     }
                     EditorKind.PERSON -> {
                         OutlinedTextField(name, { name = it }, label = { Text("Person name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -850,14 +983,25 @@ private fun NativeEditorDialog(
                         ExposedDropdownMenuBox(expanded = typeExpanded, onExpandedChange = { typeExpanded = it }) {
                             OutlinedTextField(type, {}, readOnly = true, label = { Text("Type") }, modifier = Modifier.menuAnchor().fillMaxWidth())
                             ExposedDropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
-                                listOf("INCOME", "EXPENSE").forEach { option -> DropdownMenuItem(text = { Text(option) }, onClick = { type = option; typeExpanded = false }) }
+                                listOf("INCOME", "EXPENSE").forEach { option ->
+                                    DropdownMenuItem(text = { Text(option) }, onClick = { type = option; typeExpanded = false })
+                                }
                             }
                         }
+                        OutlinedTextField(icon, { icon = it }, label = { Text("Category icon") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     }
                     EditorKind.BUDGET -> {
-                        OutlinedTextField(category, { category = it }, label = { Text("Category") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(category, { category = it }, label = { Text("Budget category") }, modifier = Modifier.fillMaxWidth())
                         MoneyField("Budget limit (₹)", amount) { amount = it }
-                        OutlinedTextField(period, { period = it }, label = { Text("Month (YYYY-MM)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        ExposedDropdownMenuBox(expanded = periodExpanded, onExpandedChange = { periodExpanded = it }) {
+                            OutlinedTextField(period, {}, readOnly = true, label = { Text("Period") }, modifier = Modifier.menuAnchor().fillMaxWidth())
+                            ExposedDropdownMenu(expanded = periodExpanded, onDismissRequest = { periodExpanded = false }) {
+                                listOf("Daily", "Weekly", "Monthly", "Yearly").forEach { option ->
+                                    DropdownMenuItem(text = { Text(option) }, onClick = { period = option; periodExpanded = false })
+                                }
+                            }
+                        }
+                        OutlinedTextField(month, { month = it }, label = { Text("Budget month (YYYY-MM)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     }
                     EditorKind.GOAL -> {
                         OutlinedTextField(name, { name = it }, label = { Text("Goal name") }, modifier = Modifier.fillMaxWidth())
@@ -872,26 +1016,33 @@ private fun NativeEditorDialog(
                     EditorKind.CONTRIBUTION -> {
                         Text(selectedGoal?.name.orEmpty(), fontWeight = FontWeight.SemiBold)
                         MoneyField("Contribution amount (₹)", amount) { amount = it }
+                        OutlinedTextField(note, { note = it }, label = { Text("Note") }, modifier = Modifier.fillMaxWidth())
                         Text("Tracking only. Account balances are not changed.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     }
                     EditorKind.REPAYMENT -> {
                         Text(selectedLoan?.name.orEmpty(), fontWeight = FontWeight.SemiBold)
                         MoneyField("Repayment amount (₹)", amount) { amount = it }
                         OutlinedTextField(note, { note = it }, label = { Text("Note") }, modifier = Modifier.fillMaxWidth())
-                        Text("Tracking only. Record a corresponding account transaction separately.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                        Text("Tracking only. Record any corresponding account transaction separately.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     }
                     EditorKind.NONE -> Unit
                 }
             }
         },
-        confirmButton = { Button(onClick = {
-            onSave(mapOf(
-                "name" to name, "amount" to amount, "type" to type, "category" to category,
-                "note" to note, "phone" to phone, "accountId" to accountId,
-                "toAccountId" to toAccountId, "period" to period, "monthly" to monthly,
-                "interest" to interest
-            ))
-        }) { Text("Save") } },
+        confirmButton = {
+            Button(onClick = {
+                onSave(
+                    mapOf(
+                        "name" to name, "amount" to amount, "type" to type, "category" to category,
+                        "note" to note, "phone" to phone, "accountId" to accountId,
+                        "toAccountId" to toAccountId, "period" to period, "month" to month,
+                        "monthly" to monthly, "interest" to interest, "creditLimit" to creditLimit,
+                        "personId" to personId, "paymentMethod" to paymentMethod,
+                        "upiApp" to upiApp, "date" to date, "time" to time, "icon" to icon
+                    )
+                )
+            }) { Text("Save") }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
