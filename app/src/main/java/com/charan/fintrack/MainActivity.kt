@@ -186,6 +186,7 @@ class MainActivity : ComponentActivity() {
     private var pendingReminder: ReminderConfig? = null
     private var pendingQuickAction: String? = null
     private var pageReady = false
+    private var latestInsetsScript = "window.finTrackApplyInsets(0,0,0,0,0);"
     private val printWebViews = mutableListOf<WebView>()
 
     private data class ReminderConfig(
@@ -276,6 +277,9 @@ class MainActivity : ComponentActivity() {
                 override fun onPageFinished(view: WebView, url: String) {
                     super.onPageFinished(view, url)
                     pageReady = true
+                    // The first insets callback can arrive before the HTML bridge exists.
+                    // Reapply the latest system-bar/IME insets after the page is ready.
+                    view.evaluateJavascript(latestInsetsScript, null)
                     flushPendingQuickAction()
                 }
             }
@@ -285,10 +289,10 @@ class MainActivity : ComponentActivity() {
                     WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
                 )
                 val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
-                evaluateJavascript(
-                    "window.finTrackApplyInsets(${safe.left},${safe.top},${safe.right},${safe.bottom},${ime.bottom});",
-                    null
-                )
+                latestInsetsScript =
+                    "window.finTrackApplyInsets(${safe.left},${safe.top},${safe.right},${safe.bottom},${ime.bottom});"
+                // Keep the WebView edge-to-edge; the HTML applies these insets exactly once.
+                evaluateJavascript(latestInsetsScript, null)
                 view.setPadding(0, 0, 0, 0)
                 insets
             }
