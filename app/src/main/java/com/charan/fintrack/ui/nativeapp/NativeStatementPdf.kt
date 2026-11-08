@@ -29,6 +29,10 @@ internal object NativeStatementPdf {
 
         val title = paint(19f, true).apply { color = 0xFF073746.toInt() }
         val subtitle = paint(9f, false).apply { color = 0xFF526A76.toInt() }
+        val footerSubtitle = paint(7.5f, false).apply {
+            color = 0xFF526A76.toInt()
+            textAlign = Paint.Align.RIGHT
+        }
         val label = paint(8f, true).apply { color = 0xFF43616D.toInt() }
         val body = paint(9f, false).apply { color = 0xFF172F3B.toInt() }
         val amountPaint = paint(9f, true).apply { textAlign = Paint.Align.RIGHT }
@@ -73,7 +77,7 @@ internal object NativeStatementPdf {
             val current = page ?: return
             current.canvas.drawLine(LEFT, 811f, RIGHT, 811f, border)
             current.canvas.drawText("Private local record • Currency: INR", LEFT, 827f, subtitle)
-            current.canvas.drawText("Page $pageNumber", RIGHT - 5f, 827f, subtitle.apply { textAlign = Paint.Align.RIGHT })
+            current.canvas.drawText("Page $pageNumber", RIGHT - 5f, 827f, footerSubtitle)
             pdf.finishPage(current)
             page = null
         }

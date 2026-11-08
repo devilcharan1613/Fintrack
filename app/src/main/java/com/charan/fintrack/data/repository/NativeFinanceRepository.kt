@@ -86,7 +86,12 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
     suspend fun deleteBudget(budget: BudgetEntity) = dao.deleteBudget(budget)
     suspend fun updateBudget(budget: BudgetEntity) = dao.updateBudget(budget)
     suspend fun updateGoal(goal: GoalEntity) = dao.updateGoal(goal)
-    suspend fun deleteGoal(goal: GoalEntity) = dao.deleteGoal(goal)
+    suspend fun deleteGoal(goal: GoalEntity) {
+        database.withTransaction {
+            dao.deleteGoalContributions(goal.id)
+            dao.deleteGoal(goal)
+        }
+    }
     suspend fun updateLoan(loan: LoanEntity) = dao.updateLoan(loan)
     suspend fun deleteLoan(loan: LoanEntity) {
         database.withTransaction {

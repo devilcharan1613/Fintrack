@@ -169,6 +169,9 @@ interface FinanceDao {
     @Query("DELETE FROM goal_contributions")
     suspend fun deleteAllGoalContributions()
 
+    @Query("DELETE FROM goal_contributions WHERE goalId = :goalId")
+    suspend fun deleteGoalContributions(goalId: Long)
+
     @Query("DELETE FROM goals")
     suspend fun deleteAllGoals()
 
