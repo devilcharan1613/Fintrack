@@ -600,7 +600,7 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
   <!-- ================= MORE ================= -->
   <div class="page" id="page-more">
     <div class="more-grid">
-      <button class="more-tile" onclick="showPage('transactions')"><span class="more-emoji">🧾</span><b>Transactions</b><small>Search all activity</small></button><button class="more-tile" onclick="showPage('reports')"><span class="more-emoji">📊</span><b>Reports</b><small>Insights and breakdowns</small></button><button class="more-tile" onclick="showPage('budgets')"><span class="more-emoji">🎯</span><b>Budgets</b><small>Plan monthly spending</small></button>
+      <button class="more-tile" onclick="showPage('transactions')"><span class="more-emoji">🧾</span><b>Transactions</b><small>Search, filter and manage activity</small></button><button class="more-tile" onclick="showPage('budgets')"><span class="more-emoji">🎯</span><b>Budgets</b><small>Plan monthly spending</small></button>
       <button class="more-tile" onclick="showPage('goals')"><span class="more-emoji">💎</span><b>Savings Goals</b><small>Track your targets</small></button>
       <button class="more-tile" onclick="showPage('loans')"><span class="more-emoji">🏦</span><b>Loans & EMI</b><small>Track repayments</small></button>
       <button class="more-tile" onclick="showPage('persons')"><span class="more-emoji">👥</span><b>People</b><small>Borrowed and lent</small></button>
@@ -611,6 +611,7 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
 
   <!-- ================= REPORTS ================= -->
   <div class="page" id="page-reports">
+    <button class="more-tile report-transactions-link" onclick="showPage('transactions')" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left;margin-bottom:14px;padding:14px 16px"><span class="more-emoji">🧾</span><span><b>Transactions</b><small style="display:block">Search, filter, edit and export all activity</small></span><span style="margin-left:auto;font-size:20px">›</span></button>
     <div class="report-toolbar"><div class="period-tabs" id="reportPeriodTabs"></div><button class="export-action" onclick="openExportDialog('reports')" aria-label="Export report"><span class="export-glyph" aria-hidden="true">⇩</span><span>Export</span></button></div>
     <div class="report-date-card">
       <div class="report-date-title">Custom date range</div>
@@ -752,7 +753,7 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
     <button class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><span class="ic">🏠</span><span class="lb">Home</span></button>
     <button class="nav-item" data-page="accounts" onclick="showPage('accounts')"><span class="ic">💳</span><span class="lb">Accounts</span></button>
     <button class="nav-add" aria-label="Add transaction" onclick="openModal('txn')">+</button>
-    <button class="nav-item" data-page="transactions" onclick="showPage('transactions')"><span class="ic">🧾</span><span class="lb">Transactions</span></button>
+    <button class="nav-item" data-page="reports" onclick="showPage('reports')"><span class="ic">📊</span><span class="lb">Reports</span></button>
     <button class="nav-item" data-page="more" onclick="showPage('more')"><span class="ic">☰</span><span class="lb">More</span></button>
   </div>
 
@@ -3107,6 +3108,39 @@ html[data-theme="light"] .reminder-save-btn,html[data-theme="light"] .btn-primar
 @media(max-width:390px){.report-toolbar{align-items:flex-start;flex-direction:column}.report-toolbar .period-tabs{width:100%}.report-toolbar .export-action{align-self:flex-end}.filter-grid{gap:8px}.filter-field input,.filter-field select{font-size:13px;padding-left:9px;padding-right:9px}.report-date-grid{gap:8px}}
 
 .photo-theme-preview{height:76px;margin:8px 0 4px;border:1.5px solid rgba(130,220,238,.40);border-radius:14px;background:linear-gradient(135deg,rgba(0,214,163,.12),rgba(105,95,220,.14));background-size:cover;background-position:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
+
+  /* FinTrack v2.5 reference palette: deep navy, cyan/teal and violet glass */
+  :root{
+    --bg:#031923;--bg2:rgba(9,43,60,.72);--bg3:rgba(15,58,78,.78);
+    --border:rgba(119,215,235,.28);--primary:#16e6d0;--primary-dim:rgba(0,221,207,.16);
+    --text:#f4fbff;--text2:#b8d0dd;--text3:#7895a5;
+    --shadow:0 14px 38px rgba(0,0,0,.32);
+  }
+  body{background:radial-gradient(ellipse at 12% 18%,rgba(0,221,207,.15),transparent 34%),radial-gradient(ellipse at 90% 65%,rgba(135,76,255,.13),transparent 35%),linear-gradient(155deg,#03151e,#062838 52%,#09192d)!important}
+  .card,.chart-card,.planner-card,.report-date-card,.more-tile,.account-card,.person-card,.goal-card,.loan-card,.budget-card{
+    background:linear-gradient(135deg,rgba(10,58,75,.78),rgba(10,26,49,.82))!important;
+    border:1px solid rgba(125,218,239,.34)!important;border-radius:25px!important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 8px 28px rgba(0,0,0,.22),0 0 18px rgba(0,211,204,.06)!important;
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)
+  }
+  input,select,textarea,.filter-field input,.filter-field select{
+    color:var(--text)!important;background:rgba(3,27,40,.82)!important;
+    border:1px solid rgba(123,205,226,.34)!important;border-radius:16px!important
+  }
+  input::placeholder,textarea::placeholder{color:#91adba!important;opacity:1}
+  label,.set-name,.section-title,.info-row .l{color:#c5dce7}
+  .btn-primary,.nav-add,.fab{background:linear-gradient(135deg,#20e7d3,#00b9c6)!important;color:#03232b!important;border:1px solid rgba(161,255,248,.65)!important;box-shadow:0 0 22px rgba(0,220,210,.28)!important}
+  .nav-item.active{color:#20ead8!important;text-shadow:0 0 14px rgba(0,230,220,.48)}
+  .bottomnav{background:linear-gradient(120deg,rgba(12,61,77,.94),rgba(12,31,57,.96),rgba(24,43,77,.92))!important;border:1.5px solid rgba(133,225,244,.48)!important;box-shadow:0 0 24px rgba(0,212,211,.12),inset 0 1px 0 rgba(255,255,255,.14)!important;backdrop-filter:blur(24px)}
+  .report-transactions-link{color:var(--text)!important}
+  .report-transactions-link b{color:#f4fbff}
+  .report-transactions-link small{color:#b8d0dd}
+  html[data-theme="light"] body{background:linear-gradient(150deg,#e8f8fb,#dff3f7 55%,#eeeaff)!important}
+  html[data-theme="light"] .card,html[data-theme="light"] .chart-card,html[data-theme="light"] .planner-card,html[data-theme="light"] .report-date-card,html[data-theme="light"] .more-tile{
+    background:linear-gradient(135deg,rgba(255,255,255,.92),rgba(229,245,250,.94))!important;
+    border-color:rgba(49,145,166,.28)!important;box-shadow:0 8px 26px rgba(27,89,111,.10),inset 0 1px 0 #fff!important
+  }
+  html[data-theme="light"] input,html[data-theme="light"] select,html[data-theme="light"] textarea{background:rgba(255,255,255,.94)!important;color:#173747!important}
 </style>
 
 <script>
