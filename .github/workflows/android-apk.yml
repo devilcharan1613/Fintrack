@@ -9,8 +9,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: fintrack-apk-${{ github.ref }}
-  cancel-in-progress: true
+  # Isolate commits so an older emulator boot cannot hold up a newer fixed APK.
+  group: fintrack-apk-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   build:
