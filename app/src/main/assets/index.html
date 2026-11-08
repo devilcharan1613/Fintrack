@@ -600,7 +600,7 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
   <!-- ================= MORE ================= -->
   <div class="page" id="page-more">
     <div class="more-grid">
-      <button class="more-tile" onclick="showPage('transactions')"><span class="more-emoji">🧾</span><b>Transactions</b><small>Search, filter and manage activity</small></button><button class="more-tile" onclick="showPage('budgets')"><span class="more-emoji">🎯</span><b>Budgets</b><small>Plan monthly spending</small></button>
+      <button class="more-tile" onclick="showPage('reports')"><span class="more-emoji">📊</span><b>Reports</b><small>Insights, date ranges and exports</small></button><button class="more-tile" onclick="showPage('transactions')"><span class="more-emoji">🧾</span><b>Transactions</b><small>Search, filter and manage activity</small></button><button class="more-tile" onclick="showPage('budgets')"><span class="more-emoji">🎯</span><b>Budgets</b><small>Plan monthly spending</small></button>
       <button class="more-tile" onclick="showPage('goals')"><span class="more-emoji">💎</span><b>Savings Goals</b><small>Track your targets</small></button>
       <button class="more-tile" onclick="showPage('loans')"><span class="more-emoji">🏦</span><b>Loans & EMI</b><small>Track repayments</small></button>
       <button class="more-tile" onclick="showPage('persons')"><span class="more-emoji">👥</span><b>People</b><small>Borrowed and lent</small></button>
@@ -753,7 +753,7 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
     <button class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><span class="ic">🏠</span><span class="lb">Home</span></button>
     <button class="nav-item" data-page="accounts" onclick="showPage('accounts')"><span class="ic">💳</span><span class="lb">Accounts</span></button>
     <button class="nav-add" aria-label="Add transaction" onclick="openModal('txn')">+</button>
-    <button class="nav-item" data-page="reports" onclick="showPage('reports')"><span class="ic">📊</span><span class="lb">Reports</span></button>
+    <button class="nav-item" data-page="transactions" onclick="showPage('transactions')"><span class="ic">🧾</span><span class="lb">Transactions</span></button>
     <button class="nav-item" data-page="more" onclick="showPage('more')"><span class="ic">☰</span><span class="lb">More</span></button>
   </div>
 
@@ -3141,6 +3141,53 @@ html[data-theme="light"] .reminder-save-btn,html[data-theme="light"] .btn-primar
     border-color:rgba(49,145,166,.28)!important;box-shadow:0 8px 26px rgba(27,89,111,.10),inset 0 1px 0 #fff!important
   }
   html[data-theme="light"] input,html[data-theme="light"] select,html[data-theme="light"] textarea{background:rgba(255,255,255,.94)!important;color:#173747!important}
+
+/* v2.5.0 readability, outlined controls and date-range layout */
+:root{--ft-outline:rgba(116,224,240,.62);--ft-outline-strong:rgba(100,242,235,.88)}
+.page,.page *{text-rendering:optimizeLegibility}
+.page label,.filter-field label,.visibility-label,.report-date-title,.photo-theme-title{
+  color:#e3f5fc!important;font-size:14px!important;font-weight:800!important;letter-spacing:.15px
+}
+.page .set-name,.page .info-row .l,.page .set-desc,.page .filter-hint,.page .muted,
+.page .more-tile small,.page .photo-theme-desc{color:#c3dbe7!important}
+.card,.chart-card,.report-date-card,.more-tile,.account-card,.person-card,.goal-card,.loan-card,.budget-card,.planner-card{
+  border:1.5px solid var(--ft-outline)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),0 0 0 1px rgba(34,194,211,.08),0 12px 30px rgba(0,0,0,.24)!important
+}
+input,select,textarea,.filter-field input,.filter-field select{
+  min-height:48px!important;border:1.5px solid var(--ft-outline)!important;
+  color:#f3fbff!important;background:rgba(3,25,39,.94)!important;
+  font-size:15px!important;font-weight:650!important;outline:none
+}
+input:focus,select:focus,textarea:focus{
+  border-color:var(--ft-outline-strong)!important;box-shadow:0 0 0 3px rgba(20,224,211,.18)!important
+}
+input[type="date"]{color-scheme:dark;min-width:0;width:100%;padding:10px 12px!important}
+input[type="date"]::-webkit-calendar-picker-indicator{opacity:1;filter:invert(1) sepia(1) saturate(3) hue-rotate(130deg);width:20px;height:20px;cursor:pointer}
+.filter-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important;align-items:end}
+.filter-grid .filter-account{grid-column:1/-1}
+.filter-grid .filter-field{min-width:0}
+.filter-grid .clear-filter-btn{min-height:48px;grid-column:1/-1;border:1.5px solid var(--ft-outline)!important}
+.report-date-card{padding:16px!important;border-radius:22px!important;background:linear-gradient(135deg,rgba(10,57,74,.9),rgba(9,27,48,.95))!important}
+.report-date-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
+.report-date-grid .filter-field{min-width:0}
+.report-date-actions{display:flex;gap:10px;margin-top:12px}
+.report-date-actions>*{flex:1;min-height:46px}
+.report-date-title{font-size:16px!important;margin-bottom:12px}
+.export-action{min-width:104px;min-height:48px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:9px!important;padding:0 15px!important;border:1.5px solid rgba(64,245,228,.88)!important;border-radius:16px!important;background:linear-gradient(135deg,rgba(0,222,204,.24),rgba(13,91,111,.42))!important;color:#eaffff!important;font-size:14px!important;font-weight:900!important;box-shadow:0 0 16px rgba(0,224,211,.18),inset 0 1px 0 rgba(255,255,255,.16)!important}
+.export-glyph{display:inline-flex!important;width:25px!important;height:25px!important;align-items:center!important;justify-content:center!important;border-radius:8px!important;background:rgba(18,239,219,.22)!important;color:#36ffeb!important;font-size:23px!important;font-weight:1000!important;line-height:1!important;text-shadow:0 0 9px rgba(31,255,234,.6)}
+.txn-toolbar{gap:10px!important}
+.txn-toolbar input{flex:1;min-width:0}
+.filter-hint{font-size:12px!important;line-height:1.5!important;font-weight:650!important}
+.visibility-slider{accent-color:#18e5d4!important;min-height:26px!important;padding:0!important;border:0!important;box-shadow:none!important}
+.visibility-slider::-webkit-slider-thumb{box-shadow:0 0 0 5px rgba(0,225,211,.18),0 0 14px rgba(0,225,211,.7)}
+.photo-theme-preview{border:1.5px solid var(--ft-outline-strong)!important;box-shadow:0 0 18px rgba(0,221,213,.16)!important}
+html[data-theme="light"] .page label,html[data-theme="light"] .filter-field label,html[data-theme="light"] .visibility-label,html[data-theme="light"] .report-date-title,html[data-theme="light"] .photo-theme-title{color:#163a4c!important}
+html[data-theme="light"] .page .set-name,html[data-theme="light"] .page .info-row .l,html[data-theme="light"] .page .set-desc,html[data-theme="light"] .page .filter-hint,html[data-theme="light"] .page .muted,html[data-theme="light"] .page .more-tile small,html[data-theme="light"] .page .photo-theme-desc{color:#345b6d!important}
+html[data-theme="light"] input,html[data-theme="light"] select,html[data-theme="light"] textarea{color:#163a4c!important;background:rgba(255,255,255,.97)!important;border-color:rgba(34,126,148,.62)!important}
+html[data-theme="light"] input[type="date"]{color-scheme:light}
+html[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator{filter:none}
+@media(max-width:390px){.report-date-grid,.filter-grid{grid-template-columns:minmax(0,1fr)!important}.filter-grid .filter-account{grid-column:auto}.report-date-actions{flex-direction:column}}
 </style>
 
 <script>
