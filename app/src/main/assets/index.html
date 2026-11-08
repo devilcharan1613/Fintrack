@@ -2684,51 +2684,85 @@ function openPersonDetail(id){
    EXPORT / IMPORT / RESET
 ============================================================ */
 function openExportDialog(source){
-  var start=prompt('Start date (YYYY-MM-DD)',new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10));
-  if(!start)return;
-  var end=prompt('End date (YYYY-MM-DD)',today());
-  if(!end)return;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||start>end){showToast('Enter a valid date range','error');return;}
-  var format=prompt('Enter CSV or PDF','CSV');
-  if(!format)return;
-  format=format.toLowerCase();
-  if(format!=='csv'&&format!=='pdf'){showToast('Currently choose CSV or PDF','error');return;}
+  closeExportDialog();
+  var overlay=document.createElement('div');
+  overlay.id='exportRangeDialog';
+  overlay.style.cssText='position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.76);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;padding:12px;';
+  overlay.innerHTML='<section role="dialog" aria-modal="true" aria-labelledby="exportRangeTitle" style="width:min(100%,520px);max-height:90dvh;overflow:auto;border:1.5px solid rgba(116,224,240,.7);border-radius:26px;background:linear-gradient(145deg,#0b3446,#091b30);padding:20px;color:#f4fbff;box-shadow:0 20px 60px rgba(0,0,0,.5)">'+
+    '<div style="width:42px;height:4px;border-radius:8px;background:#78a9b9;margin:0 auto 16px"></div>'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px"><h2 id="exportRangeTitle" style="font-size:20px;margin:0">Export transactions</h2><button type="button" id="exportClose" aria-label="Close export" style="border:1px solid rgba(160,220,235,.35);background:rgba(255,255,255,.08);color:#fff;border-radius:12px;width:40px;height:40px;font-size:22px">×</button></div>'+
+    '<p style="margin:0 0 18px;color:#b8d0dd;font-size:13px;line-height:1.5">Choose a date range, then select the file format.</p>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">'+
+      '<label style="font-size:12px;font-weight:800;color:#d8edf4">FROM DATE<input id="exportStartDate" type="date" style="display:block;width:100%;box-sizing:border-box;margin-top:7px;padding:12px;border:1.5px solid #65c5d4;border-radius:12px;background:#061d2c;color:#fff;color-scheme:dark"></label>'+
+      '<label style="font-size:12px;font-weight:800;color:#d8edf4">TO DATE<input id="exportEndDate" type="date" style="display:block;width:100%;box-sizing:border-box;margin-top:7px;padding:12px;border:1.5px solid #65c5d4;border-radius:12px;background:#061d2c;color:#fff;color-scheme:dark"></label></div>'+
+    '<div id="exportRangeError" role="alert" style="min-height:18px;color:#ff9292;font-size:12px;font-weight:700;margin-bottom:8px"></div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
+      '<button type="button" id="exportExcelBtn" style="min-height:100px;border:1.5px solid #34e7d6;border-radius:18px;background:linear-gradient(145deg,rgba(0,220,200,.22),rgba(0,130,155,.18));color:#eaffff;padding:14px;font-weight:900;font-size:15px"><span style="display:block;font-size:27px;margin-bottom:7px">📊</span>Excel (.xlsx)<small style="display:block;font-size:11px;font-weight:600;color:#b8dce5;margin-top:5px">Spreadsheet workbook</small></button>'+
+      '<button type="button" id="exportPdfBtn" style="min-height:100px;border:1.5px solid #a98aff;border-radius:18px;background:linear-gradient(145deg,rgba(140,100,255,.22),rgba(75,65,160,.18));color:#f5f0ff;padding:14px;font-weight:900;font-size:15px"><span style="display:block;font-size:27px;margin-bottom:7px">📄</span>PDF<small style="display:block;font-size:11px;font-weight:600;color:#d3c8f0;margin-top:5px">Print / Save as PDF</small></button>'+
+    '</div><p style="font-size:11px;color:#9db9c5;line-height:1.45;margin:14px 2px 0">Only transactions within the selected dates are included. Excel also contains the workbook summary and other finance sheets.</p></section>';
+  document.body.appendChild(overlay);
+  var localDate=function(d){var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+day;};
+  var startInput=overlay.querySelector('#exportStartDate'),endInput=overlay.querySelector('#exportEndDate');
+  startInput.value=localDate(new Date(new Date().getFullYear(),new Date().getMonth(),1));
+  endInput.value=localDate(new Date());
+  overlay.querySelector('#exportClose').addEventListener('click',closeExportDialog);
+  overlay.addEventListener('click',function(event){if(event.target===overlay)closeExportDialog();});
+  overlay.querySelector('#exportExcelBtn').addEventListener('click',function(){finishTransactionExport('xlsx');});
+  overlay.querySelector('#exportPdfBtn').addEventListener('click',function(){finishTransactionExport('pdf');});
+  startInput.focus();
+}
+function closeExportDialog(){
+  var dialog=document.getElementById('exportRangeDialog');
+  if(dialog)dialog.remove();
+}
+function finishTransactionExport(format){
+  var dialog=document.getElementById('exportRangeDialog');
+  if(!dialog)return;
+  var start=dialog.querySelector('#exportStartDate').value;
+  var end=dialog.querySelector('#exportEndDate').value;
+  var error=dialog.querySelector('#exportRangeError');
+  var validDate=function(value){
+    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(value))return false;
+    var parts=value.split('-').map(Number),date=new Date(parts[0],parts[1]-1,parts[2]);
+    return date.getFullYear()===parts[0]&&date.getMonth()===parts[1]-1&&date.getDate()===parts[2];
+  };
+  if(!validDate(start)||!validDate(end)||start>end){error.textContent='Please select a valid date range.';return;}
   var rows=state.transactions.filter(function(t){return t.date>=start&&t.date<=end;});
-  if(!rows.length){showToast('No transactions in selected date range','error');return;}
+  if(!rows.length){error.textContent='No transactions found in this date range.';return;}
   var incomeTotal=rows.filter(function(t){return t.type==='income';}).reduce(function(sum,t){return sum+Number(t.amount||0);},0);
   var expenseTotal=rows.filter(function(t){return t.type==='expense';}).reduce(function(sum,t){return sum+Number(t.amount||0);},0);
   var header=['Date','Type','Description','Category','Account','Payment method','Amount INR'];
   var data=[header].concat(rows.map(function(t){var a=getAcc(t.accountId),c=getCat(t.category);return [t.date,t.type,t.notes||t.note||'',c.name||t.category,a&&a.name||'',t.paymentMethod||t.upiApp||'',Number(t.amount||0)];}));
-  if(format==='csv'){
-    var csv=data.map(function(row){return row.map(function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}).join(',');}).join('\r\n');
-    if(window.FinTrackBridge&&typeof window.FinTrackBridge.exportCsv==='function'){
-      window.FinTrackBridge.exportCsv(csv,'fintrack_transactions_'+today()+'.csv');
-      showToast('Choose where to save your CSV','success');return;
+  var fileRange=start+'_to_'+end;
+  if(format==='xlsx'){
+    if(!window.FinTrackBridge||typeof window.FinTrackBridge.exportWorkbook!=='function'){
+      error.textContent='Excel export is available in the Android app build.';
+      return;
     }
-    var blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');
-    link.href=url;link.download='fintrack_transactions_'+today()+'.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
-    showToast('CSV export ready','success');return;
+    var exportState=JSON.parse(JSON.stringify(state));
+    exportState.transactions=rows;
+    exportState.exportMetadata={type:'date-range',from:start,to:end,generatedAt:new Date().toISOString()};
+    closeExportDialog();
+    window.FinTrackBridge.exportWorkbook(JSON.stringify(exportState),'FinTrack_Transactions_'+fileRange+'.xlsx');
+    showToast('Preparing Excel workbook. Choose where to save it.','success');
+    return;
   }
-  var escapeHtml = function(value){ return escHtml(value == null ? '' : String(value)); };
-  var tableRows = data.slice(1).map(function(row){
-    return '<tr>' + row.map(function(value){ return '<td>' + escapeHtml(value) + '</td>'; }).join('') + '</tr>';
-  }).join('');
-  var printHtml = '<!doctype html><html><head><meta charset="utf-8"><title>FinTrack statement</title>' +
-    '<style>@page{size:A4 landscape;margin:14mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;padding:18px;color:#152b38;font-size:11px}header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #087f89;padding-bottom:12px;margin-bottom:16px}h1{font-size:24px;margin:0;color:#073746}h2{font-size:13px;margin:0 0 5px;color:#315363}.meta{color:#526b78;line-height:1.6}.brand{font-size:12px;font-weight:700;color:#087f89}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 18px}.metric{border:1px solid #c9dce2;border-radius:8px;padding:10px;background:#f2f8fa}.metric b{display:block;font-size:16px;margin-top:5px}.income{color:#00866b}.expense{color:#c0394b}.net{color:#087f89}table{border-collapse:collapse;width:100%;font-size:10px}thead{display:table-header-group}tr{page-break-inside:avoid}th,td{border:1px solid #cbd8de;padding:7px;text-align:left;vertical-align:top}th{background:#073746;color:#fff;font-weight:700}tbody tr:nth-child(even){background:#f1f7f9}td:last-child,th:last-child{text-align:right}.foot{margin-top:16px;border-top:1px solid #cbd8de;padding-top:8px;color:#607987;font-size:9px}@media print{body{padding:0}}</style>' +
-    '</head><body><header><div><div class="brand">FINTRACK · OFFLINE FINANCE MANAGER</div><h1>Transaction Statement</h1><div class="meta">Period: ' + escapeHtml(start) + ' to ' + escapeHtml(end) + '<br>Generated: ' + escapeHtml(new Date().toLocaleString()) + '</div></div><div class="meta">Personal financial record<br>Currency: INR (₹)</div></header>' +
-    '<section class="summary"><div class="metric">Total income<b class="income">₹' + incomeTotal.toFixed(2) + '</b></div><div class="metric">Total expenses<b class="expense">₹' + expenseTotal.toFixed(2) + '</b></div><div class="metric">Net savings<b class="net">₹' + (incomeTotal-expenseTotal).toFixed(2) + '</b></div></section>' +
-    '<table><thead><tr>' + header.map(function(value){return '<th>' + escapeHtml(value) + '</th>';}).join('') +
-    '</tr></thead><tbody>' + tableRows + '</tbody></table><div class="foot">Generated locally by FinTrack. This statement contains data stored on this device only.</div></body></html>';
+  var escapeHtml=function(value){return escHtml(value==null?'':String(value));};
+  var tableRows=data.slice(1).map(function(row){return '<tr>'+row.map(function(value){return '<td>'+escapeHtml(value)+'</td>';}).join('')+'</tr>';}).join('');
+  var printHtml='<!doctype html><html><head><meta charset="utf-8"><title>FinTrack statement</title>'+
+    '<style>@page{size:A4 landscape;margin:14mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;padding:18px;color:#152b38;font-size:11px}header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #087f89;padding-bottom:12px;margin-bottom:16px}h1{font-size:24px;margin:0;color:#073746}h2{font-size:13px;margin:0 0 5px;color:#315363}.meta{color:#526b78;line-height:1.6}.brand{font-size:12px;font-weight:700;color:#087f89}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 18px}.metric{border:1px solid #c9dce2;border-radius:8px;padding:10px;background:#f2f8fa}.metric b{display:block;font-size:16px;margin-top:5px}.income{color:#00866b}.expense{color:#c0394b}.net{color:#087f89}table{border-collapse:collapse;width:100%;font-size:10px}thead{display:table-header-group}tr{page-break-inside:avoid}th,td{border:1px solid #cbd8de;padding:7px;text-align:left;vertical-align:top}th{background:#073746;color:#fff;font-weight:700}tbody tr:nth-child(even){background:#f1f7f9}td:last-child,th:last-child{text-align:right}.foot{margin-top:16px;border-top:1px solid #cbd8de;padding-top:8px;color:#607987;font-size:9px}@media print{body{padding:0}}</style>'+
+    '</head><body><header><div><div class="brand">FINTRACK · OFFLINE FINANCE MANAGER</div><h1>Transaction Statement</h1><div class="meta">Period: '+escapeHtml(start)+' to '+escapeHtml(end)+'<br>Generated: '+escapeHtml(new Date().toLocaleString())+'</div></div><div class="meta">Personal financial record<br>Currency: INR (₹)</div></header>'+
+    '<section class="summary"><div class="metric">Total income<b class="income">₹'+incomeTotal.toFixed(2)+'</b></div><div class="metric">Total expenses<b class="expense">₹'+expenseTotal.toFixed(2)+'</b></div><div class="metric">Net savings<b class="net">₹'+(incomeTotal-expenseTotal).toFixed(2)+'</b></div></section>'+
+    '<table><thead><tr>'+header.map(function(value){return '<th>'+escapeHtml(value)+'</th>';}).join('')+'</tr></thead><tbody>'+tableRows+'</tbody></table><div class="foot">Generated locally by FinTrack. This statement contains data stored on this device only.</div></body></html>';
+  closeExportDialog();
   if(window.FinTrackBridge&&typeof window.FinTrackBridge.printDocument==='function'){
-    window.FinTrackBridge.printDocument(printHtml,'FinTrack_Statement_'+today());
+    window.FinTrackBridge.printDocument(printHtml,'FinTrack_Statement_'+fileRange);
     showToast('Use the Android print dialog to save this statement as PDF','success');return;
   }
-  var win = window.open('', '_blank');
+  var win=window.open('','_blank');
   if(!win){showToast('Allow pop-ups to print PDF','error');return;}
-  win.document.open();
-  win.document.write(printHtml);
-  win.document.close();
-  win.onload = function(){ win.focus(); win.print(); };
+  win.document.open();win.document.write(printHtml);win.document.close();
+  win.onload=function(){win.focus();win.print();};
 }
 window.openExportDialog=openExportDialog;
 
