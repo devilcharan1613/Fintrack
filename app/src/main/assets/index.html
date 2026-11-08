@@ -2293,7 +2293,6 @@ function openExportDialog(source){
     link.href=url;link.download='fintrack_transactions_'+today()+'.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
     showToast('CSV export ready','success');return;
   }
-  var win=window.open('','_blank');if(!win){showToast('Allow pop-ups to print PDF','error');return;}
   var escapeHtml = function(value){ return escHtml(value == null ? '' : String(value)); };
   var tableRows = data.slice(1).map(function(row){
     return '<tr>' + row.map(function(value){ return '<td>' + escapeHtml(value) + '</td>'; }).join('') + '</tr>';
@@ -2400,7 +2399,8 @@ if(document.readyState==='loading'){
 }
 
 /* Expose global functions */
-window.setFinTrackTheme = setFinTrackTheme;\nwindow.addGoalContribution = addGoalContribution;
+window.setFinTrackTheme = setFinTrackTheme;
+window.addGoalContribution = addGoalContribution;
 window.addLoanRepayment = addLoanRepayment;
 window.viewLoanRepayments = viewLoanRepayments;
 window.showPage = showPage;
