@@ -78,7 +78,7 @@ jobs:
           script: gradle --no-daemon --stacktrace connectedDebugAndroidTest
 
       - name: Upload APK
-        if: steps.build_apk.outcome == 'success'
+        if: always() && steps.build_apk.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: FinTrack-debug-apk
