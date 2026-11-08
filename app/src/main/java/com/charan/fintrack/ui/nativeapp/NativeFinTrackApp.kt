@@ -177,6 +177,7 @@ private fun NativeFinTrackContent(
     backgroundOpacity: Float,
     onChooseBackground: () -> Unit,
     onRemoveBackground: () -> Unit,
+    backgroundOpacity: Float,
     onBackgroundOpacity: (Float) -> Unit,
     onInstallApk: () -> Unit
 ) {
@@ -285,7 +286,7 @@ private fun NativeFinTrackContent(
                     FinPage.SETTINGS -> SettingsScreen(
                         darkTheme, onThemeChange, onExportBackup, onImportBackup,
                         onExportCsv, onExportXlsx, onExportPdf, onChooseBackground,
-                        onRemoveBackground, onBackgroundOpacity, onInstallApk
+                        onRemoveBackground, backgroundOpacity, onBackgroundOpacity, onInstallApk
                     )
                 }
             }
@@ -1058,9 +1059,8 @@ private fun SettingsScreen(
                 TextButton(onClick = onRemoveBackground) { Text("Remove") }
             }
             Text("Background visibility", style = MaterialTheme.typography.labelMedium)
-            var opacity by remember { mutableFloatStateOf(35f) }
-            Slider(value = opacity, onValueChange = { opacity = it; onBackgroundOpacity(it) }, valueRange = 0f..100f)
-            Text("${opacity.toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+            Slider(value = backgroundOpacity * 100f, onValueChange = onBackgroundOpacity, valueRange = 0f..100f)
+            Text("${(backgroundOpacity * 100f).toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
         }
         GlassCard {
             Text("Local backup and restore", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
