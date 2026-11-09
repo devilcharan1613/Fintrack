@@ -2,6 +2,7 @@ package com.charan.fintrack
 
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import com.charan.fintrack.ui.nativeapp.NativeFinTrackActivity
 import org.junit.Rule
@@ -37,6 +38,9 @@ class NativeFinTrackNavigationTest {
         compose.onNodeWithText("Export full JSON backup").fetchSemanticsNode()
         compose.onNodeWithText("Select update APK").fetchSemanticsNode()
         compose.onNodeWithText("Reset all finance data").performClick()
+        compose.waitUntil(timeoutMillis = 5_000) {
+            compose.onAllNodesWithText("Reset all finance data?").fetchSemanticsNodes().isNotEmpty()
+        }
         compose.onNodeWithText("Reset all finance data?").fetchSemanticsNode()
         compose.onNodeWithText("Cancel").performClick()
     }
