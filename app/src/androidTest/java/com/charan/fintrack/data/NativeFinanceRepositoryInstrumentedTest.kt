@@ -63,6 +63,31 @@ class NativeFinanceRepositoryInstrumentedTest {
     }
 
     @Test
+    fun budgetsGoalsAndLoanRepaymentsPersistExactPaiseValues() = runBlocking {
+        val budgetId = repository.addBudget(
+            category = "Food", limit = MoneyPaise.fromRupees("2500.75"),
+            month = "2026-11", period = "Monthly"
+        )
+        val budget = database.financeDao().allBudgets().single { it.id == budgetId }
+        assertEquals(250_075L, budget.limitAmountPaise)
+        assertEquals("2026-11", budget.month)
+
+        val goalId = repository.addGoal("Emergency fund", MoneyPaise.fromRupees("10000"))
+        repository.addGoalContribution(goalId, MoneyPaise.fromRupees("1250.50"), "First deposit")
+        val goal = database.financeDao().allGoals().single { it.id == goalId }
+        assertEquals(125_050L, goal.savedAmountPaise)
+        assertEquals(1, database.financeDao().allGoalContributions().count { it.goalId == goalId })
+
+        val loanId = repository.addLoan(
+            "Laptop", MoneyPaise.fromRupees("50000"), MoneyPaise.fromRupees("5000"), 12.5
+        )
+        repository.addLoanRepayment(loanId, MoneyPaise.fromRupees("7500.25"), "First repayment")
+        val loan = database.financeDao().allLoans().single { it.id == loanId }
+        assertEquals(750_025L, loan.paidAmountPaise)
+        assertEquals(1, database.financeDao().allLoanPayments().count { it.loanId == loanId })
+    }
+
+    @Test
     fun resetDeletesAllFinanceRecordsInsideSingleDatabaseTransaction() = runBlocking {
         val accountId = repository.addAccount(
             "Cash", "Wallet", MoneyPaise.fromRupees("1000")
