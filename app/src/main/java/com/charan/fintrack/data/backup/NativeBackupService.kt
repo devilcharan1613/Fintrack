@@ -821,7 +821,10 @@ class NativeBackupService(private val database: FinTrackDatabase) {
     private fun csv(value: String): String {
         // Prevent spreadsheet applications from evaluating user-controlled text as formulas.
         val firstMeaningful = value.trimStart().firstOrNull()
-        val safe = if (firstMeaningful in setOf('=', '+', '-', '@')) "'$value" else value
+        val beginsWithFormulaMarker = firstMeaningful != null &&
+            (firstMeaningful == '=' || firstMeaningful == '+' ||
+                firstMeaningful == '-' || firstMeaningful == '@')
+        val safe = if (beginsWithFormulaMarker) "'$value" else value
         return "\"" + safe.replace("\"", "\"\"") + "\""
     }
 }
