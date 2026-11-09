@@ -18,8 +18,7 @@ class XlsxExporterInstrumentedTest {
             .put("accounts", JSONArray().put(JSONObject().put("name", "Daily Cash").put("balance", 1250.0)))
             .put("transactions", JSONArray().put(JSONObject().put("type", "expense").put("amount", 150.0).put("category", "Food")))
             .put("persons", JSONArray())
-        val budgetSheet = entries["xl/worksheets/sheet5.xml"].orEmpty()
-        assertTrue("Budget amount should be exported as a numeric value: " + budgetSheet, budgetSheet.contains("<v>4000</v>") || budgetSheet.contains("<v>4000.0</v>"))
+            .put("budgets", JSONArray().put(JSONObject().put("name", "Food").put("amount", 4000.0).put("spent", 150.0)))
             .put("goals", JSONArray())
             .put("loans", JSONArray().put(
                 JSONObject().put("name", "Education Loan").put("principal", 12000.0).put("paid", 1000.0)
@@ -38,19 +37,23 @@ class XlsxExporterInstrumentedTest {
         }
 
         assertNotNull("Missing XLSX content types", entries["[Content_Types].xml"])
-        assertTrue("Missing 'Summary' in xl/workbook.xml: "+entries["xl/workbook.xml"].orEmpty(), entries["xl/workbook.xml"].orEmpty().contains("Summary"))
-        assertTrue("Missing 'Transactions' in xl/workbook.xml: "+entries["xl/workbook.xml"].orEmpty(), entries["xl/workbook.xml"].orEmpty().contains("Transactions"))
-        assertTrue("Missing 'FinTrack Export Summary' in xl/worksheets/sheet1.xml: "+entries["xl/worksheets/sheet1.xml"].orEmpty(), entries["xl/worksheets/sheet1.xml"].orEmpty().contains("FinTrack Export Summary"))
-        assertTrue("Missing '150.0' in xl/worksheets/sheet1.xml: "+entries["xl/worksheets/sheet1.xml"].orEmpty(), entries["xl/worksheets/sheet1.xml"].orEmpty().contains("150.0"))
-        assertTrue("Missing 'Generated at' in xl/worksheets/sheet1.xml: "+entries["xl/worksheets/sheet1.xml"].orEmpty(), entries["xl/worksheets/sheet1.xml"].orEmpty().contains("Generated at"))
-        assertTrue("Missing 'Income INR' in xl/worksheets/sheet1.xml: "+entries["xl/worksheets/sheet1.xml"].orEmpty(), entries["xl/worksheets/sheet1.xml"].orEmpty().contains("Income INR"))
-        assertTrue("Missing 'Daily Cash' in xl/worksheets/sheet2.xml: "+entries["xl/worksheets/sheet2.xml"].orEmpty(), entries["xl/worksheets/sheet2.xml"].orEmpty().contains("Daily Cash"))
-        assertTrue("Missing 'expense' in xl/worksheets/sheet3.xml: "+entries["xl/worksheets/sheet3.xml"].orEmpty(), entries["xl/worksheets/sheet3.xml"].orEmpty().contains("expense"))
-        assertTrue("Missing '4000.0' in xl/worksheets/sheet5.xml: "+entries["xl/worksheets/sheet5.xml"].orEmpty(), entries["xl/worksheets/sheet5.xml"].orEmpty().contains("4000.0"))
-        assertTrue("Missing 'Education Loan' in xl/worksheets/sheet7.xml: "+entries["xl/worksheets/sheet7.xml"].orEmpty(), entries["xl/worksheets/sheet7.xml"].orEmpty().contains("Education Loan"))
-        assertTrue("Missing '2026-11-08' in xl/worksheets/sheet8.xml: "+entries["xl/worksheets/sheet8.xml"].orEmpty(), entries["xl/worksheets/sheet8.xml"].orEmpty().contains("2026-11-08"))
+        assertTrue("Missing 'Summary' in xl/workbook.xml: " + entries["xl/workbook.xml"].orEmpty(), entries["xl/workbook.xml"].orEmpty().contains("Summary"))
+        assertTrue("Missing 'Transactions' in xl/workbook.xml: " + entries["xl/workbook.xml"].orEmpty(), entries["xl/workbook.xml"].orEmpty().contains("Transactions"))
+        assertTrue("Missing 'FinTrack Export Summary' in sheet1", entries["xl/worksheets/sheet1.xml"].orEmpty().contains("FinTrack Export Summary"))
+        assertTrue("Missing '150.0' in sheet1", entries["xl/worksheets/sheet1.xml"].orEmpty().contains("150.0"))
+        assertTrue("Missing 'Generated at' in sheet1", entries["xl/worksheets/sheet1.xml"].orEmpty().contains("Generated at"))
+        assertTrue("Missing 'Income INR' in sheet1", entries["xl/worksheets/sheet1.xml"].orEmpty().contains("Income INR"))
+        assertTrue("Missing 'Daily Cash' in sheet2", entries["xl/worksheets/sheet2.xml"].orEmpty().contains("Daily Cash"))
+        assertTrue("Missing 'expense' in sheet3", entries["xl/worksheets/sheet3.xml"].orEmpty().contains("expense"))
+        val budgetSheet = entries["xl/worksheets/sheet5.xml"].orEmpty()
+        assertTrue(
+            "Budget amount should be exported as a numeric value: " + budgetSheet,
+            budgetSheet.contains("<v>4000</v>") || budgetSheet.contains("<v>4000.0</v>")
+        )
+        assertTrue("Missing 'Education Loan' in sheet7", entries["xl/worksheets/sheet7.xml"].orEmpty().contains("Education Loan"))
+        assertTrue("Missing '2026-11-08' in sheet8", entries["xl/worksheets/sheet8.xml"].orEmpty().contains("2026-11-08"))
         assertTrue(entries["xl/worksheets/sheet3.xml"].orEmpty().contains("state=\"frozen\""))
-        assertTrue("Missing '<autoFilter' in xl/worksheets/sheet3.xml: "+entries["xl/worksheets/sheet3.xml"].orEmpty(), entries["xl/worksheets/sheet3.xml"].orEmpty().contains("<autoFilter"))
+        assertTrue("Missing autoFilter in sheet3", entries["xl/worksheets/sheet3.xml"].orEmpty().contains("<autoFilter"))
 
         val unsafeState = JSONObject()
             .put("accounts", JSONArray())
@@ -63,7 +66,7 @@ class XlsxExporterInstrumentedTest {
             while (true) {
                 val entry = zip.nextEntry ?: break
                 val xml = zip.readBytes().toString(Charsets.UTF_8)
-                assertTrue("Invalid XML control character leaked into "+entry.name, !xml.contains('\u0001'))
+                assertTrue("Invalid XML control character leaked into " + entry.name, !xml.contains('\u0001'))
                 zip.closeEntry()
             }
         }
