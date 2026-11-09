@@ -36,6 +36,7 @@ class NativeFinTrackNavigationTest {
 
         compose.onNodeWithText("Daily reminders").fetchSemanticsNode()
         compose.onNodeWithText("Custom background image").fetchSemanticsNode()
+        compose.onNodeWithText("Choose photo").fetchSemanticsNode()
         compose.onNodeWithText("Background visibility").fetchSemanticsNode()
         compose.onNodeWithText("Navigation icon size").fetchSemanticsNode()
         compose.onNodeWithText("Export full JSON backup").fetchSemanticsNode()
