@@ -110,6 +110,14 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
     var backgroundOpacity by remember { mutableFloatStateOf(appPrefs.getInt("background_opacity", 35).coerceIn(0, 100).toFloat()) }
     var iconScalePercent by remember { mutableFloatStateOf(appPrefs.getInt("icon_size_percent", 100).coerceIn(80, 140).toFloat()) }
     val backgroundScope = rememberCoroutineScope()
+    SideEffect {
+        (context as? android.app.Activity)?.window?.let { window ->
+            androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+                isAppearanceLightStatusBars = !dark
+                isAppearanceLightNavigationBars = !dark
+            }
+        }
+    }
     var pendingApkUri by remember { mutableStateOf<Uri?>(null) }
     var pendingXlsxFromDate by remember { mutableStateOf("") }
     var pendingXlsxToDate by remember { mutableStateOf("") }
@@ -223,6 +231,7 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
                 backgroundUri = null
                 appPrefs.edit().remove("background_uri").apply()
                 File(context.filesDir, "appearance").listFiles()?.forEach { it.delete() }
+                File(context.filesDir, "fintrack_legacy_background.img").delete()
             },
             onBackgroundOpacity = { backgroundOpacity = it.coerceIn(0f, 100f) },
             onBackgroundOpacityFinished = {
