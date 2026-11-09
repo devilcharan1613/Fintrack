@@ -536,9 +536,14 @@ class NativeBackupService(private val database: FinTrackDatabase) {
                         duplicatesSkipped++
                         continue
                     }
-                    val transferAccount = if (item.isNull("transferAccountId")) null
-                        else accountIdMap[item.get("transferAccountId").toString()]
-                    val transferUid = if (item.isNull("transferId")) null else item.getString("transferId")
+                    val transferAccount = if (type.startsWith("TRANSFER")) {
+                        val oldTransferAccount = requireReference(item, "transferAccountId", "transfer")
+                        accountIdMap[oldTransferAccount]
+                            ?: throw IllegalArgumentException("Transfer references an account not included in the backup.")
+                    } else null
+                    val transferUid = if (type.startsWith("TRANSFER")) {
+                        requiredText(item, "transferId", "transfer ID")
+                    } else null
                     finance.insertTransaction(
                         TransactionEntity(
                             accountId = accountId,
