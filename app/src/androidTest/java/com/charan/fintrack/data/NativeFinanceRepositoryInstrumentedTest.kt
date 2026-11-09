@@ -106,4 +106,34 @@ class NativeFinanceRepositoryInstrumentedTest {
         assertTrue(database.financeDao().allLoans().isEmpty())
         assertTrue(database.financeDao().allLoanPayments().isEmpty())
     }
+
+    @Test
+    fun repositoryRejectsInvalidNamesDatesAndFinancialTargets() = runBlocking {
+        val accountId = repository.addAccount("Cash", "Wallet", MoneyPaise.ZERO)
+        val account = database.accountDao().getAccountById(accountId)!!
+        val blankTypeError = runCatching {
+            repository.updateAccount(account.copy(accountType = " "))
+        }.exceptionOrNull()
+        assertTrue(blankTypeError is IllegalArgumentException)
+
+        val invalidMonthError = runCatching {
+            repository.addBudget("Food", MoneyPaise.fromRupees("100"), "2026-99")
+        }.exceptionOrNull()
+        assertTrue(invalidMonthError is IllegalArgumentException)
+
+        val blankCategoryError = runCatching {
+            repository.updateCategory(com.charan.fintrack.data.local.CategoryEntity(name = " ", type = "EXPENSE"))
+        }.exceptionOrNull()
+        assertTrue(blankCategoryError is IllegalArgumentException)
+
+        val zeroGoalError = runCatching {
+            repository.addGoal("No target", MoneyPaise.ZERO)
+        }.exceptionOrNull()
+        assertTrue(zeroGoalError is IllegalArgumentException)
+
+        val invalidLoanRateError = runCatching {
+            repository.addLoan("Loan", MoneyPaise.fromRupees("100"), MoneyPaise.ZERO, Double.NaN)
+        }.exceptionOrNull()
+        assertTrue(invalidLoanRateError is IllegalArgumentException)
+    }
 }

@@ -54,11 +54,12 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
         notes: String = ""
     ): Long {
         require(name.isNotBlank()) { "Account name is required" }
+        require(accountType.isNotBlank()) { "Account type is required" }
         require(creditLimit.paise >= 0L) { "Credit limit cannot be negative" }
         val legacy = openingBalance.toRupeesDecimal().toDouble()
         return accountDao.insertAccount(
             AccountEntity(
-                name = name.trim(), accountType = accountType,
+                name = name.trim(), accountType = accountType.trim(),
                 balance = legacy, openingBalancePaise = openingBalance.paise,
                 creditLimit = creditLimit.toRupeesDecimal().toDouble(),
                 creditLimitPaise = creditLimit.paise,
@@ -71,7 +72,18 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
 
     suspend fun updateAccount(account: AccountEntity) {
         require(account.name.isNotBlank()) { "Account name is required" }
-        accountDao.updateAccount(account.copy(updatedAt = System.currentTimeMillis()))
+        require(account.accountType.isNotBlank()) { "Account type is required" }
+        require(account.creditLimitPaise >= 0L) { "Credit limit cannot be negative" }
+        accountDao.updateAccount(
+            account.copy(
+                name = account.name.trim(),
+                accountType = account.accountType.trim(),
+                institution = account.institution.trim(),
+                accountNumber = account.accountNumber.trim(),
+                notes = account.notes.trim(),
+                updatedAt = System.currentTimeMillis()
+            )
+        )
     }
 
     suspend fun deleteAccount(account: AccountEntity) {
@@ -86,19 +98,42 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
         dao.deletePerson(person)
     }
 
-    suspend fun updatePerson(person: PersonEntity) = dao.updatePerson(person)
+    suspend fun updatePerson(person: PersonEntity) {
+        require(person.name.isNotBlank()) { "Person name is required" }
+        dao.updatePerson(person.copy(name = person.name.trim(), phone = person.phone.trim(), notes = person.notes.trim()))
+    }
     suspend fun deleteCategory(category: CategoryEntity) = dao.deleteCategory(category)
-    suspend fun updateCategory(category: CategoryEntity) = dao.updateCategory(category)
+    suspend fun updateCategory(category: CategoryEntity) {
+        require(category.name.isNotBlank()) { "Category name is required" }
+        require(category.type.uppercase() in setOf("INCOME", "EXPENSE")) { "Invalid category type" }
+        dao.updateCategory(category.copy(name = category.name.trim(), type = category.type.uppercase()))
+    }
     suspend fun deleteBudget(budget: BudgetEntity) = dao.deleteBudget(budget)
-    suspend fun updateBudget(budget: BudgetEntity) = dao.updateBudget(budget)
-    suspend fun updateGoal(goal: GoalEntity) = dao.updateGoal(goal)
+    suspend fun updateBudget(budget: BudgetEntity) {
+        require(budget.category.isNotBlank() && budget.limitAmountPaise > 0L) { "Enter a category and positive budget" }
+        require(budget.period in setOf("Daily", "Weekly", "Monthly", "Yearly")) { "Invalid budget period" }
+        validateYearMonth(budget.month)
+        dao.updateBudget(budget.copy(category = budget.category.trim()))
+    }
+    suspend fun updateGoal(goal: GoalEntity) {
+        require(goal.name.isNotBlank() && goal.targetAmountPaise > 0L) { "Enter a goal name and positive target" }
+        require(goal.savedAmountPaise in 0..goal.targetAmountPaise) { "Saved amount cannot exceed the target" }
+        dao.updateGoal(goal.copy(name = goal.name.trim()))
+    }
     suspend fun deleteGoal(goal: GoalEntity) {
         database.withTransaction {
             dao.deleteGoalContributions(goal.id)
             dao.deleteGoal(goal)
         }
     }
-    suspend fun updateLoan(loan: LoanEntity) = dao.updateLoan(loan)
+    suspend fun updateLoan(loan: LoanEntity) {
+        require(loan.name.isNotBlank()) { "Loan name is required" }
+        require(loan.principalPaise > 0L) { "Loan principal must be positive" }
+        require(loan.paidAmountPaise in 0..loan.principalPaise) { "Repayments cannot exceed the principal" }
+        require(loan.monthlyPaymentPaise >= 0L) { "Monthly payment cannot be negative" }
+        require(loan.interestRate.isFinite() && loan.interestRate >= 0.0) { "Interest rate cannot be negative" }
+        dao.updateLoan(loan.copy(name = loan.name.trim()))
+    }
     suspend fun deleteLoan(loan: LoanEntity) {
         database.withTransaction {
             dao.deleteLoanPayments(loan.id)
@@ -282,13 +317,22 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
     ): Long {
         require(category.isNotBlank() && limit.paise > 0L) { "Enter a category and positive budget" }
         require(period in setOf("Daily", "Weekly", "Monthly", "Yearly")) { "Invalid budget period" }
-        require(month.matches(Regex("\\d{4}-\\d{2}"))) { "Budget month must use YYYY-MM" }
+        validateYearMonth(month)
         return dao.insertBudget(
             BudgetEntity(
                 category = category.trim(), limitAmount = limit.toRupeesDecimal().toDouble(),
                 limitAmountPaise = limit.paise, month = month, period = period
             )
         )
+    }
+
+    private fun validateYearMonth(month: String) {
+        require(month.matches(Regex("\\d{4}-\\d{2}"))) { "Budget month must use YYYY-MM" }
+        val year = month.substringBefore("-").toIntOrNull()
+        val monthNumber = month.substringAfter("-", "").toIntOrNull()
+        require(year != null && year in 1..9999 && monthNumber != null && monthNumber in 1..12) {
+            "Budget month must be a real calendar month"
+        }
     }
 
     suspend fun addGoal(name: String, target: MoneyPaise, deadline: Long? = null): Long {
@@ -334,7 +378,7 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
         monthlyPayment: MoneyPaise, interestRate: Double
     ): Long {
         require(name.isNotBlank() && principal.paise > 0L) { "Enter a loan name and positive principal" }
-        require(monthlyPayment.paise >= 0L && interestRate >= 0.0) { "Loan values cannot be negative" }
+        require(monthlyPayment.paise >= 0L && interestRate.isFinite() && interestRate >= 0.0) { "Loan values cannot be negative" }
         return dao.insertLoan(
             LoanEntity(
                 name = name.trim(), principal = principal.toRupeesDecimal().toDouble(),
