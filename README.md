@@ -1,8 +1,8 @@
 # 💰 FinTrack
 
-**📱 Version 2.5.0 · Offline Edition · Android**
+**📱 Version 2.5.1 · Offline Edition · Android**
 
-FinTrack is an offline-first personal finance tracker. This README documents features present in the development-branch source and distinguishes implementation from runtime verification. A feature being present in source code does not mean it has passed device testing.
+FinTrack is a native Android personal finance tracker built with Kotlin, Jetpack Compose and Room. The development branch migrates existing local WebView records into the native Room database on first launch, and keeps the original local data untouched during migration. This README distinguishes source implementation from runtime verification. A feature being present in source code does not mean it has passed every device test.
 
 ## 🧭 Feature status legend
 
@@ -19,8 +19,9 @@ FinTrack is an offline-first personal finance tracker. This README documents fea
 
 ## 👛 2. Accounts and wallets
 
-- **Implemented (source):** multiple account records and account balance display.
-- **Implemented (source):** account-linked transaction views.
+- **Implemented (source):** multiple account records, opening balances, credit limits, institution/reference metadata and account notes.
+- **Implemented (source):** account-linked transaction views and ledger-derived current balances.
+- **Implemented (source):** archive accounts without deleting their linked transaction history.
 - **Needs testing:** opening/current balance calculations, transfers, edits and deletion edge cases.
 
 ## 💸 3. Transactions
@@ -34,9 +35,10 @@ FinTrack is an offline-first personal finance tracker. This README documents fea
 
 ## 📈 4. Reports and analytics
 
-- **Implemented (source):** income-versus-expense and category chart areas.
-- **Implemented (source):** account balances and person summaries.
-- **Implemented (source):** date-range controls and transaction statement export entry points.
+- **Implemented (source):** income-versus-expense analytics, report date presets and a custom date-range filter.
+- **Implemented (source):** account balances, expense category breakdown and person-wise borrowing/lending summaries.
+- **Implemented (source):** transfers excluded from income and expense totals.
+- **Implemented (source):** local statement export with one logical row per transfer.
 - **Needs testing:** chart aggregation, date inclusivity, empty periods and reconciliation with the transaction list.
 
 ## 🎯 5. Budgets
@@ -47,14 +49,14 @@ FinTrack is an offline-first personal finance tracker. This README documents fea
 
 ## 🏦 6. Savings goals
 
-- **Implemented (source):** savings goal records and contribution flow.
-- **Needs testing:** contribution history, target/remaining calculations, editing and deletion.
+- **Implemented (source):** savings goal records, contribution history, target/remaining calculations, editing and deletion.
+- **Implemented (source):** contributions are tracking-only and do not change account balances.
 
 ## 🤝 7. Borrowing, lending and loans
 
 - **Implemented (source):** person-linked borrowing/lending records.
-- **Implemented (source):** loan records and repayment-history data structures.
-- **Needs testing:** repayment balance calculations, partial/full settlement, overpayment prevention and person-wise totals.
+- **Implemented (source):** loan records, repayment history, outstanding-principal calculations, edits and deletion.
+- **Implemented (source):** repayments are tracking-only and do not change account balances; overpayment is rejected.
 
 ## 👥 8. People
 
@@ -67,10 +69,11 @@ FinTrack is an offline-first personal finance tracker. This README documents fea
 - **Implemented (source):** restore validation before replacing current local data.
 - **Implemented (source):** CSV transaction export.
 - **Implemented (source):** multi-sheet XLSX workbook export, including a summary sheet and finance-data sheets.
-- **Implemented (source):** custom date-range XLSX export entry point.
-- **Implemented (source):** PDF transaction statement through Android's print flow (Print to PDF is available in Android's print UI).
+- **Implemented (source):** custom date-range XLSX export with strict inclusive local-date validation.
+- **Implemented (source):** local A4 PDF statement generation using Android PdfDocument.
+- **Implemented (source):** paired transfer rows are represented once in CSV, XLSX and PDF transaction listings.
+- **Implemented (source):** CSV fields are quoted and formula-like user text is neutralized for spreadsheet safety.
 - **Needs testing:** open generated XLSX files in spreadsheet applications; verify custom-range contents, CSV encoding, PDF page layout and backup compatibility with older app data.
-- **Important:** Android Print to PDF depends on the print service available on the device. FinTrack does not claim a separate direct PDF-file generator.
 
 ### 🗂️ Export file layouts
 
@@ -106,21 +109,24 @@ A local backup intended to preserve the app's finance data for later restore. Ke
 ## 🎨 11. Themes and appearance
 
 - **Implemented (source):** dark/light theme preference and shared Liquid Glass styling layer.
-- **Implemented (source):** custom background photo selection and saved visibility preference controls.
-- **Needs testing:** consistency of every screen in both themes, photo persistence after restart, slider behaviour from 0–100%, contrast/readability and performance on lower-memory devices.
+- **Implemented (source):** custom background photo selection, photo removal and 0–100% visibility control.
+- **Implemented (source):** account metadata and category subcategory editing in native Compose.
+- **Needs testing:** consistency of every screen in both themes, photo persistence after restart, contrast/readability and performance on lower-memory devices.
 
 ## 🧭 12. Navigation and app update flow
 
-- **Implemented (source):** bottom navigation and More-menu navigation entry points.
+- **Implemented (source):** native screen destinations use Navigation Compose, with bottom navigation and More-menu entry points.
+- **Implemented (source):** legacy-launcher migration gate; after a successful first-run merge, MainActivity opens the native Compose app on subsequent launches.
 - **Implemented (source):** manual selection and hand-off of a local APK to Android's package installer.
-- **Needs testing:** all navigation/back-stack paths and APK update installation/data preservation on real devices.
+- **Needs testing:** all navigation/back-stack paths, fresh-install flow and APK update installation/data preservation on real devices.
 - **Security note:** Android controls package installation and displays its own confirmation UI. FinTrack does not silently install updates.
 
 ## 🔒 13. Offline operation and privacy
 
-- **Source configuration:** the Android manifest does not declare `android.permission.INTERNET`.
+- **Source configuration:** the Android manifest does not declare `android.permission.INTERNET`; cleartext traffic is disabled and Android automatic app backup is disabled.
+- CI checks the offline manifest configuration, bundled HTML references and use of network APIs.
 - No sign-in, OTP, cloud sync, online account, subscription or cloud backup is part of this offline edition.
-- Finance data and reminder preferences are stored locally by the app.
+- Finance data and reminder preferences are stored locally by the app. This release does not claim SQLCipher database encryption or an app lock.
 - Export and backup files are written only after the user chooses a destination.
 - Reminders use Android's local scheduling and notification facilities.
 - Clearing app storage or uninstalling the app may permanently remove local records. Export a backup regularly and keep it in a safe location.
@@ -130,10 +136,9 @@ A local backup intended to preserve the app's finance data for later restore. Ke
 This is a development-branch README, not a release certification.
 
 - **Branch:** `fintrack-2.5.0-development`
-- **Pull request:** PR #3 remains separate from `main`.
-- **Main branch:** not modified by this documentation update.
+- **Main branch:** unchanged by this implementation work.
 - **Build verification:** check the latest GitHub Actions run for the exact commit before distributing an APK.
-- **Test coverage:** unit tests and XLSX instrumented tests are present in the project; instrumented tests require a configured Android emulator/device.
+- **Test coverage:** unit tests cover paise arithmetic, ledger calculations and reminder time; instrumentation tests cover Room migrations, backup merge/restore, XLSX structure, native navigation, settings and repository validation.
 - **Not yet certified by this README:** physical-device testing, exhaustive regression testing, accessibility review, battery/background behaviour, and verification of every exported file in third-party applications.
 
 Do not treat a successful APK compilation as proof that every feature works correctly. Report bugs with the device model, Android version and steps to reproduce.
@@ -143,7 +148,7 @@ Do not treat a successful APK compilation as proof that every feature works corr
 Prerequisites: JDK 17 and Android SDK Platform 35.
 
 ```bash
-./gradlew --no-daemon testDebugUnitTest assembleDebug
+./gradlew --no-daemon testDebugUnitTest assembleDebugAndroidTest assembleDebug
 ```
 
 Debug APK output:
@@ -158,8 +163,8 @@ The GitHub Actions workflow is configured to build the debug APK and publish the
 |---|---|
 | App name | FinTrack |
 | Application ID | `com.charan.fintrack` |
-| Version name | `2.5.0` |
-| Version code | `27` |
+| Version name | `2.5.1` |
+| Version code | `28` |
 | Minimum Android | API 23 (Android 6.0) |
 | Target Android | API 35 (Android 15) |
 | Edition | Offline |
@@ -168,4 +173,4 @@ The GitHub Actions workflow is configured to build the debug APK and publish the
 
 **Made for simple, private, offline-first money management. 💚**
 
-*FinTrack v2.5.0 Offline Edition · Development branch documentation*
+*FinTrack v2.5.1 Offline Edition · Development branch documentation*
