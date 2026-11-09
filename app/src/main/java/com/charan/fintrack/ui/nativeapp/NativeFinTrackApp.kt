@@ -57,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -254,6 +255,10 @@ private fun NativeFinTrackContent(
     onChooseBackground: () -> Unit,
     onRemoveBackground: () -> Unit,
     onBackgroundOpacity: (Float) -> Unit,
+    onBackgroundOpacityFinished: (Float) -> Unit,
+    iconScalePercent: Float,
+    onIconScaleChange: (Float) -> Unit,
+    onIconScaleChangeFinished: (Float) -> Unit,
     onInstallApk: () -> Unit,
     initialQuickAction: String?
 ) {
@@ -293,6 +298,7 @@ private fun NativeFinTrackContent(
     var selectedBudget by remember { mutableStateOf<BudgetEntity?>(null) }
     var selectedCategory by remember { mutableStateOf<CategoryEntity?>(null) }
     val snackbar = remember { SnackbarHostState() }
+    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
 
     LaunchedEffect(message) {
         if (message != null) {
@@ -316,16 +322,23 @@ private fun NativeFinTrackContent(
             )
         }
         Scaffold(
+            modifier = Modifier.fillMaxSize().imePadding(),
             containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets.safeDrawing.only(
+                WindowInsetsSides.Horizontal + WindowInsetsSides.Top
+            ),
             snackbarHost = { SnackbarHost(snackbar) },
             bottomBar = {
-                NativeBottomBar(page, navigateTo, { editor = EditorKind.TRANSACTION })
+                if (!imeVisible) {
+                    NativeBottomBar(page, navigateTo, { editor = EditorKind.TRANSACTION }, iconScalePercent / 100f)
+                }
             }
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
                 NativeHeader(
                     title = if (page == FinPage.HOME) "FinTrack" else page.label,
                     subtitle = if (page == FinPage.HOME) greetingText() else "FinTrack Pro • Offline Edition",
+                    iconScale = iconScalePercent / 100f,
                     onAdd = {
                         editor = when (page) {
                             FinPage.ACCOUNTS -> EditorKind.ACCOUNT
@@ -402,10 +415,24 @@ private fun NativeFinTrackContent(
                     }
                     composable(FinPage.SETTINGS.route) {
                         SettingsScreen(
-                            darkTheme, onThemeChange, onExportBackup, onImportBackup,
-                            onExportCsv, onExportXlsx, onExportXlsxRange, onExportPdf, onChooseBackground,
-                            onRemoveBackground, backgroundOpacity, onBackgroundOpacity,
-                            onInstallApk, viewModel::resetAllData
+                            darkTheme = darkTheme,
+                            onThemeChange = onThemeChange,
+                            onExportBackup = onExportBackup,
+                            onImportBackup = onImportBackup,
+                            onExportCsv = onExportCsv,
+                            onExportXlsx = onExportXlsx,
+                            onExportXlsxRange = onExportXlsxRange,
+                            onExportPdf = onExportPdf,
+                            onChooseBackground = onChooseBackground,
+                            onRemoveBackground = onRemoveBackground,
+                            backgroundOpacity = backgroundOpacity,
+                            onBackgroundOpacity = onBackgroundOpacity,
+                            onBackgroundOpacityFinished = onBackgroundOpacityFinished,
+                            iconScalePercent = iconScalePercent,
+                            onIconScaleChange = onIconScaleChange,
+                            onIconScaleChangeFinished = onIconScaleChangeFinished,
+                            onInstallApk = onInstallApk,
+                            onResetData = viewModel::resetAllData
                         )
                     }
                 }
@@ -509,7 +536,7 @@ private fun NativeFinTrackContent(
 }
 
 @Composable
-private fun NativeHeader(title: String, subtitle: String, onAdd: () -> Unit) {
+private fun NativeHeader(title: String, subtitle: String, iconScale: Float, onAdd: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -517,21 +544,21 @@ private fun NativeHeader(title: String, subtitle: String, onAdd: () -> Unit) {
     ) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.BarChart, null, tint = Color(0xFF00E6D0), modifier = Modifier.size(30.dp))
+                Icon(Icons.Filled.BarChart, null, tint = Color(0xFF00E6D0), modifier = Modifier.size(30.dp * iconScale))
                 Spacer(Modifier.width(9.dp))
                 Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
             }
             Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
         FilledTonalButton(onClick = onAdd, shape = RoundedCornerShape(24.dp)) {
-            Icon(Icons.Filled.Add, null)
+            Icon(Icons.Filled.Add, null, modifier = Modifier.size(24.dp * iconScale))
             Text("Add")
         }
     }
 }
 
 @Composable
-private fun NativeBottomBar(current: FinPage, onNavigate: (FinPage) -> Unit, onAdd: () -> Unit) {
+private fun NativeBottomBar(current: FinPage, onNavigate: (FinPage) -> Unit, onAdd: () -> Unit, iconScale: Float) {
     Row(
         Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp)
             .clip(RoundedCornerShape(28.dp))
@@ -541,26 +568,26 @@ private fun NativeBottomBar(current: FinPage, onNavigate: (FinPage) -> Unit, onA
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        BottomNavItem("Home", Icons.Filled.Home, current == FinPage.HOME) { onNavigate(FinPage.HOME) }
-        BottomNavItem("Transactions", Icons.Filled.ReceiptLong, current == FinPage.TRANSACTIONS) { onNavigate(FinPage.TRANSACTIONS) }
+        BottomNavItem("Home", Icons.Filled.Home, current == FinPage.HOME, iconScale) { onNavigate(FinPage.HOME) }
+        BottomNavItem("Transactions", Icons.Filled.ReceiptLong, current == FinPage.TRANSACTIONS, iconScale) { onNavigate(FinPage.TRANSACTIONS) }
         FloatingActionButton(
             onClick = onAdd, modifier = Modifier.size(50.dp), shape = CircleShape,
             containerColor = Color(0xFF00DCCB), contentColor = Color(0xFF03202A)
-        ) { Icon(Icons.Filled.Add, "Add transaction", modifier = Modifier.size(28.dp)) }
-        BottomNavItem("Accounts", Icons.Filled.AccountBalanceWallet, current == FinPage.ACCOUNTS) { onNavigate(FinPage.ACCOUNTS) }
-        BottomNavItem("Reports", Icons.Filled.BarChart, current == FinPage.REPORTS) { onNavigate(FinPage.REPORTS) }
-        BottomNavItem("More", Icons.Filled.MoreHoriz, current == FinPage.MORE) { onNavigate(FinPage.MORE) }
+        ) { Icon(Icons.Filled.Add, "Add transaction", modifier = Modifier.size(28.dp * iconScale)) }
+        BottomNavItem("Accounts", Icons.Filled.AccountBalanceWallet, current == FinPage.ACCOUNTS, iconScale) { onNavigate(FinPage.ACCOUNTS) }
+        BottomNavItem("Reports", Icons.Filled.BarChart, current == FinPage.REPORTS, iconScale) { onNavigate(FinPage.REPORTS) }
+        BottomNavItem("More", Icons.Filled.MoreHoriz, current == FinPage.MORE, iconScale) { onNavigate(FinPage.MORE) }
     }
 }
 
 @Composable
-private fun BottomNavItem(label: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit) {
+private fun BottomNavItem(label: String, icon: ImageVector, selected: Boolean, iconScale: Float, onClick: () -> Unit) {
     Column(
         Modifier.widthIn(min = 42.dp).clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick)
             .padding(horizontal = 2.dp, vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(icon, null, tint = if (selected) Color(0xFF16E7D7) else Color(0xFFD8E7F0), modifier = Modifier.size(19.dp))
+        Icon(icon, null, tint = if (selected) Color(0xFF16E7D7) else Color(0xFFD8E7F0), modifier = Modifier.size(19.dp * iconScale))
         Text(label, color = if (selected) Color(0xFF16E7D7) else Color(0xFFD8E7F0), style = MaterialTheme.typography.labelSmall, maxLines = 1)
     }
 }
@@ -1162,6 +1189,10 @@ private fun SettingsScreen(
     onRemoveBackground: () -> Unit,
     backgroundOpacity: Float,
     onBackgroundOpacity: (Float) -> Unit,
+    onBackgroundOpacityFinished: (Float) -> Unit,
+    iconScalePercent: Float,
+    onIconScaleChange: (Float) -> Unit,
+    onIconScaleChangeFinished: (Float) -> Unit,
     onInstallApk: () -> Unit,
     onResetData: () -> Unit
 ) {
@@ -1222,8 +1253,22 @@ private fun SettingsScreen(
                 TextButton(onClick = onRemoveBackground) { Text("Remove") }
             }
             Text("Background visibility", style = MaterialTheme.typography.labelMedium)
-            Slider(value = backgroundOpacity * 100f, onValueChange = onBackgroundOpacity, valueRange = 0f..100f)
-            Text("${(backgroundOpacity * 100f).toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+            Slider(
+                value = (backgroundOpacity * 100f).coerceIn(0f, 100f),
+                onValueChange = onBackgroundOpacity,
+                onValueChangeFinished = { onBackgroundOpacityFinished(backgroundOpacity * 100f) },
+                valueRange = 0f..100f
+            )
+            Text("${(backgroundOpacity * 100f).roundToInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+            Spacer(Modifier.height(4.dp))
+            Text("Navigation and action icon size", style = MaterialTheme.typography.labelMedium)
+            Slider(
+                value = iconScalePercent,
+                onValueChange = onIconScaleChange,
+                onValueChangeFinished = { onIconScaleChangeFinished(iconScalePercent) },
+                valueRange = 80f..140f
+            )
+            Text("${iconScalePercent.roundToInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
         }
         GlassCard {
             Text("Local backup and restore", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
