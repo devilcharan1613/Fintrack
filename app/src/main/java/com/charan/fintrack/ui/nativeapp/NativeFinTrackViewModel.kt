@@ -374,7 +374,7 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
                         InputStreamReader(input, Charsets.UTF_8).buffered().use { it.readText() }
                     } ?: throw IllegalStateException("Unable to open the selected backup")
                 }
-                val result = backupService.mergeJson(json)
+                val result = withContext(Dispatchers.IO) { backupService.mergeJson(json) }
                 _message.value = "Restore complete: ${result.totalAdded} added, ${result.duplicatesSkipped} already present"
             } catch (error: Exception) {
                 reportFailure(error)

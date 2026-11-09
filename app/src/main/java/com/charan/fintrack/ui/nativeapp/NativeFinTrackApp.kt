@@ -764,7 +764,10 @@ private fun ReportsScreen(
             "This week" -> {
                 set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-                add(Calendar.DAY_OF_YEAR, 7); add(Calendar.MILLISECOND, -1)
+                val daysSinceMonday = (get(Calendar.DAY_OF_WEEK) + 5) % 7
+                add(Calendar.DAY_OF_YEAR, -daysSinceMonday)
+                add(Calendar.DAY_OF_YEAR, 7)
+                add(Calendar.MILLISECOND, -1)
             }
             "This year" -> {
                 set(Calendar.DAY_OF_YEAR, 1); set(Calendar.HOUR_OF_DAY, 0)
@@ -1145,6 +1148,9 @@ private fun SettingsScreen(
     var xlsxToDate by remember {
         mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()))
     }
+    val xlsxStartBound = parseDateBound(xlsxFromDate, endOfDay = false)
+    val xlsxEndBound = parseDateBound(xlsxToDate, endOfDay = true)
+    val xlsxRangeValid = xlsxStartBound != null && xlsxEndBound != null && xlsxStartBound <= xlsxEndBound
 
     fun saveReminder(enabled: Boolean, hour: Int = reminderHour, minute: Int = reminderMinute, funMode: Boolean = memeMode) {
         reminderPrefs.edit().putBoolean("enabled", enabled).putInt("hour", hour)
@@ -1217,9 +1223,17 @@ private fun SettingsScreen(
                 label = { Text("End date (YYYY-MM-DD)") },
                 modifier = Modifier.fillMaxWidth(), singleLine = true
             )
+            if (!xlsxRangeValid) {
+                Text(
+                    "Enter valid dates in YYYY-MM-DD format. The start date must not be after the end date.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
             OutlinedButton(
                 onClick = { onExportXlsxRange(xlsxFromDate.trim(), xlsxToDate.trim()) },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = xlsxRangeValid
             ) { Text("Export date-range Excel") }
         }
         GlassCard {
@@ -1771,10 +1785,10 @@ private fun openSelectedApk(context: android.content.Context, uri: Uri) {
 }
 
 private fun parseDateBound(value: String, endOfDay: Boolean): Long? {
-    if (value.isBlank()) return null
-    val parsed = runCatching {
-        SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }.parse(value)
-    }.getOrNull() ?: return null
+    if (!value.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) return null
+    val format = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }
+    val parsed = runCatching { format.parse(value) }.getOrNull() ?: return null
+    if (format.format(parsed) != value) return null
     val calendar = Calendar.getInstance().apply {
         time = parsed
         set(Calendar.HOUR_OF_DAY, if (endOfDay) 23 else 0)

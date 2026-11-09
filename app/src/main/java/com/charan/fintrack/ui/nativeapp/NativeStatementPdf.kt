@@ -20,7 +20,9 @@ internal object NativeStatementPdf {
 
     fun create(accounts: List<AccountEntity>, transactions: List<TransactionEntity>): ByteArray {
         val pdf = PdfDocument()
-        val rows = transactions.sortedByDescending { it.timestamp }
+        val rows = transactions
+            .filterNot { it.type.equals("TRANSFER_IN", true) }
+            .sortedByDescending { it.timestamp }
         val accountNames = accounts.associate { it.id to it.name }
         val income = rows.filter { it.type.equals("INCOME", true) }
             .fold(0L) { total, row -> Math.addExact(total, row.amountPaise) }
@@ -94,15 +96,25 @@ internal object NativeStatementPdf {
             canvas.drawRect(LEFT, y - 12f, RIGHT, y + 24f, rowPaint)
             canvas.drawLine(LEFT, y + 24f, RIGHT, y + 24f, border)
             val date = SimpleDateFormat("dd MMM yy", Locale.getDefault()).format(Date(row.timestamp))
-            val type = row.type.replace('_', ' ').lowercase(Locale.getDefault())
+            val isTransfer = row.type.equals("TRANSFER_OUT", true)
+            val type = if (isTransfer) "Transfer" else row.type.replace('_', ' ').lowercase(Locale.getDefault())
                 .replaceFirstChar { it.uppercase() }
             canvas.drawText(date, LEFT + 7f, y + 2f, body)
             canvas.drawText(type.take(15), LEFT + 105f, y - 2f, body.apply { typeface = Typeface.DEFAULT_BOLD })
             canvas.drawText(row.category.ifBlank { row.note }.take(31), LEFT + 105f, y + 12f, subtitle)
-            canvas.drawText((accountNames[row.accountId] ?: "Account").take(18), LEFT + 350f, y + 2f, body)
-            val negative = row.type.equals("EXPENSE", true) || row.type.equals("LEND", true) || row.type.equals("TRANSFER_OUT", true)
-            val signed = (if (negative) "−" else "+") + money(row.amountPaise)
-            amountPaint.color = if (negative) 0xFFC74659.toInt() else 0xFF008B70.toInt()
+            val accountLabel = if (isTransfer) {
+                (accountNames[row.accountId] ?: "Account") + " → " +
+                    (row.transferAccountId?.let { accountNames[it] } ?: "Account")
+            } else accountNames[row.accountId] ?: "Account"
+            canvas.drawText(accountLabel.take(27), LEFT + 350f, y + 2f, body)
+            val negative = row.type.equals("EXPENSE", true) || row.type.equals("LEND", true)
+            val signed = if (isTransfer) "↔ " + money(row.amountPaise)
+                else (if (negative) "−" else "+") + money(row.amountPaise)
+            amountPaint.color = when {
+                isTransfer -> 0xFF1689A1.toInt()
+                negative -> 0xFFC74659.toInt()
+                else -> 0xFF008B70.toInt()
+            }
             canvas.drawText(signed, RIGHT - 7f, y + 2f, amountPaint)
             y += 39f
         }
