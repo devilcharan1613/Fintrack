@@ -716,11 +716,6 @@ class MainActivity : ComponentActivity() {
 
     private inner class FinTrackBridge {
         @JavascriptInterface
-        fun openNativePreview() {
-            runOnUiThread { requestNativeMigrationFromLegacyWebView() }
-        }
-
-        @JavascriptInterface
         fun exportBackup(json: String, fileName: String) {
             runOnUiThread {
                 pendingExportBytes = json.toByteArray(Charsets.UTF_8)

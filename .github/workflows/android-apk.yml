@@ -2,7 +2,7 @@ name: Build FinTrack APK
 
 on:
   push:
-    branches: [main, fintrack-2.5.0-development]
+    branches: [main, fintrack-2.5.0-development, fix/fintrack-ui-safe-area-photo-controls]
   workflow_dispatch:
 
 permissions:
@@ -126,11 +126,10 @@ jobs:
           retention-days: 14
 
   instrumentation:
-    name: Android emulator regression tests (best effort)
+    name: Android emulator regression tests
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 35
-    continue-on-error: true
     steps:
       - name: Checkout source
         uses: actions/checkout@v4

@@ -1,10 +1,12 @@
 package com.charan.fintrack.ui.nativeapp
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.ViewModelProvider
+import androidx.core.view.WindowCompat
 
 /**
  * Native Compose application host. MainActivity acts as the one-time migration
@@ -13,7 +15,10 @@ import androidx.lifecycle.ViewModelProvider
 class NativeFinTrackActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Match the bootstrap activity so the Compose editor can resize around the IME.
+        // Edge-to-edge is handled by Compose's safeDrawing + IME insets, exactly once.
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         val viewModel = ViewModelProvider(
             this,
