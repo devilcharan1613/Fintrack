@@ -126,11 +126,10 @@ jobs:
           retention-days: 14
 
   instrumentation:
-    name: Android emulator regression tests (best effort)
+    name: Android emulator regression tests
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 35
-    continue-on-error: true
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
