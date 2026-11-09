@@ -149,6 +149,54 @@ class NativeBackupServiceInstrumentedTest {
     }
 
     @Test
+    fun nativeRestoreRejectsFractionalPaiseWithoutWritingPartialData() = runBlocking {
+        val backup = JSONObject()
+            .put("format", NativeBackupService.FORMAT)
+            .put("schemaVersion", NativeBackupService.SCHEMA_VERSION)
+            .put("accounts", JSONArray().put(
+                JSONObject().put("id", "cash").put("name", "Cash").put("accountType", "Wallet")
+                    .put("openingBalancePaise", 10_000).put("stableUid", "account:cash")
+            ))
+            .put("transactions", JSONArray().put(
+                JSONObject().put("id", "expense").put("type", "EXPENSE")
+                    .put("accountId", "cash").put("amountPaise", 12.5)
+                    .put("stableUid", "transaction:expense").put("category", "Food")
+            ))
+
+        var rejected = false
+        try {
+            service.mergeJson(backup.toString())
+        } catch (_: IllegalArgumentException) {
+            rejected = true
+        }
+        assertTrue("Fractional paise must be rejected", rejected)
+        assertTrue("Invalid restore must roll back inserted accounts", database.accountDao().allAccounts().isEmpty())
+        assertTrue("Invalid restore must not insert transactions", database.financeDao().allTransactions().isEmpty())
+    }
+
+    @Test
+    fun legacyRestoreRejectsImpossibleTransactionDateWithoutWritingPartialData() = runBlocking {
+        val backup = """
+            {
+              "accounts":[{"id":"cash","name":"Cash","type":"wallet","balance":100}],
+              "transactions":[
+                {"id":"expense","type":"expense","amount":1,"accountId":"cash","category":"Food","date":"2026-02-31","time":"12:00"}
+              ]
+            }
+        """.trimIndent()
+
+        var rejected = false
+        try {
+            service.mergeJson(backup)
+        } catch (_: IllegalArgumentException) {
+            rejected = true
+        }
+        assertTrue("Impossible transaction dates must be rejected", rejected)
+        assertTrue("Invalid legacy restore must roll back inserted accounts", database.accountDao().allAccounts().isEmpty())
+        assertTrue("Invalid legacy restore must not insert transactions", database.financeDao().allTransactions().isEmpty())
+    }
+
+    @Test
     fun csvExportWritesTransferOnceWithDestinationAccount() = runBlocking {
         val repository = com.charan.fintrack.data.repository.NativeFinanceRepository(database)
         val sourceId = repository.addAccount("Cash", "Wallet", MoneyPaise.fromRupees("500"))
