@@ -2,7 +2,7 @@
 
 **📱 Version 2.5.1 · Offline Edition · Android**
 
-FinTrack is a native Android personal finance tracker built with Kotlin, Jetpack Compose and Room. The development branch migrates existing local WebView records into the native Room database on first launch, and keeps the original local data untouched during migration. This README distinguishes source implementation from runtime verification. A feature being present in source code does not mean it has passed every device test.
+FinTrack is a native Android personal finance tracker built with Kotlin, Jetpack Compose and Room. The development branch contains a native Kotlin/Jetpack Compose finance experience and a legacy WebView data-compatibility layer. Where legacy data migration is used, source records are retained during migration. This README distinguishes source implementation from runtime verification. A feature being present in source code does not mean it has passed every device test.
 
 ## 🧭 Feature status legend
 
@@ -106,24 +106,35 @@ A local backup intended to preserve the app's finance data for later restore. Ke
 - **Needs testing:** Android 13+ notification permission flow, denied/revoked permission, reboot, Doze/battery restrictions, notification action routing and delivery on supported Android versions.
 - **Limitation:** Android may delay or restrict background notifications depending on device settings and battery policies. Reminders do not require internet.
 
-## 🎨 11. Themes and appearance
+## 🎨 11. Themes, personalization and appearance
 
-- **Implemented (source):** dark/light theme preference and shared Liquid Glass styling layer.
-- **Implemented (source):** custom background photo selection, photo removal and 0–100% visibility control.
-- **Implemented (source):** account metadata and category subcategory editing in native Compose.
-- **Needs testing:** consistency of every screen in both themes, photo persistence after restart, contrast/readability and performance on lower-memory devices.
+- **Implemented (source):** dark and light appearance modes with a shared Liquid Glass visual style.
+- **Implemented (source):** personal background photo selection from device storage, preview, removal and local persistence.
+- **Implemented (source):** photo visibility slider with a 0–100% range; the selected opacity is saved locally.
+- **Implemented (source):** adjustable UI icon sizing from 80% to 140%, saved on the device. The control scales common navigation, shortcut and settings icons.
+- **Implemented (source):** image resizing/compression before passing a selected photo into the app, to reduce memory and local-storage pressure.
+- **Implemented (source):** settings for reminders, data exports, backup/restore and appearance preferences.
+- **Needs testing:** photo selection across different Android gallery/document providers, persistence after force-stop/restart, slider responsiveness, icon scaling on different screen sizes, theme contrast and performance on lower-memory devices.
 
-## 🧭 12. Settings, navigation and app update flow
+## 📱 12. Layout, keyboard and navigation experience
+
+- **Implemented (source):** Android edge/system-bar inset handling and bottom navigation spacing intended to keep controls clear of system navigation.
+- **Implemented (source):** keyboard resize behaviour for forms and dialogs.
+- **Implemented (source):** bottom navigation and the floating add action are hidden while the keyboard is open, giving the active form more usable space.
+- **Implemented (source):** scrollable form sheets with bounded height and safe-area-aware padding.
+- **Needs testing:** keyboard behaviour with Gboard and other IMEs, landscape orientation, gesture and three-button navigation, small-screen devices, and forms with many fields.
+
+## 🧭 13. Settings, navigation and app update flow
 
 - **Implemented (source):** native Settings exposes local reminders, theme, background photo/visibility, JSON export/restore, CSV, full and date-range XLSX, PDF and manual APK update.
 - **Implemented (source):** a confirmation dialog protects the destructive reset-all-finance-data action.
 - **Implemented (source):** native screen destinations use Navigation Compose, with bottom navigation and More-menu entry points.
-- **Implemented (source):** legacy-launcher migration gate; after a successful first-run merge, MainActivity opens the native Compose app on subsequent launches.
+- **Implemented (source):** legacy-to-native Room migration support. The visible “Move to Native FinTrack” Settings card has been removed from the current UI; the migration bridge remains in source for compatibility and controlled migration workflows.
 - **Implemented (source):** manual selection and hand-off of a local APK to Android's package installer.
 - **Needs testing:** all navigation/back-stack paths, fresh-install flow and APK update installation/data preservation on real devices.
 - **Security note:** Android controls package installation and displays its own confirmation UI. FinTrack does not silently install updates.
 
-## 🔒 13. Offline operation and privacy
+## 🔒 14. Offline operation and privacy
 
 - **Source configuration:** the Android manifest does not declare `android.permission.INTERNET`; cleartext traffic is disabled and Android automatic app backup is disabled.
 - CI checks the offline manifest configuration, bundled HTML references and use of network APIs.
@@ -133,11 +144,12 @@ A local backup intended to preserve the app's finance data for later restore. Ke
 - Reminders use Android's local scheduling and notification facilities.
 - Clearing app storage or uninstalling the app may permanently remove local records. Export a backup regularly and keep it in a safe location.
 
-## 🛠️ 14. Developer review and release status
+## 🛠️ 15. Developer review and release status
 
 This is a development-branch README, not a release certification.
 
 - **Branch:** `fintrack-2.5.0-development`
+- **Recent UI updates:** safe-area spacing, keyboard-aware form layout, background photo controls, photo visibility and adjustable icon size are present in source; verify the latest CI run before treating them as release-ready.
 - **Native release line:** version `2.5.1` (version code `28`) on this development branch.
 - **Main branch:** unchanged by this implementation work.
 - **Build verification:** check the latest GitHub Actions run for the exact commit before distributing an APK.
