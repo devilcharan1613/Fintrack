@@ -231,7 +231,7 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
             TransactionEntity(
                 accountId = accountId, type = type.uppercase(),
                 amount = amount.toRupeesDecimal().toDouble(), amountPaise = amount.paise,
-                category = category.trim(), note = note.trim(), timestamp = timestamp,
+                category = category.trim(), note = note, timestamp = timestamp,
                 subcategory = subcategory.trim(), personId = personId,
                 paymentMethod = paymentMethod.trim(), upiApp = upiApp.trim()
             )
@@ -252,7 +252,7 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
             dao.insertTransaction(
                 TransactionEntity(
                     accountId = fromAccountId, type = "TRANSFER_OUT", amount = legacy,
-                    amountPaise = amount.paise, category = "Transfer", note = note.trim(),
+                    amountPaise = amount.paise, category = "Transfer", note = note,
                     timestamp = timestamp, transferAccountId = toAccountId, transferId = transferUid
                 )
             )
