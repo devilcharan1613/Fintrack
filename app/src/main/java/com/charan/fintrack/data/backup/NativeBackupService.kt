@@ -253,6 +253,7 @@ class NativeBackupService(private val database: FinTrackDatabase) {
         validateDuplicateSourceIds(budgetArray, "budget")
         validateDuplicateSourceIds(goalArray, "goal")
         validateDuplicateSourceIds(loanArray, "loan")
+        if (nativeFormat) validateNativeTransferPairs(transactionArray)
 
         // The legacy WebView stores current account balance and mutates it on each
         // transaction. Native accounts store opening balance and derive current balance.
@@ -681,6 +682,44 @@ class NativeBackupService(private val database: FinTrackDatabase) {
             budgetsAdded, goalsAdded, contributionsAdded, loansAdded, repaymentsAdded,
             duplicatesSkipped
         )
+    }
+
+    /**
+     * Native backups store transfers as a matched TRANSFER_OUT / TRANSFER_IN pair.
+     * Reject incomplete or inconsistent pairs before writing anything to Room:
+     * importing only one side would silently change the user total balance.
+     */
+    private fun validateNativeTransferPairs(transactions: JSONArray) {
+        val groups = mutableMapOf<String, MutableList<JSONObject>>()
+        for (index in 0 until transactions.length()) {
+            val item = transactions.getJSONObject(index)
+            val type = requiredText(item, "type", "transaction type").uppercase()
+            if (type != "TRANSFER_OUT" && type != "TRANSFER_IN") continue
+            val transferId = requiredText(item, "transferId", "transfer ID")
+            groups.getOrPut(transferId) { mutableListOf() }.add(item)
+        }
+
+        groups.forEach { (transferId, pair) ->
+            require(pair.size == 2) {
+                "Transfer $transferId is incomplete. A backup must contain both transfer records."
+            }
+            val outgoing = pair.singleOrNull { text(it, "type").equals("TRANSFER_OUT", true) }
+                ?: throw IllegalArgumentException("Transfer $transferId must contain one outgoing record.")
+            val incoming = pair.singleOrNull { text(it, "type").equals("TRANSFER_IN", true) }
+                ?: throw IllegalArgumentException("Transfer $transferId must contain one incoming record.")
+            val outAmount = paise(outgoing, "amountPaise", "amount")
+            val inAmount = paise(incoming, "amountPaise", "amount")
+            require(outAmount > 0L && outAmount == inAmount) {
+                "Transfer $transferId has mismatched or invalid amounts."
+            }
+            val outAccount = requireReference(outgoing, "accountId", "transfer")
+            val outDestination = requireReference(outgoing, "transferAccountId", "transfer")
+            val inAccount = requireReference(incoming, "accountId", "transfer")
+            val inDestination = requireReference(incoming, "transferAccountId", "transfer")
+            require(outAccount == inDestination && outDestination == inAccount && outAccount != outDestination) {
+                "Transfer $transferId has inconsistent source and destination accounts."
+            }
+        }
     }
 
     private fun legacyAccountDeltas(transactions: JSONArray): Map<String, Long> {
