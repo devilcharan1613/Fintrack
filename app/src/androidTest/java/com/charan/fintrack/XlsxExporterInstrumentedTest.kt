@@ -18,7 +18,8 @@ class XlsxExporterInstrumentedTest {
             .put("accounts", JSONArray().put(JSONObject().put("name", "Daily Cash").put("balance", 1250.0)))
             .put("transactions", JSONArray().put(JSONObject().put("type", "expense").put("amount", 150.0).put("category", "Food")))
             .put("persons", JSONArray())
-            .put("budgets", JSONArray().put(JSONObject().put("name", "Food").put("amount", 4000.0).put("spent", 150.0)))
+        val budgetSheet = entries["xl/worksheets/sheet5.xml"].orEmpty()
+        assertTrue("Budget amount should be exported as a numeric value: " + budgetSheet, budgetSheet.contains("<v>4000</v>") || budgetSheet.contains("<v>4000.0</v>"))
             .put("goals", JSONArray())
             .put("loans", JSONArray().put(
                 JSONObject().put("name", "Education Loan").put("principal", 12000.0).put("paid", 1000.0)
