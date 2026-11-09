@@ -653,12 +653,15 @@ class MainActivity : ComponentActivity() {
                     throw IllegalArgumentException("Selected file is not a supported image")
                 }
                 var sample = 1
-                while (bounds.outWidth / sample > 1600 || bounds.outHeight / sample > 1600) sample *= 2
-                val options = BitmapFactory.Options().apply { inSampleSize = sample }
+                while (bounds.outWidth / sample > 1200 || bounds.outHeight / sample > 1200) sample *= 2
+                val options = BitmapFactory.Options().apply {
+                    inSampleSize = sample
+                    inPreferredConfig = Bitmap.Config.RGB_565
+                }
                 val decoded = contentResolver.openInputStream(uri)?.use {
                     BitmapFactory.decodeStream(it, null, options)
                 } ?: throw IllegalStateException("Unable to decode selected photo")
-                val maxEdge = 1280
+                val maxEdge = 900
                 val scale = minOf(1.0, maxEdge.toDouble() / maxOf(decoded.width, decoded.height))
                 val outputBitmap = if (scale < 1.0) {
                     Bitmap.createScaledBitmap(
@@ -669,13 +672,13 @@ class MainActivity : ComponentActivity() {
                     )
                 } else decoded
                 val bytes = ByteArrayOutputStream().use { output ->
-                    outputBitmap.compress(Bitmap.CompressFormat.JPEG, 72, output)
+                    outputBitmap.compress(Bitmap.CompressFormat.JPEG, 58, output)
                     output.toByteArray()
                 }
                 if (outputBitmap !== decoded) outputBitmap.recycle()
                 decoded.recycle()
-                if (bytes.size > 1_500_000) {
-                    throw IllegalArgumentException("Photo is too large. Choose a smaller image.")
+                if (bytes.size > 650_000) {
+                    throw IllegalArgumentException("Photo is too large for reliable offline storage. Choose a smaller image.")
                 }
                 val dataUrl = "data:image/jpeg;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
                 runOnUiThread {
