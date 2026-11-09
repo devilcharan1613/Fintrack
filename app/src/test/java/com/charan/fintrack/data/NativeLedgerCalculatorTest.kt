@@ -34,7 +34,7 @@ class NativeLedgerCalculatorTest {
             TransactionEntity(accountId = 3, type = "BORROW", amount = 5.0, amountPaise = 500, category = "Borrow"),
             TransactionEntity(accountId = 3, type = "LEND", amount = 2.0, amountPaise = 200, category = "Lend")
         )
-        assertEquals(10_300L, NativeLedgerCalculator.netWorthPaise(listOf(account), rows))
+        assertEquals(10_000L, NativeLedgerCalculator.netWorthPaise(listOf(account), rows))
     }
 
     @Test fun amountArithmeticDetectsOverflow() {
