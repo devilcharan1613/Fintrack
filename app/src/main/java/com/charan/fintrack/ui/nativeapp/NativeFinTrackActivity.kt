@@ -6,8 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.lifecycle.ViewModelProvider
 
 /**
- * Internal native-screen host for development and automated testing.
- * It is intentionally not the launcher until legacy migration and parity gates pass.
+ * Native Compose application host. MainActivity acts as the one-time migration
+ * bootstrap, then routes future app launches here after Room import succeeds.
  */
 class NativeFinTrackActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
