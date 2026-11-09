@@ -4,6 +4,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.charan.fintrack.ui.nativeapp.NativeFinTrackActivity
 import org.junit.Rule
 import org.junit.Test
@@ -35,9 +36,12 @@ class NativeFinTrackNavigationTest {
 
         compose.onNodeWithText("Daily reminders").fetchSemanticsNode()
         compose.onNodeWithText("Custom background image").fetchSemanticsNode()
+        compose.onNodeWithText("Background visibility").fetchSemanticsNode()
+        compose.onNodeWithText("Navigation and action icon size").fetchSemanticsNode()
+        compose.onNodeWithText("Choose photo").fetchSemanticsNode()
         compose.onNodeWithText("Export full JSON backup").fetchSemanticsNode()
         compose.onNodeWithText("Select update APK").fetchSemanticsNode()
-        compose.onNodeWithText("Reset all finance data").performClick()
+        compose.onNodeWithText("Reset all finance data").performScrollTo().performClick()
         compose.waitUntil(timeoutMillis = 5_000) {
             compose.onAllNodesWithText("Reset all finance data?").fetchSemanticsNodes().isNotEmpty()
         }
