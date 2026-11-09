@@ -37,9 +37,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.WindowCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.charan.fintrack.data.backup.NativeBackupService
+import com.charan.fintrack.data.local.FinTrackDatabase
 import com.charan.fintrack.ui.nativeapp.NativeFinTrackActivity
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import java.util.Calendar
 
 internal object ReminderTime {
@@ -175,6 +180,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_QUICK_ACTION = "com.charan.fintrack.EXTRA_QUICK_ACTION"
         private const val REMINDER_PREFS = "fintrack_reminders"
+        private const val NATIVE_MIGRATION_PREFS = "fintrack_native_migration"
     }
     private lateinit var webView: WebView
     private lateinit var backupSaveLauncher: ActivityResultLauncher<String>
@@ -191,6 +197,7 @@ class MainActivity : ComponentActivity() {
     private var pendingReminder: ReminderConfig? = null
     private var pendingQuickAction: String? = null
     private var pageReady = false
+    @Volatile private var migrationInProgress = false
     private var latestInsetsScript = "window.finTrackApplyInsets(0,0,0,0,0);"
     private val printWebViews = mutableListOf<WebView>()
 
@@ -244,6 +251,18 @@ class MainActivity : ComponentActivity() {
             pendingInstallUri = null
             if (uri != null && canInstallPackages()) launchApkInstaller(uri)
             else if (uri != null) Toast.makeText(this, "Install permission was not granted.", Toast.LENGTH_LONG).show()
+        }
+
+        if (getSharedPreferences(NATIVE_MIGRATION_PREFS, Context.MODE_PRIVATE)
+                .getBoolean("complete", false)
+        ) {
+            val nativeIntent = Intent(this, NativeFinTrackActivity::class.java)
+            intent?.getStringExtra(EXTRA_QUICK_ACTION)?.let {
+                nativeIntent.putExtra(EXTRA_QUICK_ACTION, it)
+            }
+            startActivity(nativeIntent)
+            finish()
+            return
         }
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -324,6 +343,140 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         pendingQuickAction = intent.getStringExtra(EXTRA_QUICK_ACTION)
         flushPendingQuickAction()
+    }
+
+    /**
+     * Export the already-loaded legacy WebView state through its same-origin JavaScript
+     * context, then merge it transactionally into Room before entering the native app.
+     * A failed import never sets the completion marker, so the legacy app remains usable.
+     */
+    private fun requestNativeMigrationFromLegacyWebView() {
+        if (!::webView.isInitialized || !pageReady) {
+            Toast.makeText(this, "FinTrack is still loading. Try again in a moment.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (migrationInProgress) return
+
+        val script = """
+            (function () {
+                var current = window.state;
+                if (!current || !Array.isArray(current.accounts) || !Array.isArray(current.transactions)) return null;
+                var reminder = null;
+                try {
+                    var savedReminder = localStorage.getItem('fintrack_reminder_settings');
+                    reminder = savedReminder ? JSON.parse(savedReminder) : null;
+                } catch (error) {}
+                return JSON.stringify({
+                    state: current,
+                    theme: localStorage.getItem('fintrack_theme') || 'dark',
+                    backgroundPhoto: localStorage.getItem('fintrack_custom_background') || '',
+                    backgroundVisibility: localStorage.getItem('fintrack_background_visibility') || '35',
+                    reminder: reminder
+                });
+            })()
+        """.trimIndent()
+
+        webView.evaluateJavascript(script) { encoded ->
+            try {
+                if (encoded.isNullOrBlank() || encoded == "null") {
+                    throw IllegalStateException("Legacy finance data is not ready to migrate.")
+                }
+                val payload = JSONObject("{\"value\":$encoded}").getString("value")
+                migrateLegacyPayload(payload)
+            } catch (error: Exception) {
+                Toast.makeText(
+                    this,
+                    "Native migration could not read your existing data: ${error.message ?: "unknown error"}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun migrateLegacyPayload(payload: String) {
+        if (migrationInProgress) return
+        migrationInProgress = true
+        Thread {
+            try {
+                val wrapper = JSONObject(payload)
+                val legacyState = wrapper.optJSONObject("state")
+                    ?: throw IllegalArgumentException("Legacy finance records are missing.")
+                val database = FinTrackDatabase.getDatabase(applicationContext)
+                val report = runBlocking(Dispatchers.IO) {
+                    NativeBackupService(database).mergeJson(legacyState.toString())
+                }
+
+                persistLegacyPreferences(wrapper)
+                getSharedPreferences(NATIVE_MIGRATION_PREFS, Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("complete", true)
+                    .putLong("completed_at", System.currentTimeMillis())
+                    .apply()
+
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    val message = "Migration complete: ${report.totalAdded} records imported; ${report.duplicatesSkipped} duplicates skipped."
+                    Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                    val nativeIntent = Intent(this, NativeFinTrackActivity::class.java)
+                    pendingQuickAction?.let { nativeIntent.putExtra(EXTRA_QUICK_ACTION, it) }
+                    startActivity(nativeIntent)
+                    finish()
+                }
+            } catch (error: Exception) {
+                migrationInProgress = false
+                runOnUiThread {
+                    if (!isFinishing && !isDestroyed) {
+                        Toast.makeText(
+                            this,
+                            "Migration failed. Your original FinTrack data is unchanged: ${error.message ?: "unknown error"}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+        }.start()
+    }
+
+    /** Runs on the migration worker thread. The source WebView storage is left untouched. */
+    private fun persistLegacyPreferences(wrapper: JSONObject) {
+        val appearance = getSharedPreferences("fintrack_native_settings", Context.MODE_PRIVATE)
+        val theme = wrapper.optString("theme", "dark").lowercase()
+        val opacity = wrapper.optString("backgroundVisibility", "35")
+            .toFloatOrNull()?.toInt()?.coerceIn(0, 100) ?: 35
+        val appearanceEditor = appearance.edit()
+            .putBoolean("dark_theme", theme != "light")
+            .putInt("background_opacity", opacity)
+
+        val photo = wrapper.optString("backgroundPhoto", "")
+        if (photo.startsWith("data:image/") && photo.contains(",")) {
+            try {
+                val encoded = photo.substringAfter(',')
+                val bytes = Base64.decode(encoded, Base64.DEFAULT)
+                require(bytes.size <= 2_000_000) { "Background photo is larger than the supported local import size." }
+                val file = File(filesDir, "fintrack_legacy_background.img")
+                file.writeBytes(bytes)
+                appearanceEditor.putString("background_uri", Uri.fromFile(file).toString())
+            } catch (_: Exception) {
+                // A background image failure must not discard successfully imported finance data.
+                appearanceEditor.remove("background_uri")
+            }
+        } else {
+            appearanceEditor.remove("background_uri")
+        }
+        appearanceEditor.apply()
+
+        val reminder = wrapper.optJSONObject("reminder") ?: return
+        val timeParts = reminder.optString("time", "20:00").split(':')
+        val hour = timeParts.getOrNull(0)?.toIntOrNull()?.takeIf { it in 0..23 } ?: 20
+        val minute = timeParts.getOrNull(1)?.toIntOrNull()?.takeIf { it in 0..59 } ?: 0
+        val enabled = reminder.optBoolean("enabled", false)
+        getSharedPreferences(REMINDER_PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean("enabled", enabled)
+            .putInt("hour", hour)
+            .putInt("minute", minute)
+            .putBoolean("memeMode", reminder.optBoolean("memeMode", false))
+            .apply()
+        FinTrackReminderScheduler.schedule(this, enabled, hour, minute)
     }
 
     private fun handleWebViewNavigation(uri: Uri): Boolean {
@@ -554,9 +707,7 @@ class MainActivity : ComponentActivity() {
     private inner class FinTrackBridge {
         @JavascriptInterface
         fun openNativePreview() {
-            runOnUiThread {
-                startActivity(Intent(this@MainActivity, NativeFinTrackActivity::class.java))
-            }
+            runOnUiThread { requestNativeMigrationFromLegacyWebView() }
         }
 
         @JavascriptInterface

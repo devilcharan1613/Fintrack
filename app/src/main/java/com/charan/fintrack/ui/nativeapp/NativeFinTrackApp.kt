@@ -80,7 +80,7 @@ private enum class FinPage(val label: String) {
 private enum class EditorKind { NONE, TRANSACTION, ACCOUNT, PERSON, BUDGET, GOAL, LOAN, CONTRIBUTION, REPAYMENT, CATEGORY }
 
 @Composable
-fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel) {
+fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: String? = null) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val appPrefs = remember { context.getSharedPreferences("fintrack_native_settings", 0) }
     var dark by remember { mutableStateOf(appPrefs.getBoolean("dark_theme", true)) }
@@ -168,7 +168,8 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel) {
                 backgroundOpacity = it
                 appPrefs.edit().putInt("background_opacity", it.toInt()).apply()
             },
-            onInstallApk = { apkPicker.launch(arrayOf("application/vnd.android.package-archive", "application/octet-stream")) }
+            onInstallApk = { apkPicker.launch(arrayOf("application/vnd.android.package-archive", "application/octet-stream")) },
+            initialQuickAction = initialQuickAction
         )
     }
 }
@@ -188,7 +189,8 @@ private fun NativeFinTrackContent(
     onChooseBackground: () -> Unit,
     onRemoveBackground: () -> Unit,
     onBackgroundOpacity: (Float) -> Unit,
-    onInstallApk: () -> Unit
+    onInstallApk: () -> Unit,
+    initialQuickAction: String?
 ) {
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val transactions by viewModel.transactions.collectAsStateWithLifecycle()
@@ -200,7 +202,15 @@ private fun NativeFinTrackContent(
     val totals by viewModel.dashboard.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     var page by remember { mutableStateOf(FinPage.HOME) }
-    var editor by remember { mutableStateOf(EditorKind.NONE) }
+    var pendingQuickAction by remember { mutableStateOf(initialQuickAction) }
+    var editor by remember {
+        mutableStateOf(
+            when (initialQuickAction) {
+                "expense", "income" -> EditorKind.TRANSACTION
+                else -> EditorKind.NONE
+            }
+        )
+    }
     var selectedGoal by remember { mutableStateOf<GoalEntity?>(null) }
     var selectedLoan by remember { mutableStateOf<LoanEntity?>(null) }
     var selectedTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
@@ -308,10 +318,12 @@ private fun NativeFinTrackContent(
                 selectedTransaction = selectedTransaction, selectedAccount = selectedAccount,
                 selectedPerson = selectedPerson, selectedBudget = selectedBudget,
                 selectedCategory = selectedCategory,
+                initialQuickAction = pendingQuickAction,
                 onDismiss = {
                     editor = EditorKind.NONE
                     selectedGoal = null; selectedLoan = null; selectedTransaction = null
                     selectedAccount = null; selectedPerson = null; selectedBudget = null; selectedCategory = null
+                    pendingQuickAction = null
                 },
                 onSave = { values ->
                     when (editor) {
@@ -372,6 +384,7 @@ private fun NativeFinTrackContent(
                     editor = EditorKind.NONE
                     selectedGoal = null; selectedLoan = null; selectedTransaction = null
                     selectedAccount = null; selectedPerson = null; selectedBudget = null; selectedCategory = null
+                    pendingQuickAction = null
                 }
             )
         }
@@ -1157,6 +1170,7 @@ private fun NativeEditorDialog(
     selectedPerson: PersonEntity?,
     selectedBudget: BudgetEntity?,
     selectedCategory: CategoryEntity?,
+    initialQuickAction: String?,
     onDismiss: () -> Unit,
     onSave: (Map<String, String>) -> Unit
 ) {
@@ -1180,12 +1194,16 @@ private fun NativeEditorDialog(
             }
         )
     }
-    var type by remember(kind, selectedTransaction?.id, selectedAccount?.id, selectedCategory?.id) {
+    var type by remember(kind, selectedTransaction?.id, selectedAccount?.id, selectedCategory?.id, initialQuickAction) {
         mutableStateOf(
             when (kind) {
-                EditorKind.TRANSACTION -> when (selectedTransaction?.type?.uppercase()) {
-                    "TRANSFER_OUT", "TRANSFER_IN" -> "TRANSFER"
-                    else -> selectedTransaction?.type?.uppercase() ?: "INCOME"
+                EditorKind.TRANSACTION -> when (initialQuickAction) {
+                    "expense" -> "EXPENSE"
+                    "income" -> "INCOME"
+                    else -> when (selectedTransaction?.type?.uppercase()) {
+                        "TRANSFER_OUT", "TRANSFER_IN" -> "TRANSFER"
+                        else -> selectedTransaction?.type?.uppercase() ?: "INCOME"
+                    }
                 }
                 EditorKind.ACCOUNT -> selectedAccount?.accountType ?: "Wallet"
                 EditorKind.CATEGORY -> selectedCategory?.type ?: "EXPENSE"
@@ -1528,13 +1546,20 @@ private fun EmptyState(title: String, description: String) {
 
 private fun decodeBackgroundBitmap(context: android.content.Context, uri: Uri): Bitmap? {
     return try {
+        fun decode(options: BitmapFactory.Options): Bitmap? {
+            return if (uri.scheme == "file") {
+                uri.path?.let { BitmapFactory.decodeFile(it, options) }
+            } else {
+                context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+            }
+        }
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        decode(bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
         var sample = 1
         while (bounds.outWidth / sample > 1600 || bounds.outHeight / sample > 1600) sample *= 2
         val options = BitmapFactory.Options().apply { inSampleSize = sample }
-        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+        decode(options)
     } catch (_: Exception) {
         null
     }

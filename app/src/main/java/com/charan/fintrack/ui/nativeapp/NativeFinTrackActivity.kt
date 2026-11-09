@@ -16,6 +16,7 @@ class NativeFinTrackActivity : ComponentActivity() {
             this,
             ViewModelProvider.AndroidViewModelFactory.getInstance(application)
         )[NativeFinTrackViewModel::class.java]
-        setContent { NativeFinTrackApp(viewModel) }
+        val quickAction = intent?.getStringExtra(com.charan.fintrack.MainActivity.EXTRA_QUICK_ACTION)
+        setContent { NativeFinTrackApp(viewModel, quickAction) }
     }
 }
