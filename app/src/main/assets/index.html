@@ -484,6 +484,24 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
   html[data-theme="light"] .muted,
   html[data-theme="light"] .planner-sub{color:#587485;}
 
+
+  /* FinTrack usability fixes: safe areas, keyboard resizing and adjustable navigation icons. */
+  :root{--ft-icon-scale:1;}
+  .topbar{padding-top:calc(10px + max(env(safe-area-inset-top),var(--safe-top)));padding-left:max(20px,env(safe-area-inset-left));padding-right:max(20px,env(safe-area-inset-right));}
+  .page{padding-bottom:calc(var(--nav-h) + 26px + max(env(safe-area-inset-bottom),var(--safe-bottom)));scroll-padding-bottom:calc(var(--nav-h) + 28px + max(env(safe-area-inset-bottom),var(--safe-bottom)));}
+  .bottomnav{bottom:0!important;height:calc(78px + max(env(safe-area-inset-bottom),var(--safe-bottom)))!important;padding-bottom:max(env(safe-area-inset-bottom),var(--safe-bottom))!important;}
+  .fab{bottom:calc(var(--nav-h) + 18px + max(env(safe-area-inset-bottom),var(--safe-bottom)));}
+  .nav-item .ic,.qs-icon,.set-icon,.more-icon{transform:scale(var(--ft-icon-scale));transform-origin:center;transition:transform .12s linear;}
+  .nav-item.active .ic{transform:translateY(-2px) scale(var(--ft-icon-scale));}
+  .visibility-slider{width:100%;height:30px;accent-color:var(--primary);touch-action:pan-y;cursor:pointer;}
+  .photo-theme-preview{transition:background-image .12s linear;}
+  .overlay{padding-top:max(env(safe-area-inset-top),var(--safe-top));}
+  .sheet{max-height:calc(100dvh - max(env(safe-area-inset-top),var(--safe-top)) - 8px);padding-bottom:calc(18px + max(env(safe-area-inset-bottom),var(--safe-bottom)));}
+  html.keyboard-open .bottomnav,html.keyboard-open .fab{display:none!important;}
+  html.keyboard-open .page{padding-bottom:16px!important;}
+  html.keyboard-open .sheet{max-height:calc(100dvh - max(env(safe-area-inset-top),var(--safe-top)) - 4px);padding-bottom:18px;}
+  @media(max-width:519px){#shell{height:100dvh;min-height:0;}html,body{overscroll-behavior:none;}}
+
 </style>
 <script>
   window.finTrackApplyInsets = function(left, top, right, bottom, imeBottom) {
@@ -495,7 +513,9 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
     root.style.setProperty('--safe-top', safeTop + 'px');
     root.style.setProperty('--safe-right', safeRight + 'px');
     root.style.setProperty('--safe-bottom', safeBottom + 'px');
-    root.style.setProperty('--ime-bottom', Math.max(0, keyboard - safeBottom) + 'px');
+    // Android adjustResize already reduces the WebView viewport for the IME.
+    // Do not add the IME height again to sheet padding, which creates a large blank gap.
+    root.style.setProperty('--ime-bottom', '0px');
     root.classList.toggle('keyboard-open', keyboard > safeBottom + 80);
     root.classList.toggle('has-safe-top', safeTop > 0);
     root.classList.toggle('has-safe-bottom', safeBottom > 0);
@@ -672,6 +692,8 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
         <div id="backgroundPhotoPreview" class="photo-theme-preview" aria-label="Custom background preview"></div>
         <label class="visibility-label" for="backgroundVisibility">Photo visibility <strong id="backgroundVisibilityValue">35%</strong></label>
         <input id="backgroundVisibility" class="visibility-slider" type="range" min="0" max="100" step="1" value="35" oninput="setFinTrackBackgroundVisibility(this.value)">
+        <label class="visibility-label" for="appIconSize">App icon size <strong id="appIconSizeValue">100%</strong></label>
+        <input id="appIconSize" class="visibility-slider" type="range" min="80" max="140" step="1" value="100" oninput="setFinTrackIconSize(this.value)">
       </div>
     </div>
     <div class="section-title">Daily Offline Reminder</div>
@@ -740,17 +762,6 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
       <div class="info-row"><span class="l">Persons</span><span class="v" id="infoPersonCount">0</span></div>
       <div class="info-row"><span class="l">Currency</span><span class="v">₹ Indian Rupee</span></div>
       <div class="info-row"><span class="l">Storage</span><span class="v">Local Device</span></div>
-    </div>
-
-    <div class="section-title">Native FinTrack Migration</div>
-    <div class="card">
-      <div class="set-item" onclick="openNativeComposePreview()" style="cursor:pointer">
-        <div class="set-icon">✨</div>
-        <div class="set-mid">
-          <div class="set-name">Move to Native FinTrack</div>
-          <div class="set-desc">Preview the new Kotlin and Jetpack Compose screens. The existing offline app remains unchanged.</div>
-        </div>
-      </div>
     </div>
 
     <div class="section-title">About</div>
@@ -1217,6 +1228,14 @@ function setFinTrackBackgroundVisibility(value){
   if(label)label.textContent=amount+'%';
   try{localStorage.setItem('fintrack_background_visibility',String(amount));}catch(e){}
 }
+function setFinTrackIconSize(value){
+  var amount=Math.max(80,Math.min(140,Number(value)||100));
+  document.documentElement.style.setProperty('--ft-icon-scale',String(amount/100));
+  var slider=document.getElementById('appIconSize'),label=document.getElementById('appIconSizeValue');
+  if(slider&&Number(slider.value)!==amount)slider.value=String(amount);
+  if(label)label.textContent=amount+'%';
+  try{localStorage.setItem('fintrack_icon_size',String(amount));}catch(e){}
+}
 function applyFinTrackBackground(dataUrl){
   var root=document.documentElement;
   if(dataUrl){
@@ -1231,7 +1250,7 @@ function applyFinTrackBackground(dataUrl){
 }
 function setFinTrackBackgroundFromNative(dataUrl){
   if(!dataUrl||dataUrl.indexOf('data:image/')!==0)return;
-  try{localStorage.setItem('fintrack_custom_background',dataUrl);}catch(e){showToast('Photo is too large to save. Choose a smaller image.','error');return;}
+  try{localStorage.setItem('fintrack_custom_background',dataUrl);}catch(e){showToast('Device storage is full. Remove the previous photo or choose a smaller image.','error');return;}
   applyFinTrackBackground(dataUrl);
   showToast('Background photo saved on this phone','success');
 }
@@ -1248,10 +1267,13 @@ function handleFinTrackBackgroundFile(input){
   reader.onload=function(event){
     var image=new Image();
     image.onload=function(){
-      var max=1280,scale=Math.min(1,max/Math.max(image.width,image.height));
-      var canvas=document.createElement('canvas');canvas.width=Math.round(image.width*scale);canvas.height=Math.round(image.height*scale);
-      var ctx=canvas.getContext('2d');ctx.drawImage(image,0,0,canvas.width,canvas.height);
-      setFinTrackBackgroundFromNative(canvas.toDataURL('image/jpeg',0.72));
+      var max=960,scale=Math.min(1,max/Math.max(image.width,image.height));
+      var canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.width*scale));canvas.height=Math.max(1,Math.round(image.height*scale));
+      var ctx=canvas.getContext('2d',{alpha:false});if(!ctx){showToast('Photo preview is unavailable on this device','error');input.value='';return;}
+      ctx.fillStyle='#071923';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);
+      var compressed=canvas.toDataURL('image/jpeg',0.58);
+      if(compressed.length>900000){showToast('Photo is still too large. Choose a smaller image.','error');input.value='';return;}
+      setFinTrackBackgroundFromNative(compressed);
       input.value='';
     };
     image.onerror=function(){showToast('Unable to read this photo','error');input.value='';};
@@ -1266,10 +1288,11 @@ function removeFinTrackBackground(){
   showToast('Custom background removed','success');
 }
 function initFinTrackBackground(){
-  var dataUrl=null,visibility=35;
-  try{dataUrl=localStorage.getItem('fintrack_custom_background');visibility=Number(localStorage.getItem('fintrack_background_visibility')||35);}catch(e){}
+  var dataUrl=null,visibility=35,iconSize=100;
+  try{dataUrl=localStorage.getItem('fintrack_custom_background');visibility=Number(localStorage.getItem('fintrack_background_visibility')||35);iconSize=Number(localStorage.getItem('fintrack_icon_size')||100);}catch(e){}
   applyFinTrackBackground(dataUrl);
   setFinTrackBackgroundVisibility(visibility);
+  setFinTrackIconSize(iconSize);
 }
 
 function initState(){
