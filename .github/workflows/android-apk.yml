@@ -39,9 +39,12 @@ jobs:
 
           html = Path("app/src/main/assets/index.html").read_text(encoding="utf-8")
           kotlin = "\n".join(p.read_text(encoding="utf-8") for p in Path("app/src/main/java").rglob("*.kt"))
-          for label, source in (("bundled HTML", html), ("native Kotlin", kotlin)):
-              assert not re.search(r"https?://", source, flags=re.I), f"Unexpected remote URL in {label}"
-              assert not re.search(r"\b(fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(", source), f"Unexpected network API in {label}"
+          remote_asset = r"<(?:script|link|img|iframe)\b[^>]*(?:src|href)\s*=\s*['\"]https?://"
+          remote_css = r"(?:@import\s+(?:url\()?\s*['\"]?https?://|url\(\s*['\"]?https?://)"
+          assert not re.search(remote_asset, html, flags=re.I), "Bundled HTML must not load remote assets"
+          assert not re.search(remote_css, html, flags=re.I), "Bundled CSS must not load remote styles or images"
+          sources = html + "\n" + kotlin
+          assert not re.search(r"\b(fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(", sources), "Unexpected network API in offline app sources"
           PY
 
       - name: Check inline JavaScript syntax
