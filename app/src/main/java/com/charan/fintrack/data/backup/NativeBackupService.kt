@@ -201,17 +201,23 @@ class NativeBackupService(private val database: FinTrackDatabase) {
     }
 
     suspend fun exportCsv(): String {
-        val rows = finance.allTransactions().sortedByDescending { it.timestamp }
-        val header = listOf("Date", "Type", "Amount INR", "Account ID", "Category", "Subcategory", "Payment Method", "UPI App", "Note")
+        val rows = finance.allTransactions()
+            .filterNot { it.type.equals("TRANSFER_IN", true) }
+            .sortedByDescending { it.timestamp }
+        val header = listOf(
+            "Date", "Type", "Amount INR", "Account ID", "Destination Account ID",
+            "Category", "Subcategory", "Payment Method", "UPI App", "Note"
+        )
         return buildString {
             appendLine(header.joinToString(",") { csv(it) })
             rows.forEach { row ->
                 appendLine(
                     listOf(
                         localDate(row.timestamp),
-                        row.type,
+                        if (row.type.equals("TRANSFER_OUT", true)) "TRANSFER" else row.type,
                         MoneyPaise.fromSignedPaise(row.amountPaise).toRupeesDecimal().toPlainString(),
                         row.accountId.toString(),
+                        row.transferAccountId?.toString().orEmpty(),
                         row.category,
                         row.subcategory,
                         row.paymentMethod,

@@ -67,4 +67,30 @@ class XlsxExporterInstrumentedTest {
             }
         }
     }
+
+    @Test
+    fun transferPairIsExportedAsOneLogicalTransaction() {
+        val state = JSONObject()
+            .put("accounts", JSONArray())
+            .put("transactions", JSONArray()
+                .put(JSONObject().put("type", "TRANSFER_OUT").put("amount", 10.0)
+                    .put("accountId", 1).put("transferAccountId", 2).put("toAccountId", 2))
+                .put(JSONObject().put("type", "TRANSFER_IN").put("amount", 10.0)
+                    .put("accountId", 2).put("transferAccountId", 1).put("toAccountId", 1))
+            )
+        val output = XlsxExporter.create(state.toString())
+        var transactionSheet = ""
+        ZipInputStream(ByteArrayInputStream(output)).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                if (entry.name == "xl/worksheets/sheet3.xml") {
+                    transactionSheet = zip.readBytes().toString(Charsets.UTF_8)
+                    break
+                }
+                zip.closeEntry()
+            }
+        }
+        assertTrue(transactionSheet.contains("TRANSFER"))
+        assertTrue(!transactionSheet.contains("TRANSFER_IN"))
+    }
 }

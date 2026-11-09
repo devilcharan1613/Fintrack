@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.charan.fintrack.data.MoneyPaise
 import com.charan.fintrack.data.NativeLedgerCalculator
 import com.charan.fintrack.data.local.FinTrackDatabase
 import kotlinx.coroutines.runBlocking
@@ -116,5 +117,20 @@ class NativeBackupServiceInstrumentedTest {
         } finally {
             destination.close()
         }
+    }
+
+    @Test
+    fun csvExportWritesTransferOnceWithDestinationAccount() = runBlocking {
+        val repository = com.charan.fintrack.data.repository.NativeFinanceRepository(database)
+        val sourceId = repository.addAccount("Cash", "Wallet", MoneyPaise.fromRupees("500"))
+        val destinationId = repository.addAccount("Bank", "Bank", MoneyPaise.ZERO)
+        repository.addTransfer(sourceId, destinationId, MoneyPaise.fromRupees("100"), "Move funds")
+
+        val csv = service.exportCsv()
+        val rows = csv.lineSequence().filter { it.isNotBlank() }.toList()
+        assertEquals(2, rows.size)
+        assertTrue(rows[1].contains("TRANSFER"))
+        assertTrue(rows[1].contains(destinationId.toString()))
+        assertTrue(!csv.contains("TRANSFER_IN"))
     }
 }

@@ -19,15 +19,16 @@ internal object XlsxExporter {
 
     fun create(json: String): ByteArray {
         val state = JSONObject(json)
+        val transactions = logicalTransactions(state.optJSONArray("transactions"))
         val sheets = listOf(
-            SheetData("Summary", buildSummaryRows(state)),
+            SheetData("Summary", buildSummaryRows(state, transactions)),
             SheetData("Accounts", buildRows(state.optJSONArray("accounts"), listOf(
                 "Name" to "name", "Type" to "type", "Balance" to "balance",
                 "Currency" to "currency", "Institution" to "institution",
                 "Account Number" to "accountNumber", "Credit Limit" to "creditLimit",
                 "Notes" to "notes", "Created At" to "createdAt"
             ))),
-            SheetData("Transactions", buildRows(state.optJSONArray("transactions"), listOf(
+            SheetData("Transactions", buildRows(transactions, listOf(
                 "Date" to "date", "Time" to "time", "Type" to "type",
                 "Amount INR" to "amount", "Account ID" to "accountId",
                 "Destination Account ID" to "toAccountId", "Category" to "category",
@@ -49,15 +50,15 @@ internal object XlsxExporter {
             ))),
             SheetData("Loan Payments", buildRepaymentRows(state.optJSONArray("loans"))),
             SheetData("Categories", buildRows(state.optJSONArray("categories"), listOf(
-                "Name" to "name", "Icon" to "icon", "ID" to "id"
+                "Name" to "name", "Icon" to "icon", "ID" to "id",
+                "Subcategories" to "subcategoriesJson"
             )))
         )
         return zipWorkbook(sheets)
     }
 
-    private fun buildSummaryRows(state: JSONObject): List<List<Any?>> {
+    private fun buildSummaryRows(state: JSONObject, transactions: JSONArray): List<List<Any?>> {
         val metadata = state.optJSONObject("exportMetadata")
-        val transactions = state.optJSONArray("transactions") ?: JSONArray()
         var income = 0.0
         var expense = 0.0
         for (i in 0 until transactions.length()) {
@@ -88,6 +89,25 @@ internal object XlsxExporter {
         SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }.format(Date())
+
+    private fun logicalTransactions(source: JSONArray?): JSONArray {
+        val result = JSONArray()
+        if (source == null) return result
+        for (index in 0 until source.length()) {
+            val original = source.optJSONObject(index) ?: continue
+            val type = original.optString("type").uppercase(Locale.ROOT)
+            if (type == "TRANSFER_IN") continue
+            val row = JSONObject(original.toString())
+            if (type == "TRANSFER_OUT") {
+                row.put("type", "TRANSFER")
+                if (row.isNull("toAccountId") && !row.isNull("transferAccountId")) {
+                    row.put("toAccountId", row.opt("transferAccountId"))
+                }
+            }
+            result.put(row)
+        }
+        return result
+    }
 
     private fun buildRows(array: JSONArray?, columns: List<Pair<String, String>>): List<List<Any?>> {
         val rows = mutableListOf<List<Any?>>()
