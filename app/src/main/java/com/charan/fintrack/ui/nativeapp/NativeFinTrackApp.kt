@@ -341,7 +341,8 @@ private fun NativeFinTrackContent(
                                 values["toAccountId"]?.toLongOrNull(),
                                 values["personId"]?.toLongOrNull(),
                                 values["paymentMethod"].orEmpty(), values["upiApp"].orEmpty(),
-                                values["date"].orEmpty(), values["time"].orEmpty()
+                                values["date"].orEmpty(), values["time"].orEmpty(),
+                                values["subcategory"].orEmpty()
                             ) else viewModel.updateTransaction(
                                 current, values["type"].orEmpty(), values["amount"].orEmpty(),
                                 values["accountId"]?.toLongOrNull() ?: current.accountId,
@@ -349,7 +350,8 @@ private fun NativeFinTrackContent(
                                 values["toAccountId"]?.toLongOrNull(),
                                 values["personId"]?.toLongOrNull(),
                                 values["paymentMethod"].orEmpty(), values["upiApp"].orEmpty(),
-                                values["date"].orEmpty(), values["time"].orEmpty()
+                                values["date"].orEmpty(), values["time"].orEmpty(),
+                                values["subcategory"].orEmpty()
                             )
                         }
                         EditorKind.PERSON -> {
@@ -1214,6 +1216,9 @@ private fun NativeEditorDialog(
     var category by remember(kind, selectedTransaction?.id, selectedBudget?.id) {
         mutableStateOf(selectedTransaction?.category ?: selectedBudget?.category ?: "Other")
     }
+    var subcategory by remember(kind, selectedTransaction?.id) {
+        mutableStateOf(selectedTransaction?.subcategory.orEmpty())
+    }
     var note by remember(kind, selectedTransaction?.id, selectedPerson?.id) {
         mutableStateOf(selectedTransaction?.note ?: selectedPerson?.notes.orEmpty())
     }
@@ -1336,6 +1341,11 @@ private fun NativeEditorDialog(
                         }
                         if (type != "TRANSFER") {
                             OutlinedTextField(category, { category = it }, label = { Text("Category") }, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(
+                                subcategory, { subcategory = it },
+                                label = { Text("Subcategory (optional)") },
+                                modifier = Modifier.fillMaxWidth(), singleLine = true
+                            )
                         }
                         if (type == "BORROW" || type == "LEND") {
                             ExposedDropdownMenuBox(expanded = personExpanded, onExpandedChange = { personExpanded = it }) {
@@ -1443,7 +1453,8 @@ private fun NativeEditorDialog(
                         "toAccountId" to toAccountId, "period" to period, "month" to month,
                         "monthly" to monthly, "interest" to interest, "creditLimit" to creditLimit,
                         "personId" to personId, "paymentMethod" to paymentMethod,
-                        "upiApp" to upiApp, "date" to date, "time" to time, "icon" to icon
+                        "upiApp" to upiApp, "date" to date, "time" to time,
+                        "subcategory" to subcategory, "icon" to icon
                     )
                 )
             }) { Text("Save") }
@@ -1478,10 +1489,10 @@ private fun TransactionItem(
             Column(Modifier.weight(1f)) {
                 Text(transaction.category.ifBlank { transaction.type }, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(transaction.type + " • " + SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(transaction.timestamp)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (transaction.subcategory.isNotBlank()) Text(transaction.subcategory, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                 if (transaction.note.isNotBlank()) Text(transaction.note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
             Text((if (transfer) "↔ " else if (positive) "+" else "−") + money(transaction.amountPaise), color = tint, fontWeight = FontWeight.Bold)
-            if (onEdit != null) TextButton(onClick = { onEdit(transaction) }) { Text("Edit") }
             if (onEdit != null) TextButton(onClick = { onEdit(transaction) }) { Text("Edit") }
             if (onDelete != null) IconButton(onClick = { onDelete(transaction) }) {
                 Icon(Icons.Filled.Delete, "Delete transaction", tint = MaterialTheme.colorScheme.error)

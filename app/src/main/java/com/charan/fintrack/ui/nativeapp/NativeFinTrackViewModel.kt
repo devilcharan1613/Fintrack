@@ -101,7 +101,8 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
         paymentMethod: String = "",
         upiApp: String = "",
         date: String = "",
-        time: String = ""
+        time: String = "",
+        subcategory: String = ""
     ) = perform {
         val amount = MoneyPaise.fromRupees(amountRupees)
         val timestamp = parseDateTime(date, time)
@@ -118,7 +119,8 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
                 timestamp = timestamp,
                 personId = personId,
                 paymentMethod = paymentMethod,
-                upiApp = upiApp
+                upiApp = upiApp,
+                subcategory = subcategory
             )
         }
     }
@@ -135,7 +137,8 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
         paymentMethod: String,
         upiApp: String,
         date: String,
-        time: String
+        time: String,
+        subcategory: String = ""
     ) = perform {
         val amount = MoneyPaise.fromRupees(amountRupees)
         val timestamp = parseDateTime(date, time)
@@ -150,7 +153,8 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
                 timestamp = timestamp,
                 personId = personId,
                 paymentMethod = paymentMethod,
-                upiApp = upiApp
+                upiApp = upiApp,
+                subcategory = subcategory.trim()
             ),
             destinationAccountId
         )

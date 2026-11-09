@@ -42,7 +42,7 @@ class NativeBackupServiceInstrumentedTest {
               ],
               "transactions":[
                 {"id":"t-income","type":"income","amount":500.00,"accountId":"cash-1","category":"salary","date":"2026-11-08","time":"09:00"},
-                {"id":"t-expense","type":"expense","amount":50.00,"accountId":"cash-1","category":"food","date":"2026-11-08","time":"10:00"},
+                {"id":"t-expense","type":"expense","amount":50.00,"accountId":"cash-1","category":"food","subcategory":"Restaurant","date":"2026-11-08","time":"10:00"},
                 {"id":"t-transfer","type":"transfer","amount":100.00,"accountId":"cash-1","toAccountId":"bank-1","date":"2026-11-08","time":"11:00"}
               ],
               "persons":[],
@@ -66,6 +66,7 @@ class NativeBackupServiceInstrumentedTest {
         assertEquals(135_000L, NativeLedgerCalculator.accountBalancePaise(cash, rows))
         assertEquals(20_000L, NativeLedgerCalculator.accountBalancePaise(bank, rows))
         assertEquals(4, rows.size)
+        assertEquals("Restaurant", rows.single { it.type == "EXPENSE" }.subcategory)
         assertEquals(1, database.financeDao().allGoalContributions().size)
         assertEquals(1, database.financeDao().allLoanPayments().size)
 
@@ -86,7 +87,7 @@ class NativeBackupServiceInstrumentedTest {
                 {"id":"b","name":"Bank","type":"bank","balance":25.00}
               ],
               "transactions":[
-                {"id":"t","type":"income","amount":8.25,"accountId":"a","category":"Gift","date":"2026-11-08"},
+                {"id":"t","type":"income","amount":8.25,"accountId":"a","category":"Gift","subcategory":"Bonus","date":"2026-11-08"},
                 {"id":"move","type":"transfer","amount":5.00,"accountId":"a","toAccountId":"b","date":"2026-11-08"}
               ],
               "persons":[],"categories":[],"budgets":[],"goals":[],"loans":[]
@@ -108,6 +109,7 @@ class NativeBackupServiceInstrumentedTest {
             assertEquals(80_000L, wallet.openingBalancePaise)
             assertEquals(20_000L, bank.openingBalancePaise)
             assertEquals(8_325L, NativeLedgerCalculator.accountBalancePaise(wallet, restoredTransactions))
+            assertEquals("Bonus", restoredTransactions.single { it.type == "INCOME" }.subcategory)
             assertEquals(2_500L, NativeLedgerCalculator.accountBalancePaise(bank, restoredTransactions))
             assertEquals(1, restoredTransactions.count { it.type == "TRANSFER_OUT" })
             assertEquals(1, restoredTransactions.count { it.type == "TRANSFER_IN" })
