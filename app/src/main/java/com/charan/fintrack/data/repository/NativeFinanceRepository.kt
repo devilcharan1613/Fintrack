@@ -48,7 +48,10 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
         name: String,
         accountType: String,
         openingBalance: MoneyPaise,
-        creditLimit: MoneyPaise = MoneyPaise.ZERO
+        creditLimit: MoneyPaise = MoneyPaise.ZERO,
+        institution: String = "",
+        accountNumber: String = "",
+        notes: String = ""
     ): Long {
         require(name.isNotBlank()) { "Account name is required" }
         require(creditLimit.paise >= 0L) { "Credit limit cannot be negative" }
@@ -58,7 +61,10 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
                 name = name.trim(), accountType = accountType,
                 balance = legacy, openingBalancePaise = openingBalance.paise,
                 creditLimit = creditLimit.toRupeesDecimal().toDouble(),
-                creditLimitPaise = creditLimit.paise
+                creditLimitPaise = creditLimit.paise,
+                institution = institution.trim(),
+                accountNumber = accountNumber.trim(),
+                notes = notes.trim()
             )
         )
     }
@@ -237,10 +243,35 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
         return dao.insertPerson(PersonEntity(name = name.trim(), phone = phone.trim(), notes = notes.trim()))
     }
 
-    suspend fun addCategory(name: String, type: String, icon: String = "•"): Long {
+    suspend fun addCategory(
+        name: String,
+        type: String,
+        icon: String = "•",
+        subcategories: List<String> = emptyList()
+    ): Long {
         require(name.isNotBlank()) { "Category name is required" }
         require(type.uppercase() in setOf("INCOME", "EXPENSE")) { "Invalid category type" }
-        return dao.insertCategory(CategoryEntity(name = name.trim(), type = type.uppercase(), icon = icon))
+        val cleaned = subcategories.map { it.trim() }.filter { it.isNotBlank() }.distinctBy { it.lowercase() }
+        return dao.insertCategory(
+            CategoryEntity(
+                name = name.trim(), type = type.uppercase(), icon = icon,
+                subcategoriesJson = org.json.JSONArray(cleaned).toString()
+            )
+        )
+    }
+
+    suspend fun resetAllFinanceData() {
+        database.withTransaction {
+            dao.deleteAllTransactions()
+            dao.deleteAllBudgets()
+            dao.deleteAllGoalContributions()
+            dao.deleteAllGoals()
+            dao.deleteAllLoanPayments()
+            dao.deleteAllLoans()
+            dao.deleteAllCategories()
+            dao.deleteAllPersons()
+            accountDao.deleteAll()
+        }
     }
 
     suspend fun addBudget(

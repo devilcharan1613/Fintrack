@@ -65,16 +65,36 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
 
     fun clearMessage() { _message.value = null }
 
-    fun addAccount(name: String, type: String, openingRupees: String, creditLimitRupees: String = "0") = perform {
+    fun addAccount(
+        name: String,
+        type: String,
+        openingRupees: String,
+        creditLimitRupees: String = "0",
+        institution: String = "",
+        accountNumber: String = "",
+        notes: String = ""
+    ) = perform {
         repository.addAccount(
             name,
             type,
             MoneyPaise.fromSignedRupees(openingRupees),
-            MoneyPaise.fromRupees(creditLimitRupees.ifBlank { "0" })
+            MoneyPaise.fromRupees(creditLimitRupees.ifBlank { "0" }),
+            institution,
+            accountNumber,
+            notes
         )
     }
 
-    fun updateAccount(account: AccountEntity, name: String, type: String, openingRupees: String, creditLimitRupees: String) = perform {
+    fun updateAccount(
+        account: AccountEntity,
+        name: String,
+        type: String,
+        openingRupees: String,
+        creditLimitRupees: String,
+        institution: String = account.institution,
+        accountNumber: String = account.accountNumber,
+        notes: String = account.notes
+    ) = perform {
         val opening = MoneyPaise.fromSignedRupees(openingRupees)
         val credit = MoneyPaise.fromRupees(creditLimitRupees.ifBlank { "0" })
         repository.updateAccount(
@@ -83,7 +103,10 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
                 balance = opening.toRupeesDecimal().toDouble(),
                 openingBalancePaise = opening.paise,
                 creditLimit = credit.toRupeesDecimal().toDouble(),
-                creditLimitPaise = credit.paise
+                creditLimitPaise = credit.paise,
+                institution = institution.trim(),
+                accountNumber = accountNumber.trim(),
+                notes = notes.trim()
             )
         )
     }
@@ -172,13 +195,22 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
         repository.updatePerson(person.copy(name = name.trim(), phone = phone.trim(), notes = notes.trim()))
     }
 
-    fun addCategory(name: String, type: String) = perform {
-        repository.addCategory(name, type)
+    fun addCategory(name: String, type: String, icon: String, subcategoriesText: String) = perform {
+        val subcategories = subcategoriesText.lines().map { it.trim() }.filter { it.isNotBlank() }
+        repository.addCategory(name, type, icon, subcategories)
     }
 
-    fun updateCategory(category: CategoryEntity, name: String, type: String, icon: String) = perform {
-        repository.updateCategory(category.copy(name = name.trim(), type = type.uppercase(), icon = icon))
+    fun updateCategory(category: CategoryEntity, name: String, type: String, icon: String, subcategoriesText: String) = perform {
+        val subcategories = subcategoriesText.lines().map { it.trim() }.filter { it.isNotBlank() }.distinctBy { it.lowercase() }
+        repository.updateCategory(
+            category.copy(
+                name = name.trim(), type = type.uppercase(), icon = icon,
+                subcategoriesJson = org.json.JSONArray(subcategories).toString()
+            )
+        )
     }
+
+    fun resetAllData() = perform { repository.resetAllFinanceData() }
 
     fun addBudget(category: String, limitRupees: String, month: String, period: String) = perform {
         repository.addBudget(category, MoneyPaise.fromRupees(limitRupees), month, period)
