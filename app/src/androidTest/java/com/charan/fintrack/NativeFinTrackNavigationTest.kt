@@ -1,6 +1,5 @@
 package com.charan.fintrack
 
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -14,7 +13,7 @@ class NativeFinTrackNavigationTest {
 
     @Test
     fun nativeDashboardIsRendered() {
-        compose.onNodeWithText("FinTrack").assertExists()
+        compose.onNodeWithText("FinTrack").fetchSemanticsNode()
         compose.onNodeWithText("TOTAL BALANCE").assertExists()
     }
 
