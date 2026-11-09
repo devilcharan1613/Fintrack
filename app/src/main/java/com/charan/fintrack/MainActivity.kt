@@ -172,6 +172,10 @@ class ReminderBootReceiver : android.content.BroadcastReceiver() {
 }
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        const val EXTRA_QUICK_ACTION = "com.charan.fintrack.EXTRA_QUICK_ACTION"
+        private const val REMINDER_PREFS = "fintrack_reminders"
+    }
     private lateinit var webView: WebView
     private lateinit var backupSaveLauncher: ActivityResultLauncher<String>
     private lateinit var workbookSaveLauncher: ActivityResultLauncher<String>
@@ -630,4 +634,17 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
+
+
+/** Restrict suggested document names to a safe, portable filename. */
+private fun safeFileName(candidate: String, fallback: String): String {
+    val cleaned = candidate
+        .substringAfterLast('/')
+        .substringAfterLast('\\')
+        .filter { it.isLetterOrDigit() || it in "._ -" }
+        .trim()
+        .trim('.')
+        .take(120)
+    return cleaned.ifBlank { fallback }
 }

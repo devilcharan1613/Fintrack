@@ -165,8 +165,10 @@ abstract class FinTrackDatabase : RoomDatabase() {
                 while (cursor.moveToNext()) rows += cursor.getLong(0) to cursor.getDouble(1)
                 rows.forEach { (id, amount) ->
                     val paise = com.charan.fintrack.data.MoneyPaise.fromLegacySignedRupees(amount).paise
-                    val values = android.content.ContentValues().apply { put(paiseColumn, paise) }
-                    db.update(table, values, "id = ?", arrayOf(id.toString()))
+                    db.execSQL(
+                        "UPDATE $table SET $paiseColumn = ? WHERE id = ?",
+                        arrayOf(paise, id)
+                    )
                 }
             }
         }
