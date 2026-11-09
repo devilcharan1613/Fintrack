@@ -818,5 +818,10 @@ class NativeBackupService(private val database: FinTrackDatabase) {
     private fun localMonth(timestamp: Long): String =
         SimpleDateFormat("yyyy-MM", Locale.US).format(Date(timestamp))
 
-    private fun csv(value: String): String = "\"" + value.replace("\"", "\"\"") + "\""
+    private fun csv(value: String): String {
+        // Prevent spreadsheet applications from evaluating user-controlled text as formulas.
+        val firstMeaningful = value.trimStart().firstOrNull()
+        val safe = if (firstMeaningful in setOf('=', '+', '-', '@')) "'$value" else value
+        return "\"" + safe.replace("\"", "\"\"") + "\""
+    }
 }

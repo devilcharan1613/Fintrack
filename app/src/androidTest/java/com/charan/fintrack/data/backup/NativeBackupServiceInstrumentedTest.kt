@@ -133,4 +133,19 @@ class NativeBackupServiceInstrumentedTest {
         assertTrue(rows[1].contains(destinationId.toString()))
         assertTrue(!csv.contains("TRANSFER_IN"))
     }
+
+    @Test
+    fun csvExportNeutralizesFormulaLikeUserText() = runBlocking {
+        val repository = com.charan.fintrack.data.repository.NativeFinanceRepository(database)
+        val accountId = repository.addAccount("Cash", "Wallet", MoneyPaise.fromRupees("100"))
+        repository.saveTransaction(
+            accountId = accountId,
+            type = "EXPENSE",
+            amount = MoneyPaise.fromRupees("1"),
+            category = "Other",
+            note = "  =HYPERLINK(\"example\",\"open\")"
+        )
+        val csv = service.exportCsv()
+        assertTrue(csv.contains("\"'  =HYPERLINK"))
+    }
 }

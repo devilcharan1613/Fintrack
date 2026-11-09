@@ -21,6 +21,29 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Verify offline-only app configuration
+        run: |
+          python3 - <<'PY'
+          import re
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          manifest = ET.parse("app/src/main/AndroidManifest.xml").getroot()
+          android_ns = "{http://schemas.android.com/apk/res/android}"
+          permissions = {node.attrib.get(android_ns + "name") for node in manifest.findall("uses-permission")}
+          assert "android.permission.INTERNET" not in permissions, "Offline Edition must not request INTERNET permission"
+          application = manifest.find("application")
+          assert application is not None
+          assert application.attrib.get(android_ns + "allowBackup") == "false", "Android backup must remain disabled"
+          assert application.attrib.get(android_ns + "usesCleartextTraffic") == "false", "Cleartext traffic must remain disabled"
+
+          html = Path("app/src/main/assets/index.html").read_text(encoding="utf-8")
+          kotlin = "\n".join(p.read_text(encoding="utf-8") for p in Path("app/src/main/java").rglob("*.kt"))
+          for label, source in (("bundled HTML", html), ("native Kotlin", kotlin)):
+              assert not re.search(r"https?://", source, flags=re.I), f"Unexpected remote URL in {label}"
+              assert not re.search(r"\b(fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(", source), f"Unexpected network API in {label}"
+          PY
+
       - name: Check inline JavaScript syntax
         run: |
           python3 - <<'PY'
