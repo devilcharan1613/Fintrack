@@ -498,7 +498,7 @@ private fun NativeHeader(title: String, subtitle: String, onAdd: () -> Unit) {
 @Composable
 private fun NativeBottomBar(current: FinPage, onNavigate: (FinPage) -> Unit, onAdd: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)
+        Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp)
             .clip(RoundedCornerShape(28.dp))
             .background(Color(0xCC082C3D))
             .border(1.dp, Color(0x6655D8E6), RoundedCornerShape(28.dp))
