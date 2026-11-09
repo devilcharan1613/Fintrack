@@ -14,6 +14,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.json.JSONArray
+import org.json.JSONObject
 
 @RunWith(AndroidJUnit4::class)
 class NativeBackupServiceInstrumentedTest {
@@ -117,6 +119,33 @@ class NativeBackupServiceInstrumentedTest {
         } finally {
             destination.close()
         }
+    }
+
+    @Test
+    fun nativeRestoreRejectsIncompleteTransferPairWithoutWritingPartialData() = runBlocking {
+        val backup = JSONObject()
+            .put("format", NativeBackupService.FORMAT)
+            .put("schemaVersion", NativeBackupService.SCHEMA_VERSION)
+            .put("accounts", JSONArray().put(
+                JSONObject().put("id", "cash").put("name", "Cash").put("accountType", "Wallet")
+                    .put("openingBalancePaise", 10_000).put("stableUid", "account:cash")
+            ))
+            .put("transactions", JSONArray().put(
+                JSONObject().put("id", "transfer-out").put("type", "TRANSFER_OUT")
+                    .put("accountId", "cash").put("transferAccountId", "missing-account")
+                    .put("transferId", "broken-transfer").put("amountPaise", 2_000)
+                    .put("stableUid", "transaction:transfer-out").put("category", "Transfer")
+            ))
+
+        var rejected = false
+        try {
+            service.mergeJson(backup.toString())
+        } catch (_: IllegalArgumentException) {
+            rejected = true
+        }
+        assertTrue("Incomplete transfer backup should be rejected", rejected)
+        assertTrue("Restore must be atomic and leave no partial accounts", database.accountDao().allAccounts().isEmpty())
+        assertTrue("Restore must not leave partial transactions", database.financeDao().allTransactions().isEmpty())
     }
 
     @Test
