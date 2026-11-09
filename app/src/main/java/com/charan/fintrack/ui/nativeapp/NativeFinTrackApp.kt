@@ -2,6 +2,7 @@ package com.charan.fintrack.ui.nativeapp
 
 import android.Manifest
 import android.app.TimePickerDialog
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -58,6 +59,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -71,6 +73,8 @@ import com.charan.fintrack.FinTrackReminderScheduler
 import com.charan.fintrack.data.MoneyPaise
 import com.charan.fintrack.data.NativeLedgerCalculator
 import com.charan.fintrack.data.local.*
+import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Calendar
@@ -102,7 +106,9 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
     val appPrefs = remember { context.getSharedPreferences("fintrack_native_settings", 0) }
     var dark by remember { mutableStateOf(appPrefs.getBoolean("dark_theme", true)) }
     var backgroundUri by remember { mutableStateOf(appPrefs.getString("background_uri", null)) }
-    var backgroundOpacity by remember { mutableFloatStateOf(appPrefs.getInt("background_opacity", 35).toFloat()) }
+    var backgroundOpacity by remember { mutableFloatStateOf(appPrefs.getInt("background_opacity", 35).toFloat().coerceIn(0f, 100f)) }
+    var iconScale by remember { mutableFloatStateOf(appPrefs.getInt("icon_scale", 100).toFloat().coerceIn(80f, 140f)) }
+    val imageScope = rememberCoroutineScope()
     var pendingApkUri by remember { mutableStateOf<Uri?>(null) }
     var pendingXlsxFromDate by remember { mutableStateOf("") }
     var pendingXlsxToDate by remember { mutableStateOf("") }
@@ -129,11 +135,17 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
     }
     val backgroundPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
-            try {
-                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (_: Exception) { }
-            backgroundUri = uri.toString()
-            appPrefs.edit().putString("background_uri", backgroundUri).apply()
+            imageScope.launch {
+                runCatching { withContext(Dispatchers.IO) { persistBackgroundImage(context, uri) } }
+                    .onSuccess { savedUri ->
+                        backgroundUri = savedUri
+                        appPrefs.edit().putString("background_uri", savedUri).apply()
+                        Toast.makeText(context, "Background photo saved on this device.", Toast.LENGTH_SHORT).show()
+                    }
+                    .onFailure { error ->
+                        Toast.makeText(context, "Photo could not be saved: ${error.message ?: "unsupported image"}", Toast.LENGTH_LONG).show()
+                    }
+            }
         }
     }
     val apkPermissionSettings = rememberLauncherForActivityResult(StartActivityForResult()) {
@@ -155,6 +167,14 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
                 openSelectedApk(context, uri)
             }
         }
+    }
+
+    LaunchedEffect(backgroundUri, backgroundOpacity, iconScale) {
+        delay(180)
+        appPrefs.edit()
+            .putInt("background_opacity", backgroundOpacity.toInt().coerceIn(0, 100))
+            .putInt("icon_scale", iconScale.toInt().coerceIn(80, 140))
+            .apply()
     }
 
     val decodedBackground by produceState<Bitmap?>(initialValue = null, backgroundUri) {
@@ -192,11 +212,11 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
             onRemoveBackground = {
                 backgroundUri = null
                 appPrefs.edit().remove("background_uri").apply()
+                File(context.filesDir, "fintrack_background.jpg").delete()
             },
-            onBackgroundOpacity = {
-                backgroundOpacity = it
-                appPrefs.edit().putInt("background_opacity", it.toInt()).apply()
-            },
+            onBackgroundOpacity = { backgroundOpacity = it.coerceIn(0f, 100f) },
+            iconScale = iconScale,
+            onIconScale = { iconScale = it.coerceIn(80f, 140f) },
             onInstallApk = { apkPicker.launch(arrayOf("application/vnd.android.package-archive", "application/octet-stream")) },
             initialQuickAction = initialQuickAction
         )
@@ -219,6 +239,8 @@ private fun NativeFinTrackContent(
     onChooseBackground: () -> Unit,
     onRemoveBackground: () -> Unit,
     onBackgroundOpacity: (Float) -> Unit,
+    iconScale: Float,
+    onIconScale: (Float) -> Unit,
     onInstallApk: () -> Unit,
     initialQuickAction: String?
 ) {
@@ -284,7 +306,7 @@ private fun NativeFinTrackContent(
             containerColor = Color.Transparent,
             snackbarHost = { SnackbarHost(snackbar) },
             bottomBar = {
-                NativeBottomBar(page, navigateTo, { editor = EditorKind.TRANSACTION })
+                NativeBottomBar(page, navigateTo, { editor = EditorKind.TRANSACTION }, iconScale)
             }
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
@@ -370,7 +392,7 @@ private fun NativeFinTrackContent(
                             darkTheme, onThemeChange, onExportBackup, onImportBackup,
                             onExportCsv, onExportXlsx, onExportXlsxRange, onExportPdf, onChooseBackground,
                             onRemoveBackground, backgroundOpacity, onBackgroundOpacity,
-                            onInstallApk, viewModel::resetAllData
+                            iconScale, onIconScale, onInstallApk, viewModel::resetAllData
                         )
                     }
                 }
@@ -496,9 +518,9 @@ private fun NativeHeader(title: String, subtitle: String, onAdd: () -> Unit) {
 }
 
 @Composable
-private fun NativeBottomBar(current: FinPage, onNavigate: (FinPage) -> Unit, onAdd: () -> Unit) {
+private fun NativeBottomBar(current: FinPage, onNavigate: (FinPage) -> Unit, onAdd: () -> Unit, iconScale: Float) {
     Row(
-        Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp)
+        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)
             .clip(RoundedCornerShape(28.dp))
             .background(Color(0xCC082C3D))
             .border(1.dp, Color(0x6655D8E6), RoundedCornerShape(28.dp))
@@ -506,26 +528,26 @@ private fun NativeBottomBar(current: FinPage, onNavigate: (FinPage) -> Unit, onA
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        BottomNavItem("Home", Icons.Filled.Home, current == FinPage.HOME) { onNavigate(FinPage.HOME) }
-        BottomNavItem("Transactions", Icons.Filled.ReceiptLong, current == FinPage.TRANSACTIONS) { onNavigate(FinPage.TRANSACTIONS) }
+        BottomNavItem("Home", Icons.Filled.Home, current == FinPage.HOME, iconScale) { onNavigate(FinPage.HOME) }
+        BottomNavItem("Transactions", Icons.Filled.ReceiptLong, current == FinPage.TRANSACTIONS, iconScale) { onNavigate(FinPage.TRANSACTIONS) }
         FloatingActionButton(
-            onClick = onAdd, modifier = Modifier.size(50.dp), shape = CircleShape,
+            onClick = onAdd, modifier = Modifier.size((50f * iconScale / 100f).dp), shape = CircleShape,
             containerColor = Color(0xFF00DCCB), contentColor = Color(0xFF03202A)
-        ) { Icon(Icons.Filled.Add, "Add transaction", modifier = Modifier.size(28.dp)) }
-        BottomNavItem("Accounts", Icons.Filled.AccountBalanceWallet, current == FinPage.ACCOUNTS) { onNavigate(FinPage.ACCOUNTS) }
-        BottomNavItem("Reports", Icons.Filled.BarChart, current == FinPage.REPORTS) { onNavigate(FinPage.REPORTS) }
-        BottomNavItem("More", Icons.Filled.MoreHoriz, current == FinPage.MORE) { onNavigate(FinPage.MORE) }
+        ) { Icon(Icons.Filled.Add, "Add transaction", modifier = Modifier.size((28f * iconScale / 100f).dp)) }
+        BottomNavItem("Accounts", Icons.Filled.AccountBalanceWallet, current == FinPage.ACCOUNTS, iconScale) { onNavigate(FinPage.ACCOUNTS) }
+        BottomNavItem("Reports", Icons.Filled.BarChart, current == FinPage.REPORTS, iconScale) { onNavigate(FinPage.REPORTS) }
+        BottomNavItem("More", Icons.Filled.MoreHoriz, current == FinPage.MORE, iconScale) { onNavigate(FinPage.MORE) }
     }
 }
 
 @Composable
-private fun BottomNavItem(label: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit) {
+private fun BottomNavItem(label: String, icon: ImageVector, selected: Boolean, iconScale: Float, onClick: () -> Unit) {
     Column(
         Modifier.widthIn(min = 42.dp).clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick)
             .padding(horizontal = 2.dp, vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(icon, null, tint = if (selected) Color(0xFF16E7D7) else Color(0xFFD8E7F0), modifier = Modifier.size(19.dp))
+        Icon(icon, null, tint = if (selected) Color(0xFF16E7D7) else Color(0xFFD8E7F0), modifier = Modifier.size((19f * iconScale / 100f).dp))
         Text(label, color = if (selected) Color(0xFF16E7D7) else Color(0xFFD8E7F0), style = MaterialTheme.typography.labelSmall, maxLines = 1)
     }
 }
@@ -1127,6 +1149,8 @@ private fun SettingsScreen(
     onRemoveBackground: () -> Unit,
     backgroundOpacity: Float,
     onBackgroundOpacity: (Float) -> Unit,
+    iconScale: Float,
+    onIconScale: (Float) -> Unit,
     onInstallApk: () -> Unit,
     onResetData: () -> Unit
 ) {
@@ -1188,7 +1212,10 @@ private fun SettingsScreen(
             }
             Text("Background visibility", style = MaterialTheme.typography.labelMedium)
             Slider(value = backgroundOpacity * 100f, onValueChange = onBackgroundOpacity, valueRange = 0f..100f)
-            Text("${(backgroundOpacity * 100f).toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+            Text("${backgroundOpacity.toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+            Text("Navigation icon size", style = MaterialTheme.typography.labelMedium)
+            Slider(value = iconScale, onValueChange = onIconScale, valueRange = 80f..140f)
+            Text("${iconScale.toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
         }
         GlassCard {
             Text("Local backup and restore", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -1750,6 +1777,48 @@ private fun EmptyState(title: String, description: String) {
             Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+private suspend fun persistBackgroundImage(context: Context, uri: Uri): String {
+    val resolver = context.contentResolver
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        ?: throw IllegalStateException("Android could not open the selected photo")
+    require(bounds.outWidth > 0 && bounds.outHeight > 0) { "Selected file is not a supported image" }
+
+    var sample = 1
+    while (bounds.outWidth / sample > 1600 || bounds.outHeight / sample > 1600) sample *= 2
+    val options = BitmapFactory.Options().apply {
+        inSampleSize = sample
+        inPreferredConfig = Bitmap.Config.RGB_565
+    }
+    val decoded = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+        ?: throw IllegalStateException("Selected photo could not be decoded")
+    val maxEdge = 1200
+    val scale = minOf(1.0, maxEdge.toDouble() / maxOf(decoded.width, decoded.height))
+    val output = if (scale < 1.0) {
+        Bitmap.createScaledBitmap(
+            decoded,
+            (decoded.width * scale).toInt().coerceAtLeast(1),
+            (decoded.height * scale).toInt().coerceAtLeast(1),
+            true
+        )
+    } else decoded
+    val destination = File(context.filesDir, "fintrack_background.jpg")
+    val temporary = File(context.filesDir, "fintrack_background.tmp")
+    try {
+        FileOutputStream(temporary).use { stream ->
+            check(output.compress(Bitmap.CompressFormat.JPEG, 84, stream)) { "Photo compression failed" }
+            stream.fd.sync()
+        }
+        if (destination.exists() && !destination.delete()) throw IllegalStateException("Could not replace previous photo")
+        if (!temporary.renameTo(destination)) throw IllegalStateException("Could not save photo to app storage")
+    } finally {
+        if (output !== decoded && !output.isRecycled) output.recycle()
+        if (!decoded.isRecycled) decoded.recycle()
+        temporary.delete()
+    }
+    return Uri.fromFile(destination).toString()
 }
 
 private fun decodeBackgroundBitmap(context: android.content.Context, uri: Uri): Bitmap? {
