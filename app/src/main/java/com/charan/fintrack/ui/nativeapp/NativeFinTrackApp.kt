@@ -305,7 +305,8 @@ private fun NativeFinTrackContent(
                     FinPage.SETTINGS -> SettingsScreen(
                         darkTheme, onThemeChange, onExportBackup, onImportBackup,
                         onExportCsv, onExportXlsx, onExportPdf, onChooseBackground,
-                        onRemoveBackground, backgroundOpacity, onBackgroundOpacity, onInstallApk
+                        onRemoveBackground, backgroundOpacity, onBackgroundOpacity,
+                        onInstallApk, viewModel::resetAllData
                     )
                 }
             }
@@ -329,8 +330,17 @@ private fun NativeFinTrackContent(
                     when (editor) {
                         EditorKind.ACCOUNT -> {
                             val current = selectedAccount
-                            if (current == null) viewModel.addAccount(values["name"].orEmpty(), values["type"].orEmpty(), values["amount"].orEmpty(), values["creditLimit"].orEmpty())
-                            else viewModel.updateAccount(current, values["name"].orEmpty(), values["type"].orEmpty(), values["amount"].orEmpty(), values["creditLimit"].orEmpty())
+                            if (current == null) viewModel.addAccount(
+                                values["name"].orEmpty(), values["type"].orEmpty(),
+                                values["amount"].orEmpty(), values["creditLimit"].orEmpty(),
+                                values["institution"].orEmpty(), values["accountNumber"].orEmpty(),
+                                values["accountNotes"].orEmpty()
+                            ) else viewModel.updateAccount(
+                                current, values["name"].orEmpty(), values["type"].orEmpty(),
+                                values["amount"].orEmpty(), values["creditLimit"].orEmpty(),
+                                values["institution"].orEmpty(), values["accountNumber"].orEmpty(),
+                                values["accountNotes"].orEmpty()
+                            )
                         }
                         EditorKind.TRANSACTION -> {
                             val current = selectedTransaction
@@ -361,8 +371,13 @@ private fun NativeFinTrackContent(
                         }
                         EditorKind.CATEGORY -> {
                             val current = selectedCategory
-                            if (current == null) viewModel.addCategory(values["name"].orEmpty(), values["type"].orEmpty())
-                            else viewModel.updateCategory(current, values["name"].orEmpty(), values["type"].orEmpty(), values["icon"].orEmpty())
+                            if (current == null) viewModel.addCategory(
+                                values["name"].orEmpty(), values["type"].orEmpty(),
+                                values["icon"].orEmpty(), values["subcategories"].orEmpty()
+                            ) else viewModel.updateCategory(
+                                current, values["name"].orEmpty(), values["type"].orEmpty(),
+                                values["icon"].orEmpty(), values["subcategories"].orEmpty()
+                            )
                         }
                         EditorKind.BUDGET -> {
                             val current = selectedBudget
@@ -1043,7 +1058,8 @@ private fun SettingsScreen(
     onRemoveBackground: () -> Unit,
     backgroundOpacity: Float,
     onBackgroundOpacity: (Float) -> Unit,
-    onInstallApk: () -> Unit
+    onInstallApk: () -> Unit,
+    onResetData: () -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val reminderPrefs = remember { context.getSharedPreferences("fintrack_reminders", 0) }
@@ -1052,6 +1068,7 @@ private fun SettingsScreen(
     var reminderMinute by remember { mutableIntStateOf(reminderPrefs.getInt("minute", 0)) }
     var memeMode by remember { mutableStateOf(reminderPrefs.getBoolean("memeMode", false)) }
     var pendingReminderEnable by remember { mutableStateOf(false) }
+    var confirmReset by remember { mutableStateOf(false) }
 
     fun saveReminder(enabled: Boolean, hour: Int = reminderHour, minute: Int = reminderMinute, funMode: Boolean = memeMode) {
         reminderPrefs.edit().putBoolean("enabled", enabled).putInt("hour", hour)
@@ -1156,6 +1173,38 @@ private fun SettingsScreen(
             Text("App security", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text("No app lock is enabled in this release, as requested.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        GlassCard {
+            Text("Reset finance data", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "Permanently remove accounts, transactions, people, categories, budgets, goals, loans and their histories from this device. Export a backup first.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
+            OutlinedButton(
+                onClick = { confirmReset = true },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+            ) { Text("Reset all finance data") }
+        }
+    }
+    if (confirmReset) {
+        AlertDialog(
+            onDismissRequest = { confirmReset = false },
+            title = { Text("Reset all finance data?") },
+            text = { Text("This permanently deletes all finance records stored in FinTrack on this device. Export a backup before continuing. This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirmReset = false
+                        onResetData()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Delete all data") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmReset = false }) { Text("Cancel") }
+            }
+        )
     }
 }
 
@@ -1246,6 +1295,21 @@ private fun NativeEditorDialog(
     }
     var creditLimit by remember(kind, selectedAccount?.id) {
         mutableStateOf(selectedAccount?.let { rupees(it.creditLimitPaise) }.orEmpty())
+    }
+    var accountInstitution by remember(kind, selectedAccount?.id) {
+        mutableStateOf(selectedAccount?.institution.orEmpty())
+    }
+    var accountNumber by remember(kind, selectedAccount?.id) {
+        mutableStateOf(selectedAccount?.accountNumber.orEmpty())
+    }
+    var accountNotes by remember(kind, selectedAccount?.id) {
+        mutableStateOf(selectedAccount?.notes.orEmpty())
+    }
+    var subcategoriesText by remember(kind, selectedCategory?.id) {
+        mutableStateOf(runCatching {
+            val json = org.json.JSONArray(selectedCategory?.subcategoriesJson ?: "[]")
+            (0 until json.length()).joinToString("\n") { json.optString(it) }
+        }.getOrDefault(""))
     }
     var icon by remember(kind, selectedCategory?.id) { mutableStateOf(selectedCategory?.icon ?: "🏷️") }
     var date by remember(kind, selectedTransaction?.id) {
@@ -1387,6 +1451,20 @@ private fun NativeEditorDialog(
                         OutlinedTextField(type, { type = it }, label = { Text("Account type (Cash / Bank / Wallet / Credit)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                         MoneyField("Opening balance (₹)", amount) { amount = it }
                         if (type.contains("credit", true)) MoneyField("Credit limit (₹)", creditLimit) { creditLimit = it }
+                        OutlinedTextField(
+                            accountInstitution, { accountInstitution = it },
+                            label = { Text("Bank / Institution (optional)") },
+                            modifier = Modifier.fillMaxWidth(), singleLine = true
+                        )
+                        OutlinedTextField(
+                            accountNumber, { accountNumber = it },
+                            label = { Text("Account reference (optional)") },
+                            modifier = Modifier.fillMaxWidth(), singleLine = true
+                        )
+                        OutlinedTextField(
+                            accountNotes, { accountNotes = it },
+                            label = { Text("Account notes") }, modifier = Modifier.fillMaxWidth()
+                        )
                     }
                     EditorKind.PERSON -> {
                         OutlinedTextField(name, { name = it }, label = { Text("Person name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -1404,6 +1482,11 @@ private fun NativeEditorDialog(
                             }
                         }
                         OutlinedTextField(icon, { icon = it }, label = { Text("Category icon") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        OutlinedTextField(
+                            subcategoriesText, { subcategoriesText = it },
+                            label = { Text("Subcategories (one per line)") },
+                            modifier = Modifier.fillMaxWidth(), minLines = 3
+                        )
                     }
                     EditorKind.BUDGET -> {
                         OutlinedTextField(category, { category = it }, label = { Text("Budget category") }, modifier = Modifier.fillMaxWidth())
@@ -1454,7 +1537,9 @@ private fun NativeEditorDialog(
                         "monthly" to monthly, "interest" to interest, "creditLimit" to creditLimit,
                         "personId" to personId, "paymentMethod" to paymentMethod,
                         "upiApp" to upiApp, "date" to date, "time" to time,
-                        "subcategory" to subcategory, "icon" to icon
+                        "subcategory" to subcategory, "icon" to icon,
+                        "institution" to accountInstitution, "accountNumber" to accountNumber,
+                        "accountNotes" to accountNotes, "subcategories" to subcategoriesText
                     )
                 )
             }) { Text("Save") }
