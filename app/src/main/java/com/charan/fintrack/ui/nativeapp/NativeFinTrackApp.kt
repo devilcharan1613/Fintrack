@@ -169,6 +169,17 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
         }
     }
 
+    LaunchedEffect(backgroundUri) {
+        val saved = backgroundUri
+        if (!saved.isNullOrBlank() && Uri.parse(saved).scheme != "file") {
+            runCatching { withContext(Dispatchers.IO) { persistBackgroundImage(context, Uri.parse(saved)) } }
+                .onSuccess { privateUri ->
+                    backgroundUri = privateUri
+                    appPrefs.edit().putString("background_uri", privateUri).apply()
+                }
+        }
+    }
+
     LaunchedEffect(backgroundUri, backgroundOpacity, iconScale) {
         delay(180)
         appPrefs.edit()
@@ -289,7 +300,7 @@ private fun NativeFinTrackContent(
     }
 
     Box(
-        Modifier.fillMaxSize().background(
+        Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding().background(
             Brush.linearGradient(listOf(MaterialTheme.colorScheme.background, Color(0xFF062A3A), MaterialTheme.colorScheme.background))
         )
     ) {
