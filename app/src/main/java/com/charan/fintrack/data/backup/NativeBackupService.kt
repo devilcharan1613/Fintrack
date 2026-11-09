@@ -792,10 +792,12 @@ class NativeBackupService(private val database: FinTrackDatabase) {
     ): Long {
         if (item.has(paiseKey) && !item.isNull(paiseKey)) {
             val value = item.get(paiseKey)
-            return when (value) {
-                is Number -> value.toLong()
-                is String -> value.toLong()
-                else -> throw IllegalArgumentException("Invalid $paiseKey value.")
+            return try {
+                BigDecimal(value.toString()).longValueExact()
+            } catch (_: NumberFormatException) {
+                throw IllegalArgumentException("Invalid $paiseKey value. Paise must be a whole number.")
+            } catch (_: ArithmeticException) {
+                throw IllegalArgumentException("Invalid $paiseKey value. Paise must be a whole number within the supported range.")
             }
         }
         for (key in rupeeKeys) {
@@ -817,8 +819,12 @@ class NativeBackupService(private val database: FinTrackDatabase) {
 
     private fun timestamp(value: Any?): Long {
         if (value == null || value == JSONObject.NULL) return System.currentTimeMillis()
-        if (value is Number) return value.toLong()
-        val raw = value.toString()
+        if (value is Number) {
+            return try { BigDecimal(value.toString()).longValueExact() }
+            catch (_: Exception) { throw IllegalArgumentException("Backup contains an invalid timestamp.") }
+        }
+        val raw = value.toString().trim()
+        if (raw.isBlank()) return System.currentTimeMillis()
         raw.toLongOrNull()?.let { return it }
         val isoFormats = listOf(
             "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
@@ -827,13 +833,14 @@ class NativeBackupService(private val database: FinTrackDatabase) {
         )
         for (pattern in isoFormats) {
             val format = SimpleDateFormat(pattern, Locale.US).apply {
+                isLenient = false
                 if (pattern.endsWith("'Z'")) timeZone = TimeZone.getTimeZone("UTC")
             }
             val position = ParsePosition(0)
             val parsed = format.parse(raw, position)
             if (parsed != null && position.index == raw.length) return parsed.time
         }
-        return System.currentTimeMillis()
+        throw IllegalArgumentException("Backup contains an invalid timestamp: $raw")
     }
 
     private fun nullableTimestamp(value: Any?): Long? =
@@ -843,10 +850,12 @@ class NativeBackupService(private val database: FinTrackDatabase) {
         val date = text(item, "date")
         val time = text(item, "time").ifBlank { "12:00" }
         if (date.isNotBlank()) {
-            val format = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
+            val input = "$date $time"
+            val format = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).apply { isLenient = false }
             val position = ParsePosition(0)
-            val parsed = format.parse("$date $time", position)
-            if (parsed != null && position.index == "$date $time".length) return parsed.time
+            val parsed = format.parse(input, position)
+            if (parsed != null && position.index == input.length) return parsed.time
+            throw IllegalArgumentException("Backup contains an invalid transaction date or time: $input")
         }
         return timestamp(item.opt("timestamp") ?: item.opt("createdAt"))
     }
