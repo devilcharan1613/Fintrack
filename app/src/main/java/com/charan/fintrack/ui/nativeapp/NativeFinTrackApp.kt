@@ -1225,7 +1225,7 @@ private fun SettingsScreen(
             }
             Text("Background visibility", style = MaterialTheme.typography.labelMedium)
             Slider(value = backgroundOpacity * 100f, onValueChange = onBackgroundOpacity, valueRange = 0f..100f)
-            Text("${backgroundOpacity.toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+            Text("${(backgroundOpacity * 100f).toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             Text("Navigation icon size", style = MaterialTheme.typography.labelMedium)
             Slider(value = iconScale, onValueChange = onIconScale, valueRange = 80f..140f)
             Text("${iconScale.toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
