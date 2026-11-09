@@ -28,7 +28,7 @@ class NativeFinTrackNavigationTest {
 
 
     @Test
-    fun settingsExposesOfflineReminderBackgroundBackupAndUpdateControls() {
+    fun settingsExposesOfflineReminderBackgroundBackupResetAndUpdateControls() {
         compose.onNodeWithText("More").performClick()
         compose.onNodeWithText("Settings & Appearance").performClick()
 
@@ -36,5 +36,22 @@ class NativeFinTrackNavigationTest {
         compose.onNodeWithText("Custom background image").fetchSemanticsNode()
         compose.onNodeWithText("Export full JSON backup").fetchSemanticsNode()
         compose.onNodeWithText("Select update APK").fetchSemanticsNode()
+        compose.onNodeWithText("Reset all finance data").performClick()
+        compose.onNodeWithText("Reset all finance data?").fetchSemanticsNode()
+        compose.onNodeWithText("Cancel").performClick()
+    }
+
+    @Test
+    fun accountAndCategoryEditorsExposeTheirFullMetadataFields() {
+        compose.onNodeWithText("Accounts").performClick()
+        compose.onNodeWithText("Add").performClick()
+        compose.onNodeWithText("Bank / Institution (optional)").fetchSemanticsNode()
+        compose.onNodeWithText("Account reference (optional)").fetchSemanticsNode()
+        compose.onNodeWithText("Cancel").performClick()
+
+        compose.onNodeWithText("More").performClick()
+        compose.onNodeWithText("Categories").performClick()
+        compose.onNodeWithText("Add").performClick()
+        compose.onNodeWithText("Subcategories (one per line)").fetchSemanticsNode()
     }
 }

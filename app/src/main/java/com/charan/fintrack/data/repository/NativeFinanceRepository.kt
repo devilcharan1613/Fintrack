@@ -351,7 +351,7 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
     suspend fun addLoanRepayment(loanId: Long, amount: MoneyPaise, note: String = "") {
         require(amount.paise > 0L) { "Repayment must be positive" }
         database.withTransaction {
-            val loan = loans.first().firstOrNull { it.id == loanId }
+            val loan = dao.allLoans().firstOrNull { it.id == loanId }
                 ?: throw IllegalArgumentException("Loan does not exist")
             val paid = Math.addExact(loan.paidAmountPaise, amount.paise)
             require(paid <= loan.principalPaise) { "Repayment exceeds the remaining principal" }
