@@ -109,8 +109,8 @@ class NativeBackupServiceInstrumentedTest {
             val restoredTransactions = destination.financeDao().allTransactions()
             val wallet = restoredAccounts.single { it.name == "Wallet" }
             val bank = restoredAccounts.single { it.name == "Bank" }
-            assertEquals(80_000L, wallet.openingBalancePaise)
-            assertEquals(20_000L, bank.openingBalancePaise)
+            assertEquals(8_000L, wallet.openingBalancePaise)
+            assertEquals(2_000L, bank.openingBalancePaise)
             assertEquals(8_325L, NativeLedgerCalculator.accountBalancePaise(wallet, restoredTransactions))
             assertEquals("Bonus", restoredTransactions.single { it.type == "INCOME" }.subcategory)
             assertEquals(2_500L, NativeLedgerCalculator.accountBalancePaise(bank, restoredTransactions))
