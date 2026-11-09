@@ -305,6 +305,13 @@ class MainActivity : ComponentActivity() {
                     // Reapply the latest system-bar/IME insets after the page is ready.
                     view.evaluateJavascript(latestInsetsScript, null)
                     flushPendingQuickAction()
+                    // First app launch after the native upgrade migrates legacy local data
+                    // into Room before opening Compose. Source WebView storage is retained.
+                    if (!getSharedPreferences(NATIVE_MIGRATION_PREFS, Context.MODE_PRIVATE)
+                            .getBoolean("complete", false)
+                    ) {
+                        requestNativeMigrationFromLegacyWebView()
+                    }
                 }
             }
             webChromeClient = WebChromeClient()

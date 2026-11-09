@@ -14,15 +14,15 @@ class NativeFinTrackNavigationTest {
     @Test
     fun nativeDashboardIsRendered() {
         compose.onNodeWithText("FinTrack").fetchSemanticsNode()
-        compose.onNodeWithText("TOTAL BALANCE").assertExists()
+        compose.onNodeWithText("TOTAL BALANCE").fetchSemanticsNode()
     }
 
     @Test
     fun bottomNavigationOpensAccountsAndReports() {
         compose.onNodeWithText("Accounts").performClick()
-        compose.onNodeWithText("ACCOUNTS & WALLETS").assertExists()
+        compose.onNodeWithText("ACCOUNTS & WALLETS").fetchSemanticsNode()
         compose.onNodeWithText("Reports").performClick()
-        compose.onNodeWithText("INCOME VS EXPENSE").assertExists()
+        compose.onNodeWithText("INCOME VS EXPENSE").fetchSemanticsNode()
     }
 
 
@@ -32,9 +32,9 @@ class NativeFinTrackNavigationTest {
         compose.onNodeWithText("More").performClick()
         compose.onNodeWithText("Settings & Appearance").performClick()
 
-        compose.onNodeWithText("Daily reminders").assertExists()
-        compose.onNodeWithText("Custom background image").assertExists()
-        compose.onNodeWithText("Export full JSON backup").assertExists()
-        compose.onNodeWithText("Select update APK").assertExists()
+        compose.onNodeWithText("Daily reminders").fetchSemanticsNode()
+        compose.onNodeWithText("Custom background image").fetchSemanticsNode()
+        compose.onNodeWithText("Export full JSON backup").fetchSemanticsNode()
+        compose.onNodeWithText("Select update APK").fetchSemanticsNode()
     }
 }
