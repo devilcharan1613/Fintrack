@@ -63,6 +63,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.charan.fintrack.FinTrackReminderScheduler
 import com.charan.fintrack.data.MoneyPaise
 import com.charan.fintrack.data.NativeLedgerCalculator
@@ -72,10 +76,23 @@ import java.util.Date
 import java.util.Calendar
 import java.util.Locale
 
-private enum class FinPage(val label: String) {
-    HOME("Home"), TRANSACTIONS("Transactions"), ACCOUNTS("Accounts"),
-    REPORTS("Reports"), MORE("More"), PEOPLE("People"), BUDGETS("Budgets"),
-    GOALS("Savings Goals"), LOANS("Loans"), CATEGORIES("Categories"), SETTINGS("Settings")
+private enum class FinPage(val label: String, val route: String) {
+    HOME("Home", "home"),
+    TRANSACTIONS("Transactions", "transactions"),
+    ACCOUNTS("Accounts", "accounts"),
+    REPORTS("Reports", "reports"),
+    MORE("More", "more"),
+    PEOPLE("People", "people"),
+    BUDGETS("Budgets", "budgets"),
+    GOALS("Savings Goals", "goals"),
+    LOANS("Loans", "loans"),
+    CATEGORIES("Categories", "categories"),
+    SETTINGS("Settings", "settings");
+
+    companion object {
+        fun fromRoute(route: String?): FinPage =
+            values().firstOrNull { it.route == route } ?: HOME
+    }
 }
 private enum class EditorKind { NONE, TRANSACTION, ACCOUNT, PERSON, BUDGET, GOAL, LOAN, CONTRIBUTION, REPAYMENT, CATEGORY }
 
@@ -214,7 +231,16 @@ private fun NativeFinTrackContent(
     val loans by viewModel.loans.collectAsStateWithLifecycle()
     val totals by viewModel.dashboard.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
-    var page by remember { mutableStateOf(FinPage.HOME) }
+    val navController = rememberNavController()
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val page = FinPage.fromRoute(currentBackStackEntry?.destination?.route)
+    val navigateTo: (FinPage) -> Unit = { destination ->
+        navController.navigate(destination.route) {
+            popUpTo(FinPage.HOME.route) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
     var pendingQuickAction by remember { mutableStateOf(initialQuickAction) }
     var editor by remember {
         mutableStateOf(
@@ -258,7 +284,7 @@ private fun NativeFinTrackContent(
             containerColor = Color.Transparent,
             snackbarHost = { SnackbarHost(snackbar) },
             bottomBar = {
-                NativeBottomBar(page, { page = it }, { editor = EditorKind.TRANSACTION })
+                NativeBottomBar(page, navigateTo, { editor = EditorKind.TRANSACTION })
             }
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
@@ -277,50 +303,76 @@ private fun NativeFinTrackContent(
                         }
                     }
                 )
-                when (page) {
-                    FinPage.HOME -> DashboardScreen(accounts, transactions, totals, { editor = EditorKind.ACCOUNT }, { page = FinPage.TRANSACTIONS })
-                    FinPage.TRANSACTIONS -> TransactionsScreen(
-                        transactions, accounts, viewModel::deleteTransaction,
-                        onEdit = { selectedTransaction = it; editor = EditorKind.TRANSACTION }
-                    )
-                    FinPage.ACCOUNTS -> AccountsScreen(
-                        accounts, transactions, viewModel::archiveAccount,
-                        onEdit = { selectedAccount = it; editor = EditorKind.ACCOUNT }
-                    )
-                    FinPage.REPORTS -> ReportsScreen(accounts, transactions, totals, people)
-                    FinPage.MORE -> MoreScreen { page = it }
-                    FinPage.PEOPLE -> PeopleScreen(
-                        people, transactions, viewModel::deletePerson,
-                        onEdit = { selectedPerson = it; editor = EditorKind.PERSON }
-                    )
-                    FinPage.BUDGETS -> BudgetsScreen(
-                        budgets, transactions, viewModel::deleteBudget,
-                        onEdit = { selectedBudget = it; editor = EditorKind.BUDGET }
-                    )
-                    FinPage.GOALS -> GoalsScreen(
-                        goals,
-                        onContribute = { selectedGoal = it; editor = EditorKind.CONTRIBUTION },
-                        onDelete = viewModel::deleteGoal,
-                        onEdit = { selectedGoal = it; editor = EditorKind.GOAL },
-                        viewModel = viewModel
-                    )
-                    FinPage.LOANS -> LoansScreen(
-                        loans,
-                        onRepay = { selectedLoan = it; editor = EditorKind.REPAYMENT },
-                        onDelete = viewModel::deleteLoan,
-                        onEdit = { selectedLoan = it; editor = EditorKind.LOAN },
-                        viewModel = viewModel
-                    )
-                    FinPage.CATEGORIES -> CategoriesScreen(
-                        categories, viewModel::deleteCategory,
-                        onEdit = { selectedCategory = it; editor = EditorKind.CATEGORY }
-                    )
-                    FinPage.SETTINGS -> SettingsScreen(
-                        darkTheme, onThemeChange, onExportBackup, onImportBackup,
-                        onExportCsv, onExportXlsx, onExportXlsxRange, onExportPdf, onChooseBackground,
-                        onRemoveBackground, backgroundOpacity, onBackgroundOpacity,
-                        onInstallApk, viewModel::resetAllData
-                    )
+                NavHost(
+                    navController = navController,
+                    startDestination = FinPage.HOME.route,
+                    modifier = Modifier.weight(1f).fillMaxWidth()
+                ) {
+                    composable(FinPage.HOME.route) {
+                        DashboardScreen(accounts, transactions, totals, { editor = EditorKind.ACCOUNT }, { navigateTo(FinPage.TRANSACTIONS) })
+                    }
+                    composable(FinPage.TRANSACTIONS.route) {
+                        TransactionsScreen(
+                            transactions, accounts, viewModel::deleteTransaction,
+                            onEdit = { selectedTransaction = it; editor = EditorKind.TRANSACTION }
+                        )
+                    }
+                    composable(FinPage.ACCOUNTS.route) {
+                        AccountsScreen(
+                            accounts, transactions, viewModel::archiveAccount,
+                            onEdit = { selectedAccount = it; editor = EditorKind.ACCOUNT }
+                        )
+                    }
+                    composable(FinPage.REPORTS.route) {
+                        ReportsScreen(accounts, transactions, totals, people)
+                    }
+                    composable(FinPage.MORE.route) {
+                        MoreScreen(onNavigate = navigateTo)
+                    }
+                    composable(FinPage.PEOPLE.route) {
+                        PeopleScreen(
+                            people, transactions, viewModel::deletePerson,
+                            onEdit = { selectedPerson = it; editor = EditorKind.PERSON }
+                        )
+                    }
+                    composable(FinPage.BUDGETS.route) {
+                        BudgetsScreen(
+                            budgets, transactions, viewModel::deleteBudget,
+                            onEdit = { selectedBudget = it; editor = EditorKind.BUDGET }
+                        )
+                    }
+                    composable(FinPage.GOALS.route) {
+                        GoalsScreen(
+                            goals,
+                            onContribute = { selectedGoal = it; editor = EditorKind.CONTRIBUTION },
+                            onDelete = viewModel::deleteGoal,
+                            onEdit = { selectedGoal = it; editor = EditorKind.GOAL },
+                            viewModel = viewModel
+                        )
+                    }
+                    composable(FinPage.LOANS.route) {
+                        LoansScreen(
+                            loans,
+                            onRepay = { selectedLoan = it; editor = EditorKind.REPAYMENT },
+                            onDelete = viewModel::deleteLoan,
+                            onEdit = { selectedLoan = it; editor = EditorKind.LOAN },
+                            viewModel = viewModel
+                        )
+                    }
+                    composable(FinPage.CATEGORIES.route) {
+                        CategoriesScreen(
+                            categories, viewModel::deleteCategory,
+                            onEdit = { selectedCategory = it; editor = EditorKind.CATEGORY }
+                        )
+                    }
+                    composable(FinPage.SETTINGS.route) {
+                        SettingsScreen(
+                            darkTheme, onThemeChange, onExportBackup, onImportBackup,
+                            onExportCsv, onExportXlsx, onExportXlsxRange, onExportPdf, onChooseBackground,
+                            onRemoveBackground, backgroundOpacity, onBackgroundOpacity,
+                            onInstallApk, viewModel::resetAllData
+                        )
+                    }
                 }
             }
         }
