@@ -628,3 +628,6 @@ class MainActivity : ComponentActivity() {
             runOnUiThread {
                 backgroundOpenLauncher.launch(arrayOf("image/*"))
             }
+        }
+    }
+}
