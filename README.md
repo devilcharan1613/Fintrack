@@ -66,7 +66,7 @@ FinTrack is a native Android personal finance tracker built with Kotlin, Jetpack
 ## 📤 9. Exports and backup
 
 - **Implemented (source):** JSON backup export and restore through Android file selection.
-- **Implemented (source):** restore validation before replacing current local data.
+- **Implemented (source):** restore validation and merge by stable record IDs without clearing existing data; duplicate records are skipped.
 - **Implemented (source):** CSV transaction export.
 - **Implemented (source):** multi-sheet XLSX workbook export, including a summary sheet and finance-data sheets.
 - **Implemented (source):** custom date-range XLSX export with strict inclusive local-date validation.
@@ -89,9 +89,9 @@ The selected date range is intended to limit the Transactions worksheet and iden
 
 A transaction-row export with fields such as date, type, description/notes, category, account, payment method and amount (INR).
 
-**PDF via Print**
+**PDF (.pdf)**
 
-A print-friendly transaction statement with selected period, generated date, income/expense/net summary and a transaction table. Choose **Save as PDF** in the Android print dialog when that destination is offered.
+The native export uses Android PdfDocument to create a local A4 transaction statement. Paired transfers are rendered once with source and destination accounts.
 
 **JSON backup (.json)**
 
@@ -113,8 +113,10 @@ A local backup intended to preserve the app's finance data for later restore. Ke
 - **Implemented (source):** account metadata and category subcategory editing in native Compose.
 - **Needs testing:** consistency of every screen in both themes, photo persistence after restart, contrast/readability and performance on lower-memory devices.
 
-## 🧭 12. Navigation and app update flow
+## 🧭 12. Settings, navigation and app update flow
 
+- **Implemented (source):** native Settings exposes local reminders, theme, background photo/visibility, JSON export/restore, CSV, full and date-range XLSX, PDF and manual APK update.
+- **Implemented (source):** a confirmation dialog protects the destructive reset-all-finance-data action.
 - **Implemented (source):** native screen destinations use Navigation Compose, with bottom navigation and More-menu entry points.
 - **Implemented (source):** legacy-launcher migration gate; after a successful first-run merge, MainActivity opens the native Compose app on subsequent launches.
 - **Implemented (source):** manual selection and hand-off of a local APK to Android's package installer.
@@ -136,6 +138,7 @@ A local backup intended to preserve the app's finance data for later restore. Ke
 This is a development-branch README, not a release certification.
 
 - **Branch:** `fintrack-2.5.0-development`
+- **Native release line:** version `2.5.1` (version code `28`) on this development branch.
 - **Main branch:** unchanged by this implementation work.
 - **Build verification:** check the latest GitHub Actions run for the exact commit before distributing an APK.
 - **Test coverage:** unit tests cover paise arithmetic, ledger calculations and reminder time; instrumentation tests cover Room migrations, backup merge/restore, XLSX structure, native navigation, settings and repository validation.
