@@ -220,7 +220,7 @@ class NativeBackupServiceInstrumentedTest {
             type = "EXPENSE",
             amount = MoneyPaise.fromRupees("1"),
             category = "Other",
-            note = "  =HYPERLINK(\"example\",\"open\")"
+        assertTrue(csv.contains("\"'=HYPERLINK"))
         )
         val csv = service.exportCsv()
         assertTrue(csv.contains("\"'  =HYPERLINK"))
