@@ -47,7 +47,7 @@ class XlsxExporterInstrumentedTest {
         assertTrue("Missing 'expense' in xl/worksheets/sheet3.xml: "+entries["xl/worksheets/sheet3.xml"].orEmpty(), entries["xl/worksheets/sheet3.xml"].orEmpty().contains("expense"))
         assertTrue(
             "Missing numeric budget limit 4000 in xl/worksheets/sheet5.xml: " + entries["xl/worksheets/sheet5.xml"].orEmpty(),
-            Regex("""<c r="B2"[^>]*><v>4000(?:\\.0+)?</v></c>""").containsMatchIn(entries["xl/worksheets/sheet5.xml"].orEmpty())
+            Regex("""<c r="B2"[^>]*><v>4000(?:\.0+)?</v></c>""").containsMatchIn(entries["xl/worksheets/sheet5.xml"].orEmpty())
         )
         assertTrue("Missing 'Education Loan' in xl/worksheets/sheet7.xml: "+entries["xl/worksheets/sheet7.xml"].orEmpty(), entries["xl/worksheets/sheet7.xml"].orEmpty().contains("Education Loan"))
         assertTrue("Missing '2026-11-08' in xl/worksheets/sheet8.xml: "+entries["xl/worksheets/sheet8.xml"].orEmpty(), entries["xl/worksheets/sheet8.xml"].orEmpty().contains("2026-11-08"))
