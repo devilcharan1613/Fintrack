@@ -25,4 +25,17 @@ class NativeFinTrackNavigationTest {
         compose.onNodeWithText("Reports").performClick()
         compose.onNodeWithText("INCOME VS EXPENSE").assertExists()
     }
+
+
+
+    @Test
+    fun settingsExposesOfflineReminderBackgroundBackupAndUpdateControls() {
+        compose.onNodeWithText("More").performClick()
+        compose.onNodeWithText("Settings & Appearance").performClick()
+
+        compose.onNodeWithText("Daily reminders").assertExists()
+        compose.onNodeWithText("Custom background image").assertExists()
+        compose.onNodeWithText("Export full JSON backup").assertExists()
+        compose.onNodeWithText("Select update APK").assertExists()
+    }
 }

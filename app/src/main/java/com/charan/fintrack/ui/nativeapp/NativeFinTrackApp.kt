@@ -486,6 +486,7 @@ private fun DashboardScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TransactionsScreen(
     transactions: List<TransactionEntity>,

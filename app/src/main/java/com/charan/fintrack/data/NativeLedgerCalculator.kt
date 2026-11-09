@@ -59,7 +59,7 @@ object NativeLedgerCalculator {
         .filter { toExclusive == null || it.timestamp < toExclusive }
         .fold(0L) { total, row -> Math.addExact(total, row.amountPaise) }
 
-    private inline fun sum(
+    private fun sum(
         transactions: List<TransactionEntity>,
         predicate: (TransactionEntity) -> Boolean
     ): Long = transactions.asSequence().filter(predicate)
