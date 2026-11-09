@@ -87,6 +87,8 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
     var backgroundUri by remember { mutableStateOf(appPrefs.getString("background_uri", null)) }
     var backgroundOpacity by remember { mutableFloatStateOf(appPrefs.getInt("background_opacity", 35).toFloat()) }
     var pendingApkUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingXlsxFromDate by remember { mutableStateOf("") }
+    var pendingXlsxToDate by remember { mutableStateOf("") }
 
     val backupSave = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) {
         it?.let(viewModel::exportBackup)
@@ -100,6 +102,11 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
     val xlsxSave = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     ) { it?.let(viewModel::exportXlsx) }
+    val xlsxRangeSave = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    ) { uri ->
+        if (uri != null) viewModel.exportXlsxRange(uri, pendingXlsxFromDate, pendingXlsxToDate)
+    }
     val pdfSave = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) {
         it?.let(viewModel::exportPdf)
     }
@@ -156,6 +163,11 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
             onImportBackup = { backupOpen.launch(arrayOf("application/json", "text/json", "application/octet-stream")) },
             onExportCsv = { csvSave.launch("FinTrack_Transactions.csv") },
             onExportXlsx = { xlsxSave.launch("FinTrack_Export.xlsx") },
+            onExportXlsxRange = { fromDate, toDate ->
+                pendingXlsxFromDate = fromDate
+                pendingXlsxToDate = toDate
+                xlsxRangeSave.launch("FinTrack_${fromDate}_to_${toDate}.xlsx")
+            },
             onExportPdf = { pdfSave.launch("FinTrack_Statement.pdf") },
             backgroundBitmap = decodedBackground,
             backgroundOpacity = backgroundOpacity / 100f,
@@ -183,6 +195,7 @@ private fun NativeFinTrackContent(
     onImportBackup: () -> Unit,
     onExportCsv: () -> Unit,
     onExportXlsx: () -> Unit,
+    onExportXlsxRange: (String, String) -> Unit,
     onExportPdf: () -> Unit,
     backgroundBitmap: Bitmap?,
     backgroundOpacity: Float,
@@ -304,7 +317,7 @@ private fun NativeFinTrackContent(
                     )
                     FinPage.SETTINGS -> SettingsScreen(
                         darkTheme, onThemeChange, onExportBackup, onImportBackup,
-                        onExportCsv, onExportXlsx, onExportPdf, onChooseBackground,
+                        onExportCsv, onExportXlsx, onExportXlsxRange, onExportPdf, onChooseBackground,
                         onRemoveBackground, backgroundOpacity, onBackgroundOpacity,
                         onInstallApk, viewModel::resetAllData
                     )
@@ -1053,6 +1066,7 @@ private fun SettingsScreen(
     onImportBackup: () -> Unit,
     onExportCsv: () -> Unit,
     onExportXlsx: () -> Unit,
+    onExportXlsxRange: (String, String) -> Unit,
     onExportPdf: () -> Unit,
     onChooseBackground: () -> Unit,
     onRemoveBackground: () -> Unit,
@@ -1069,6 +1083,16 @@ private fun SettingsScreen(
     var memeMode by remember { mutableStateOf(reminderPrefs.getBoolean("memeMode", false)) }
     var pendingReminderEnable by remember { mutableStateOf(false) }
     var confirmReset by remember { mutableStateOf(false) }
+    var xlsxFromDate by remember {
+        mutableStateOf(
+            SimpleDateFormat("yyyy-MM-dd", Locale.US).format(
+                Calendar.getInstance().apply { set(Calendar.DAY_OF_MONTH, 1) }.time
+            )
+        )
+    }
+    var xlsxToDate by remember {
+        mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()))
+    }
 
     fun saveReminder(enabled: Boolean, hour: Int = reminderHour, minute: Int = reminderMinute, funMode: Boolean = memeMode) {
         reminderPrefs.edit().putBoolean("enabled", enabled).putInt("hour", hour)
@@ -1123,6 +1147,28 @@ private fun SettingsScreen(
             Button(onClick = onExportCsv, modifier = Modifier.fillMaxWidth()) { Text("Export transactions CSV") }
             OutlinedButton(onClick = onExportXlsx, modifier = Modifier.fillMaxWidth()) { Text("Export Excel workbook") }
             OutlinedButton(onClick = onExportPdf, modifier = Modifier.fillMaxWidth()) { Text("Export PDF statement") }
+        }
+        GlassCard {
+            Text("Date-range Excel export", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "Export transactions between two local calendar dates. Other workbook sheets retain their complete records.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
+            OutlinedTextField(
+                xlsxFromDate, { xlsxFromDate = it },
+                label = { Text("Start date (YYYY-MM-DD)") },
+                modifier = Modifier.fillMaxWidth(), singleLine = true
+            )
+            OutlinedTextField(
+                xlsxToDate, { xlsxToDate = it },
+                label = { Text("End date (YYYY-MM-DD)") },
+                modifier = Modifier.fillMaxWidth(), singleLine = true
+            )
+            OutlinedButton(
+                onClick = { onExportXlsxRange(xlsxFromDate.trim(), xlsxToDate.trim()) },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Export date-range Excel") }
         }
         GlassCard {
             Text("Daily reminders", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

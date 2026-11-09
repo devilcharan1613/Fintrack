@@ -16,8 +16,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.InputStreamReader
 import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.TimeZone
+import org.json.JSONArray
+import org.json.JSONObject
 import java.util.Locale
 
 class NativeFinTrackViewModel(application: Application) : AndroidViewModel(application) {
@@ -290,6 +297,54 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
     fun exportBackup(uri: Uri) = exportFile(uri) { backupService.exportJson().toByteArray(Charsets.UTF_8) }
     fun exportCsv(uri: Uri) = exportFile(uri) { ("﻿" + backupService.exportCsv()).toByteArray(Charsets.UTF_8) }
     fun exportXlsx(uri: Uri) = exportFile(uri) { XlsxExporter.create(backupService.exportJson()) }
+
+    fun exportXlsxRange(uri: Uri, fromDate: String, toDate: String) = exportFile(uri) {
+        val start = parseExportDate(fromDate, endOfDay = false)
+            ?: throw IllegalArgumentException("Enter a valid start date using YYYY-MM-DD.")
+        val end = parseExportDate(toDate, endOfDay = true)
+            ?: throw IllegalArgumentException("Enter a valid end date using YYYY-MM-DD.")
+        require(start <= end) { "Start date must not be after the end date." }
+
+        val workbookState = JSONObject(backupService.exportJson())
+        val allTransactions = workbookState.optJSONArray("transactions") ?: JSONArray()
+        val selectedTransactions = JSONArray()
+        for (index in 0 until allTransactions.length()) {
+            val row = allTransactions.optJSONObject(index) ?: continue
+            val timestamp = row.optLong("timestamp", Long.MIN_VALUE)
+            if (timestamp in start..end) selectedTransactions.put(row)
+        }
+        require(selectedTransactions.length() > 0) { "No transactions exist in the selected date range." }
+        workbookState.put("transactions", selectedTransactions)
+        workbookState.put(
+            "exportMetadata",
+            JSONObject()
+                .put("type", "custom-date-range")
+                .put("from", fromDate)
+                .put("to", toDate)
+                .put(
+                    "generatedAt",
+                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+                        timeZone = TimeZone.getTimeZone("UTC")
+                    }.format(Date())
+                )
+        )
+        XlsxExporter.create(workbookState.toString())
+    }
+
+    private fun parseExportDate(value: String, endOfDay: Boolean): Long? {
+        if (!value.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) return null
+        val format = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }
+        val parsed = runCatching { format.parse(value) }.getOrNull() ?: return null
+        if (format.format(parsed) != value) return null
+        return Calendar.getInstance().apply {
+            time = parsed
+            set(Calendar.HOUR_OF_DAY, if (endOfDay) 23 else 0)
+            set(Calendar.MINUTE, if (endOfDay) 59 else 0)
+            set(Calendar.SECOND, if (endOfDay) 59 else 0)
+            set(Calendar.MILLISECOND, if (endOfDay) 999 else 0)
+        }.timeInMillis
+    }
+
     fun exportPdf(uri: Uri) = exportFile(uri) {
         NativeStatementPdf.create(database.accountDao().allAccounts(), database.financeDao().allTransactions())
     }
@@ -297,11 +352,13 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
     private fun exportFile(uri: Uri, produce: suspend () -> ByteArray) {
         viewModelScope.launch {
             try {
-                val bytes = produce()
-                getApplication<Application>().contentResolver.openOutputStream(uri)?.use { stream ->
-                    stream.write(bytes)
-                    stream.flush()
-                } ?: throw IllegalStateException("Unable to open the selected destination")
+                val bytes = withContext(Dispatchers.IO) { produce() }
+                withContext(Dispatchers.IO) {
+                    getApplication<Application>().contentResolver.openOutputStream(uri)?.use { stream ->
+                        stream.write(bytes)
+                        stream.flush()
+                    } ?: throw IllegalStateException("Unable to open the selected destination")
+                }
                 _message.value = "Export saved successfully"
             } catch (error: Exception) {
                 reportFailure(error)
@@ -312,9 +369,11 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
     fun importBackup(uri: Uri) {
         viewModelScope.launch {
             try {
-                val json = getApplication<Application>().contentResolver.openInputStream(uri)?.use { input ->
-                    InputStreamReader(input, Charsets.UTF_8).buffered().use { it.readText() }
-                } ?: throw IllegalStateException("Unable to open the selected backup")
+                val json = withContext(Dispatchers.IO) {
+                    getApplication<Application>().contentResolver.openInputStream(uri)?.use { input ->
+                        InputStreamReader(input, Charsets.UTF_8).buffered().use { it.readText() }
+                    } ?: throw IllegalStateException("Unable to open the selected backup")
+                }
                 val result = backupService.mergeJson(json)
                 _message.value = "Restore complete: ${result.totalAdded} added, ${result.duplicatesSkipped} already present"
             } catch (error: Exception) {

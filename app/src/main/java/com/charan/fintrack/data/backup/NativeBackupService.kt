@@ -65,7 +65,7 @@ class NativeBackupService(private val database: FinTrackDatabase) {
         val root = JSONObject()
             .put("format", FORMAT)
             .put("schemaVersion", SCHEMA_VERSION)
-            .put("appVersion", "3.0.0")
+            .put("appVersion", "2.5.1")
             .put("createdAt", System.currentTimeMillis())
 
         root.put("accounts", JSONArray().apply {

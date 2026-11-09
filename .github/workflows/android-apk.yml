@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: fintrack-apk-${{ github.ref }}
+  group: fintrack-apk-${{ github.workflow }}-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
