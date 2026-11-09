@@ -81,8 +81,14 @@ class NativeBackupServiceInstrumentedTest {
     fun nativeExportCanBeMergedIntoAnotherEmptyDatabase() = runBlocking {
         val legacy = """
             {
-              "accounts":[{"id":"a","name":"Wallet","type":"wallet","balance":88.25}],
-              "transactions":[{"id":"t","type":"income","amount":8.25,"accountId":"a","category":"Gift","date":"2026-11-08"}],
+              "accounts":[
+                {"id":"a","name":"Wallet","type":"wallet","balance":83.25},
+                {"id":"b","name":"Bank","type":"bank","balance":25.00}
+              ],
+              "transactions":[
+                {"id":"t","type":"income","amount":8.25,"accountId":"a","category":"Gift","date":"2026-11-08"},
+                {"id":"move","type":"transfer","amount":5.00,"accountId":"a","toAccountId":"b","date":"2026-11-08"}
+              ],
               "persons":[],"categories":[],"budgets":[],"goals":[],"loans":[]
             }
         """.trimIndent()
@@ -93,12 +99,18 @@ class NativeBackupServiceInstrumentedTest {
         val destination = Room.inMemoryDatabaseBuilder(context, FinTrackDatabase::class.java).build()
         try {
             val restored = NativeBackupService(destination).mergeJson(nativeBackup)
-            assertEquals(1, restored.accountsAdded)
-            assertEquals(1, restored.transactionsAdded)
-            val restoredAccount = destination.accountDao().allAccounts().single()
+            assertEquals(2, restored.accountsAdded)
+            assertEquals(3, restored.transactionsAdded)
+            val restoredAccounts = destination.accountDao().allAccounts()
             val restoredTransactions = destination.financeDao().allTransactions()
-            assertEquals(8_000L, restoredAccount.openingBalancePaise)
-            assertEquals(8_825L, NativeLedgerCalculator.accountBalancePaise(restoredAccount, restoredTransactions))
+            val wallet = restoredAccounts.single { it.name == "Wallet" }
+            val bank = restoredAccounts.single { it.name == "Bank" }
+            assertEquals(80_000L, wallet.openingBalancePaise)
+            assertEquals(20_000L, bank.openingBalancePaise)
+            assertEquals(8_325L, NativeLedgerCalculator.accountBalancePaise(wallet, restoredTransactions))
+            assertEquals(2_500L, NativeLedgerCalculator.accountBalancePaise(bank, restoredTransactions))
+            assertEquals(1, restoredTransactions.count { it.type == "TRANSFER_OUT" })
+            assertEquals(1, restoredTransactions.count { it.type == "TRANSFER_IN" })
         } finally {
             destination.close()
         }

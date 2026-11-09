@@ -57,6 +57,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
@@ -131,8 +133,15 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel) {
         }
     }
 
-    val decodedBackground = remember(backgroundUri) {
-        backgroundUri?.let { decodeBackgroundBitmap(context, Uri.parse(it)) }
+    val decodedBackground by produceState<Bitmap?>(initialValue = null, backgroundUri) {
+        value = backgroundUri?.let { uriString ->
+            withContext(Dispatchers.IO) {
+                decodeBackgroundBitmap(context, Uri.parse(uriString))
+            }
+        }
+    }
+    DisposableEffect(decodedBackground) {
+        onDispose { decodedBackground?.takeIf { !it.isRecycled }?.recycle() }
     }
 
     FinTrackNativeTheme(darkTheme = dark) {
