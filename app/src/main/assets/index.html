@@ -2078,14 +2078,6 @@ function deletePlannerItem(type,id){
 /* ============================================================
    RENDER: SETTINGS
 ============================================================ */
-function openNativeComposePreview(){
-  if(window.FinTrackBridge&&typeof window.FinTrackBridge.openNativePreview==='function'){
-    window.FinTrackBridge.openNativePreview();
-  }else{
-    showToast('Native Compose preview is available in the installed Android app','error');
-  }
-}
-
 function renderSettings(){
   document.getElementById('infoAccCount').textContent = state.accounts.length;
   document.getElementById('infoTxnCount').textContent = state.transactions.length;
