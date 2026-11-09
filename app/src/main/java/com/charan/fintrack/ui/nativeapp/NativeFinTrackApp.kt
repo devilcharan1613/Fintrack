@@ -292,6 +292,7 @@ private fun NativeFinTrackContent(
     var selectedBudget by remember { mutableStateOf<BudgetEntity?>(null) }
     var selectedCategory by remember { mutableStateOf<CategoryEntity?>(null) }
     val snackbar = remember { SnackbarHostState() }
+    val keyboardVisible = WindowInsets.ime.getBottom(androidx.compose.ui.platform.LocalDensity.current) > 0
 
     LaunchedEffect(message) {
         if (message != null) {
@@ -319,7 +320,9 @@ private fun NativeFinTrackContent(
             containerColor = Color.Transparent,
             snackbarHost = { SnackbarHost(snackbar) },
             bottomBar = {
-                NativeBottomBar(page, navigateTo, { editor = EditorKind.TRANSACTION }, iconScale)
+                if (!keyboardVisible) {
+                    NativeBottomBar(page, navigateTo, { editor = EditorKind.TRANSACTION }, iconScale)
+                }
             }
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
