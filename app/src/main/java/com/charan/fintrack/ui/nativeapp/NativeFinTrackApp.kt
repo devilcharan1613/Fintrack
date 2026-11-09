@@ -59,6 +59,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
@@ -71,10 +72,13 @@ import com.charan.fintrack.FinTrackReminderScheduler
 import com.charan.fintrack.data.MoneyPaise
 import com.charan.fintrack.data.NativeLedgerCalculator
 import com.charan.fintrack.data.local.*
+import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Calendar
 import java.util.Locale
+import kotlin.math.roundToInt
 
 private enum class FinPage(val label: String, val route: String) {
     HOME("Home", "home"),
@@ -102,7 +106,9 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
     val appPrefs = remember { context.getSharedPreferences("fintrack_native_settings", 0) }
     var dark by remember { mutableStateOf(appPrefs.getBoolean("dark_theme", true)) }
     var backgroundUri by remember { mutableStateOf(appPrefs.getString("background_uri", null)) }
-    var backgroundOpacity by remember { mutableFloatStateOf(appPrefs.getInt("background_opacity", 35).toFloat()) }
+    var backgroundOpacity by remember { mutableFloatStateOf(appPrefs.getInt("background_opacity", 35).coerceIn(0, 100).toFloat()) }
+    var iconScalePercent by remember { mutableFloatStateOf(appPrefs.getInt("icon_size_percent", 100).coerceIn(80, 140).toFloat()) }
+    val backgroundScope = rememberCoroutineScope()
     var pendingApkUri by remember { mutableStateOf<Uri?>(null) }
     var pendingXlsxFromDate by remember { mutableStateOf("") }
     var pendingXlsxToDate by remember { mutableStateOf("") }
@@ -127,13 +133,36 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
     val pdfSave = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) {
         it?.let(viewModel::exportPdf)
     }
+    // Copy the image while Android's picker grant is active so the photo survives restarts.
     val backgroundPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
-            try {
-                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (_: Exception) { }
-            backgroundUri = uri.toString()
-            appPrefs.edit().putString("background_uri", backgroundUri).apply()
+            backgroundScope.launch {
+                try {
+                    val savedFile = withContext(Dispatchers.IO) { persistBackgroundImage(context, uri) }
+                    val savedUri = Uri.fromFile(savedFile).toString()
+                    backgroundUri = savedUri
+                    appPrefs.edit().putString("background_uri", savedUri).apply()
+                    Toast.makeText(context, "Background photo saved on this device.", Toast.LENGTH_SHORT).show()
+                } catch (error: Exception) {
+                    Toast.makeText(context, "Could not save photo: ${error.message ?: "unsupported image"}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+    // Move old gallery-provider URIs to private storage when their existing grant still works.
+    LaunchedEffect(backgroundUri) {
+        val current = backgroundUri ?: return@LaunchedEffect
+        val source = runCatching { Uri.parse(current) }.getOrNull() ?: return@LaunchedEffect
+        if (source.scheme == "content") {
+            runCatching { withContext(Dispatchers.IO) { persistBackgroundImage(context, source) } }
+                .onSuccess { savedFile ->
+                    val savedUri = Uri.fromFile(savedFile).toString()
+                    backgroundUri = savedUri
+                    appPrefs.edit().putString("background_uri", savedUri).apply()
+                }
+                .onFailure {
+                    Toast.makeText(context, "The previous background photo is no longer accessible. Choose it again.", Toast.LENGTH_LONG).show()
+                }
         }
     }
     val apkPermissionSettings = rememberLauncherForActivityResult(StartActivityForResult()) {
@@ -192,10 +221,16 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
             onRemoveBackground = {
                 backgroundUri = null
                 appPrefs.edit().remove("background_uri").apply()
+                File(context.filesDir, "appearance").listFiles()?.forEach { it.delete() }
             },
-            onBackgroundOpacity = {
-                backgroundOpacity = it
-                appPrefs.edit().putInt("background_opacity", it.toInt()).apply()
+            onBackgroundOpacity = { backgroundOpacity = it.coerceIn(0f, 100f) },
+            onBackgroundOpacityFinished = {
+                appPrefs.edit().putInt("background_opacity", it.roundToInt().coerceIn(0, 100)).apply()
+            },
+            iconScalePercent = iconScalePercent,
+            onIconScaleChange = { iconScalePercent = it.coerceIn(80f, 140f) },
+            onIconScaleChangeFinished = {
+                appPrefs.edit().putInt("icon_size_percent", it.roundToInt().coerceIn(80, 140)).apply()
             },
             onInstallApk = { apkPicker.launch(arrayOf("application/vnd.android.package-archive", "application/octet-stream")) },
             initialQuickAction = initialQuickAction
@@ -1749,6 +1784,73 @@ private fun EmptyState(title: String, description: String) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+}
+
+internal fun persistBackgroundImage(context: android.content.Context, sourceUri: Uri): File {
+    fun decode(options: BitmapFactory.Options): Bitmap? {
+        return if (sourceUri.scheme == "file") {
+            sourceUri.path?.let { BitmapFactory.decodeFile(it, options) }
+        } else {
+            context.contentResolver.openInputStream(sourceUri)?.use {
+                BitmapFactory.decodeStream(it, null, options)
+            }
+        }
+    }
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    decode(bounds)
+    require(bounds.outWidth > 0 && bounds.outHeight > 0) {
+        "The selected file is not a supported image."
+    }
+    var sample = 1
+    while (bounds.outWidth / sample > 1400 || bounds.outHeight / sample > 1400) sample *= 2
+    val options = BitmapFactory.Options().apply {
+        inSampleSize = sample
+        inPreferredConfig = Bitmap.Config.RGB_565
+    }
+    val decoded = decode(options) ?: throw IllegalArgumentException("Android could not decode this photo.")
+    val scale = minOf(1.0, 1400.0 / maxOf(decoded.width, decoded.height))
+    val outputBitmap = if (scale < 1.0) {
+        Bitmap.createScaledBitmap(
+            decoded,
+            (decoded.width * scale).toInt().coerceAtLeast(1),
+            (decoded.height * scale).toInt().coerceAtLeast(1),
+            true
+        )
+    } else decoded
+    val directory = File(context.filesDir, "appearance")
+    if (!directory.exists() && !directory.mkdirs()) {
+        if (outputBitmap !== decoded) outputBitmap.recycle()
+        decoded.recycle()
+        throw IllegalStateException("Could not create FinTrack's private photo folder.")
+    }
+    val output = File(directory, "background_${System.currentTimeMillis()}_${System.nanoTime()}.jpg")
+    val temporary = File(directory, output.name + ".tmp")
+    try {
+        var quality = 88
+        do {
+            temporary.delete()
+            FileOutputStream(temporary).use { stream ->
+                if (!outputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, stream)) {
+                    throw IllegalStateException("Photo compression failed.")
+                }
+                stream.flush()
+                stream.fd.sync()
+            }
+            quality -= 8
+        } while (temporary.length() > 1_800_000L && quality >= 56)
+        require(temporary.length() > 0L) { "The selected photo is empty." }
+        if (!temporary.renameTo(output)) {
+            throw IllegalStateException("Could not save the photo into FinTrack storage.")
+        }
+        directory.listFiles()
+            ?.filter { it.isFile && it.name.startsWith("background_") && it != output }
+            ?.forEach { it.delete() }
+        return output
+    } finally {
+        temporary.delete()
+        if (outputBitmap !== decoded && !outputBitmap.isRecycled) outputBitmap.recycle()
+        if (!decoded.isRecycled) decoded.recycle()
     }
 }
 
