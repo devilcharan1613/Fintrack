@@ -165,12 +165,19 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
         if (source.scheme == "content") {
             runCatching { withContext(Dispatchers.IO) { persistBackgroundImage(context, source) } }
                 .onSuccess { savedFile ->
-                    val savedUri = Uri.fromFile(savedFile).toString()
-                    backgroundUri = savedUri
-                    appPrefs.edit().putString("background_uri", savedUri).apply()
+                    // Do not let an old migration job overwrite a newer photo selection or Remove action.
+                    if (backgroundUri == current) {
+                        val savedUri = Uri.fromFile(savedFile).toString()
+                        backgroundUri = savedUri
+                        appPrefs.edit().putString("background_uri", savedUri).apply()
+                    } else {
+                        savedFile.delete()
+                    }
                 }
                 .onFailure {
-                    Toast.makeText(context, "The previous background photo is no longer accessible. Choose it again.", Toast.LENGTH_LONG).show()
+                    if (backgroundUri == current) {
+                        Toast.makeText(context, "The previous background photo is no longer accessible. Choose it again.", Toast.LENGTH_LONG).show()
+                    }
                 }
         }
     }
