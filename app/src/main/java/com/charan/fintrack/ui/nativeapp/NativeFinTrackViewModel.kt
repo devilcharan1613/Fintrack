@@ -3,6 +3,7 @@ package com.charan.fintrack.ui.nativeapp
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
+import androidx.room.withTransaction
 import androidx.lifecycle.viewModelScope
 import com.charan.fintrack.XlsxExporter
 import com.charan.fintrack.data.MoneyPaise
@@ -346,7 +347,10 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
     }
 
     fun exportPdf(uri: Uri) = exportFile(uri) {
-        NativeStatementPdf.create(database.accountDao().allAccounts(), database.financeDao().allTransactions())
+        val snapshot = database.withTransaction {
+            database.accountDao().allAccounts() to database.financeDao().allTransactions()
+        }
+        NativeStatementPdf.create(snapshot.first, snapshot.second)
     }
 
     private fun exportFile(uri: Uri, produce: suspend () -> ByteArray) {
