@@ -44,6 +44,7 @@ class NativeBackgroundPhotoInstrumentedTest {
         assertEquals(64, restored.height)
         restored.recycle()
         source.delete()
+        Unit
     }
 
     @Test
