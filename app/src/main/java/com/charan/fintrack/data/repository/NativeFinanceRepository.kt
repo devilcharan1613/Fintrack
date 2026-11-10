@@ -165,7 +165,13 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
             val original = dao.allTransactions().firstOrNull { it.id == transaction.id }
                 ?: throw IllegalArgumentException("Transaction does not exist")
             val oldTransferId = original.transferId
-            if (oldTransferId != null) dao.deleteTransfer(oldTransferId)
+            if (oldTransferId != null) {
+                dao.deleteTransfer(oldTransferId)
+            } else if (type == "TRANSFER") {
+                // The outgoing transfer reuses the original transaction ID.
+                // Remove the non-transfer row first to avoid a primary-key conflict.
+                dao.deleteTransaction(original)
+            }
 
             if (type == "TRANSFER") {
                 val transferId = oldTransferId ?: UUID.randomUUID().toString()
