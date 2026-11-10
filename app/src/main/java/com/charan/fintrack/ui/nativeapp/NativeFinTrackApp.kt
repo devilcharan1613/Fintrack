@@ -1853,8 +1853,11 @@ private fun EmptyState(title: String, description: String) {
 internal suspend fun persistBackgroundImage(context: Context, uri: Uri): String {
     val resolver = context.contentResolver
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+    val boundsInput = resolver.openInputStream(uri)
         ?: throw IllegalStateException("Android could not open the selected photo")
+    // Bounds-only decoding intentionally returns null. The stream opening is the operation
+    // that must be checked here; image validity is established by the decoded dimensions below.
+    boundsInput.use { BitmapFactory.decodeStream(it, null, bounds) }
     require(bounds.outWidth > 0 && bounds.outHeight > 0) { "Selected file is not a supported image" }
 
     var sample = 1
