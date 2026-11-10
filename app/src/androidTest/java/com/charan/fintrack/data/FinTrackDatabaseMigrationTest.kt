@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -30,7 +31,10 @@ class FinTrackDatabaseMigrationTest {
         legacy.execSQL("CREATE TABLE persons (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, phone TEXT NOT NULL, notes TEXT NOT NULL)")
         legacy.execSQL("CREATE TABLE loan_payments (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, loanId INTEGER NOT NULL, amount REAL NOT NULL, timestamp INTEGER NOT NULL, note TEXT NOT NULL)")
         legacy.execSQL("INSERT INTO accounts VALUES (1, 'Cash', 'Wallet', 1000.00, 'INR', '', '', '', 0, 1000, 1000)")
+        legacy.execSQL("INSERT INTO persons VALUES (1, 'Alex', '', '')")
         legacy.execSQL("INSERT INTO transactions VALUES (1, 1, 'INCOME', 25.55, 'Gift', '', 2000, NULL, NULL, '', NULL)")
+        legacy.execSQL("INSERT INTO transactions VALUES (2, 1, 'EXPENSE', 10.00, 'Food', '', 2500, NULL, NULL, '', 1)")
+        legacy.execSQL("INSERT INTO transactions VALUES (3, 1, 'BORROW', 20.00, 'Borrowed', '', 2600, NULL, NULL, '', 1)")
         legacy.execSQL("INSERT INTO budgets VALUES (1, 'Food', 300.75, '2026-11')")
         legacy.execSQL("INSERT INTO goals VALUES (1, 'Trip', 5000.00, 125.05, NULL)")
         legacy.execSQL("INSERT INTO loans VALUES (1, 'Phone', 10000.00, 1200.10, 800.00, 0.0)")
@@ -43,7 +47,10 @@ class FinTrackDatabaseMigrationTest {
             .build()
         try {
             val account = migrated.accountDao().getAccountById(1L)!!
-            val txn = migrated.financeDao().allTransactions().single()
+            val migratedTransactions = migrated.financeDao().allTransactions()
+            val txn = migratedTransactions.single { it.id == 1L }
+            val expense = migratedTransactions.single { it.id == 2L }
+            val borrow = migratedTransactions.single { it.id == 3L }
             val budget = migrated.financeDao().allBudgets().single()
             val goal = migrated.financeDao().allGoals().single()
             val loan = migrated.financeDao().allLoans().single()
@@ -60,8 +67,10 @@ class FinTrackDatabaseMigrationTest {
             assertEquals(120_010L, repayment.amountPaise)
             assertFalse(account.stableUid.isBlank())
             assertFalse(txn.stableUid.isBlank())
+            assertNull("V5->V6 migration clears person links on ordinary expenses", expense.personId)
+            assertEquals(1L, borrow.personId)
             assertTrue(migrated.financeDao().allGoalContributions().isEmpty())
-            assertEquals(0, migrated.openHelper.writableDatabase.version - 5)
+            assertEquals(6, migrated.openHelper.writableDatabase.version)
         } finally {
             migrated.close()
             context.deleteDatabase(databaseName)
