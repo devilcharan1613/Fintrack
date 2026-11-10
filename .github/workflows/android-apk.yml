@@ -9,8 +9,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: fintrack-apk-${{ github.workflow }}-${{ github.sha }}
-  cancel-in-progress: false
+  # Only the newest commit on a given branch needs a build and emulator run.
+  # Keep main and the development branch independent.
+  group: fintrack-apk-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
