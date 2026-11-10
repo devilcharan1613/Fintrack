@@ -94,7 +94,7 @@ class NativeBackupService(private val database: FinTrackDatabase) {
         val root = JSONObject()
             .put("format", FORMAT)
             .put("schemaVersion", SCHEMA_VERSION)
-            .put("appVersion", "2.5.1")
+            .put("appVersion", "2.5.2")
             .put("createdAt", System.currentTimeMillis())
 
         root.put("accounts", JSONArray().apply {
@@ -524,7 +524,11 @@ class NativeBackupService(private val database: FinTrackDatabase) {
                 val accountId = accountIdMap[oldAccountId]
                     ?: throw IllegalArgumentException("Transaction references an account not included in the backup.")
                 val oldPersonId = if (item.isNull("personId") || !item.has("personId")) null else item.get("personId").toString()
-                val personId = oldPersonId?.let { personIdMap[it] ?: throw IllegalArgumentException("Transaction references a missing person.") }
+                val personId = if (rawType == "BORROW" || rawType == "LEND") {
+                    oldPersonId?.let {
+                        personIdMap[it] ?: throw IllegalArgumentException("Transaction references a missing person.")
+                    }
+                } else null
                 val categoryId = text(item, "category")
                 val categoryName = categoryNameMap[categoryId] ?: categoryId.ifBlank { "Other" }
                 val note = text(item, "note", "notes")
