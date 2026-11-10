@@ -62,6 +62,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
@@ -229,7 +230,7 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
             onExportPdf = { pdfSave.launch("FinTrack_Statement.pdf") },
             backgroundBitmap = decodedBackground,
             backgroundOpacity = backgroundOpacity / 100f,
-            onChooseBackground = { backgroundPicker.launch(ActivityResultContracts.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            onChooseBackground = { backgroundPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onRemoveBackground = {
                 backgroundUri = null
                 appPrefs.edit().remove("background_uri").apply()
