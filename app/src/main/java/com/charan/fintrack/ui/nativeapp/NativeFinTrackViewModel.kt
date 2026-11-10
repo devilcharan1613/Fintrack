@@ -149,7 +149,7 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
                 category = category.ifBlank { if (type.equals("BORROW", true)) "Borrowed" else if (type.equals("LEND", true)) "Lent" else "Other" },
                 note = note,
                 timestamp = timestamp,
-                personId = personId,
+                personId = personId.takeIf { type.equals("BORROW", true) || type.equals("LEND", true) },
                 paymentMethod = paymentMethod,
                 upiApp = upiApp,
                 subcategory = subcategory
@@ -183,7 +183,7 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
                 category = if (type.equals("TRANSFER", true)) "Transfer" else category,
                 note = note,
                 timestamp = timestamp,
-                personId = personId,
+                personId = personId.takeIf { type.equals("BORROW", true) || type.equals("LEND", true) },
                 paymentMethod = paymentMethod,
                 upiApp = upiApp,
                 subcategory = subcategory.trim()
