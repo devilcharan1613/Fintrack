@@ -110,6 +110,7 @@ A local backup intended to preserve the app's finance data for later restore. Ke
 
 - **Implemented (source):** dark and light appearance modes with a shared Liquid Glass visual style.
 - **Implemented (source):** personal background photo selection from device storage, preview, removal and local persistence.
+- **Implemented (source):** background photos use Android's system Photo Picker (`PickVisualMedia`) and are copied into app-private storage; no broad `READ_MEDIA_IMAGES` or legacy external-storage permission is requested.
 - **Implemented (source):** photo visibility slider with a 0–100% range; the selected opacity is saved locally.
 - **Implemented (source):** adjustable UI icon sizing from 80% to 140%, saved on the device. The control scales common navigation, shortcut and settings icons.
 - **Implemented (source):** image resizing/compression before passing a selected photo into the app, to reduce memory and local-storage pressure.
@@ -130,7 +131,7 @@ A local backup intended to preserve the app's finance data for later restore. Ke
 - **Implemented (source):** a confirmation dialog protects the destructive reset-all-finance-data action.
 - **Implemented (source):** native screen destinations use Navigation Compose, with bottom navigation and More-menu entry points.
 - **Implemented (source):** legacy-to-native Room migration support. The visible “Move to Native FinTrack” Settings card has been removed from the current UI; the migration bridge remains in source for compatibility and controlled migration workflows.
-- **Implemented (source):** manual selection and hand-off of a local APK to Android's package installer.
+- **Implemented (source):** manual APK selection and hand-off to Android's package installer using the install-package action and a temporary per-app install permission when Android requires it.
 - **Needs testing:** all navigation/back-stack paths, fresh-install flow and APK update installation/data preservation on real devices.
 - **Security note:** Android controls package installation and displays its own confirmation UI. FinTrack does not silently install updates.
 
