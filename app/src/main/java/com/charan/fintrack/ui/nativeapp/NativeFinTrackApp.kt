@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -101,6 +102,8 @@ private enum class FinPage(val label: String, val route: String) {
     }
 }
 private enum class EditorKind { NONE, TRANSACTION, ACCOUNT, PERSON, BUDGET, GOAL, LOAN, CONTRIBUTION, REPAYMENT, CATEGORY }
+
+private val LocalFinTrackIconScale = compositionLocalOf { 1f }
 
 @Composable
 fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: String? = null) {
@@ -211,7 +214,8 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
     }
 
     FinTrackNativeTheme(darkTheme = dark) {
-        NativeFinTrackContent(
+        CompositionLocalProvider(LocalFinTrackIconScale provides (iconScale / 100f)) {
+            NativeFinTrackContent(
             viewModel = viewModel,
             darkTheme = dark,
             onThemeChange = {
@@ -240,8 +244,9 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
             iconScale = iconScale,
             onIconScale = { iconScale = it.coerceIn(80f, 140f) },
             onInstallApk = { apkPicker.launch(arrayOf("application/vnd.android.package-archive", "application/octet-stream")) },
-            initialQuickAction = initialQuickAction
-        )
+                initialQuickAction = initialQuickAction
+            )
+        }
     }
 }
 
@@ -333,13 +338,12 @@ private fun NativeFinTrackContent(
             snackbarHost = { SnackbarHost(snackbar) },
             bottomBar = {
                 if (!keyboardVisible) {
-                    NativeBottomBar(page, navigateTo, { editor = EditorKind.TRANSACTION }, iconScale)
+                    NativeBottomBar(page, navigateTo, { editor = EditorKind.TRANSACTION })
                 }
             }
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
                 NativeHeader(
-                    iconScale = iconScale,
                     title = if (page == FinPage.HOME) "FinTrack" else page.label,
                     subtitle = if (page == FinPage.HOME) greetingText() else "FinTrack Pro • Offline Edition",
                     onAdd = {
@@ -525,7 +529,7 @@ private fun NativeFinTrackContent(
 }
 
 @Composable
-private fun NativeHeader(iconScale: Float, title: String, subtitle: String, onAdd: () -> Unit) {
+private fun NativeHeader(title: String, subtitle: String, onAdd: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -533,21 +537,21 @@ private fun NativeHeader(iconScale: Float, title: String, subtitle: String, onAd
     ) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.BarChart, null, tint = Color(0xFF00E6D0), modifier = Modifier.size((30f * iconScale / 100f).dp))
+                ScaledFinTrackIcon(Icons.Filled.BarChart, null, tint = Color(0xFF00E6D0), modifier = Modifier.size(30.dp))
                 Spacer(Modifier.width(9.dp))
                 Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
             }
             Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
         FilledTonalButton(onClick = onAdd, shape = RoundedCornerShape(24.dp)) {
-            Icon(Icons.Filled.Add, null, modifier = Modifier.size((20f * iconScale / 100f).dp))
+            ScaledFinTrackIcon(Icons.Filled.Add, null, modifier = Modifier.size(20.dp))
             Text("Add")
         }
     }
 }
 
 @Composable
-private fun NativeBottomBar(current: FinPage, onNavigate: (FinPage) -> Unit, onAdd: () -> Unit, iconScale: Float) {
+private fun NativeBottomBar(current: FinPage, onNavigate: (FinPage) -> Unit, onAdd: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)
             .clip(RoundedCornerShape(28.dp))
@@ -557,26 +561,26 @@ private fun NativeBottomBar(current: FinPage, onNavigate: (FinPage) -> Unit, onA
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        BottomNavItem("Home", Icons.Filled.Home, current == FinPage.HOME, iconScale) { onNavigate(FinPage.HOME) }
-        BottomNavItem("Transactions", Icons.Filled.ReceiptLong, current == FinPage.TRANSACTIONS, iconScale) { onNavigate(FinPage.TRANSACTIONS) }
+        BottomNavItem("Home", Icons.Filled.Home, current == FinPage.HOME) { onNavigate(FinPage.HOME) }
+        BottomNavItem("Transactions", Icons.Filled.ReceiptLong, current == FinPage.TRANSACTIONS) { onNavigate(FinPage.TRANSACTIONS) }
         FloatingActionButton(
-            onClick = onAdd, modifier = Modifier.size((50f * iconScale / 100f).dp), shape = CircleShape,
+            onClick = onAdd, modifier = Modifier.size(50.dp), shape = CircleShape,
             containerColor = Color(0xFF00DCCB), contentColor = Color(0xFF03202A)
-        ) { Icon(Icons.Filled.Add, "Add transaction", modifier = Modifier.size((28f * iconScale / 100f).dp)) }
-        BottomNavItem("Accounts", Icons.Filled.AccountBalanceWallet, current == FinPage.ACCOUNTS, iconScale) { onNavigate(FinPage.ACCOUNTS) }
-        BottomNavItem("Reports", Icons.Filled.BarChart, current == FinPage.REPORTS, iconScale) { onNavigate(FinPage.REPORTS) }
-        BottomNavItem("More", Icons.Filled.MoreHoriz, current == FinPage.MORE, iconScale) { onNavigate(FinPage.MORE) }
+        ) { ScaledFinTrackIcon(Icons.Filled.Add, "Add transaction", modifier = Modifier.size(28.dp)) }
+        BottomNavItem("Accounts", Icons.Filled.AccountBalanceWallet, current == FinPage.ACCOUNTS) { onNavigate(FinPage.ACCOUNTS) }
+        BottomNavItem("Reports", Icons.Filled.BarChart, current == FinPage.REPORTS) { onNavigate(FinPage.REPORTS) }
+        BottomNavItem("More", Icons.Filled.MoreHoriz, current == FinPage.MORE) { onNavigate(FinPage.MORE) }
     }
 }
 
 @Composable
-private fun BottomNavItem(label: String, icon: ImageVector, selected: Boolean, iconScale: Float, onClick: () -> Unit) {
+private fun BottomNavItem(label: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit) {
     Column(
         Modifier.widthIn(min = 42.dp).clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick)
             .padding(horizontal = 2.dp, vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(icon, null, tint = if (selected) Color(0xFF16E7D7) else Color(0xFFD8E7F0), modifier = Modifier.size((19f * iconScale / 100f).dp))
+        ScaledFinTrackIcon(icon, null, tint = if (selected) Color(0xFF16E7D7) else Color(0xFFD8E7F0), modifier = Modifier.size(19.dp))
         Text(label, color = if (selected) Color(0xFF16E7D7) else Color(0xFFD8E7F0), style = MaterialTheme.typography.labelSmall, maxLines = 1)
     }
 }
@@ -613,7 +617,7 @@ private fun DashboardScreen(
             GlassCard {
                 Text("No accounts yet", fontWeight = FontWeight.Bold)
                 Text("Add your first cash, bank or wallet account to start tracking balances.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Button(onClick = onAddAccount) { Icon(Icons.Filled.Add, null); Text("Add Account") }
+                Button(onClick = onAddAccount) { ScaledFinTrackIcon(Icons.Filled.Add, null); Text("Add Account") }
             }
         } else {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -626,7 +630,7 @@ private fun DashboardScreen(
                     }
                 }
                 GlassCard(Modifier.width(150.dp).clickable(onClick = onAddAccount)) {
-                    Icon(Icons.Filled.Add, null, tint = Color(0xFF00DCCB), modifier = Modifier.size(32.dp))
+                    ScaledFinTrackIcon(Icons.Filled.Add, null, tint = Color(0xFF00DCCB), modifier = Modifier.size(32.dp))
                     Text("Add Account", fontWeight = FontWeight.Bold)
                 }
             }
@@ -695,7 +699,7 @@ private fun TransactionsScreen(
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         OutlinedTextField(
             value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(),
-            singleLine = true, leadingIcon = { Icon(Icons.Filled.Search, null) },
+            singleLine = true, leadingIcon = { ScaledFinTrackIcon(Icons.Filled.Search, null) },
             placeholder = { Text("Search transactions, notes or amount") }
         )
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -770,7 +774,7 @@ private fun AccountsScreen(
             val current = NativeLedgerCalculator.accountBalancePaise(account, transactions)
             GlassCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.AccountBalanceWallet, null, tint = Color(0xFF30D8CC), modifier = Modifier.size(28.dp))
+                    ScaledFinTrackIcon(Icons.Filled.AccountBalanceWallet, null, tint = Color(0xFF30D8CC), modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(account.name, fontWeight = FontWeight.Bold)
@@ -958,7 +962,7 @@ private fun MoreScreen(onNavigate: (FinPage) -> Unit) {
             val destination = item.first
             GlassCard(Modifier.fillMaxWidth().clickable { onNavigate(destination) }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(item.third, null, tint = Color(0xFF21DACA), modifier = Modifier.size(26.dp))
+                    ScaledFinTrackIcon(item.third, null, tint = Color(0xFF21DACA), modifier = Modifier.size(26.dp))
                     Spacer(Modifier.width(12.dp))
                     Text(item.second, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                     Text("›", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.headlineSmall)
@@ -1733,6 +1737,26 @@ private fun NativeEditorDialog(
     )
 }
 
+
+@Composable
+private fun ScaledFinTrackIcon(
+    imageVector: ImageVector,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    tint: Color? = null
+) {
+    val scale = LocalFinTrackIconScale.current.coerceIn(0.8f, 1.4f)
+    val scaledModifier = modifier.graphicsLayer {
+        scaleX = scale
+        scaleY = scale
+    }
+    if (tint == null) {
+        Icon(imageVector, contentDescription, modifier = scaledModifier)
+    } else {
+        Icon(imageVector, contentDescription, modifier = scaledModifier, tint = tint)
+    }
+}
+
 @Composable
 private fun MoneyField(label: String, value: String, onValue: (String) -> Unit) {
     OutlinedTextField(
@@ -1753,7 +1777,7 @@ private fun TransactionItem(
     GlassCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(40.dp).clip(CircleShape).background(tint.copy(alpha = .14f)), contentAlignment = Alignment.Center) {
-                Icon(if (positive) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward, null, tint = tint)
+                ScaledFinTrackIcon(if (positive) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward, null, tint = tint)
             }
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
@@ -1765,7 +1789,7 @@ private fun TransactionItem(
             Text((if (transfer) "↔ " else if (positive) "+" else "−") + money(transaction.amountPaise), color = tint, fontWeight = FontWeight.Bold)
             if (onEdit != null) TextButton(onClick = { onEdit(transaction) }) { Text("Edit") }
             if (onDelete != null) IconButton(onClick = { onDelete(transaction) }) {
-                Icon(Icons.Filled.Delete, "Delete transaction", tint = MaterialTheme.colorScheme.error)
+                ScaledFinTrackIcon(Icons.Filled.Delete, "Delete transaction", tint = MaterialTheme.colorScheme.error)
             }
         }
     }
@@ -1778,7 +1802,7 @@ private fun MetricMini(label: String, value: String, tint: Color, icon: ImageVec
             .border(1.dp, tint.copy(alpha = .45f), RoundedCornerShape(18.dp)).padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(icon, null, tint = tint)
+        ScaledFinTrackIcon(icon, null, tint = tint)
         Text(value, fontWeight = FontWeight.ExtraBold)
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
     }
@@ -1791,7 +1815,7 @@ private fun SmallMetric(label: String, value: String, icon: ImageVector, tint: C
             .border(1.dp, tint.copy(alpha = .45f), RoundedCornerShape(18.dp)).padding(13.dp),
         verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
-        Icon(icon, null, tint = tint, modifier = Modifier.size(26.dp))
+        ScaledFinTrackIcon(icon, null, tint = tint, modifier = Modifier.size(26.dp))
         Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
     }
@@ -1818,7 +1842,7 @@ private fun SectionLabel(text: String) {
 private fun EmptyState(title: String, description: String) {
     Box(Modifier.fillMaxSize().padding(28.dp), contentAlignment = Alignment.Center) {
         GlassCard {
-            Icon(Icons.Filled.AccountBalanceWallet, null, tint = Color(0xFF18DCCB), modifier = Modifier.size(34.dp))
+            ScaledFinTrackIcon(Icons.Filled.AccountBalanceWallet, null, tint = Color(0xFF18DCCB), modifier = Modifier.size(34.dp))
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
