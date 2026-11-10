@@ -45,6 +45,18 @@ data class BackupMergeReport(
  * - Loan repayments and goal contributions remain tracking-only records.
  */
 class NativeBackupService(private val database: FinTrackDatabase) {
+    private data class ExportSnapshot(
+        val accounts: List<AccountEntity>,
+        val transactions: List<TransactionEntity>,
+        val people: List<PersonEntity>,
+        val categories: List<CategoryEntity>,
+        val budgets: List<BudgetEntity>,
+        val goals: List<GoalEntity>,
+        val contributions: List<GoalContributionEntity>,
+        val loans: List<LoanEntity>,
+        val payments: List<LoanPaymentEntity>
+    )
+
     private val accounts = database.accountDao()
     private val finance = database.financeDao()
 
@@ -54,15 +66,30 @@ class NativeBackupService(private val database: FinTrackDatabase) {
     }
 
     suspend fun exportJson(): String {
-        val accountRows = accounts.allAccounts()
-        val transactionRows = finance.allTransactions()
-        val peopleRows = finance.allPersons()
-        val categoryRows = finance.allCategories()
-        val budgetRows = finance.allBudgets()
-        val goalRows = finance.allGoals()
-        val contributionRows = finance.allGoalContributions()
-        val loanRows = finance.allLoans()
-        val paymentRows = finance.allLoanPayments()
+        // Read related finance tables in one Room transaction so a concurrent
+        // edit cannot produce a backup with mismatched account/transaction state.
+        val snapshot = database.withTransaction {
+            ExportSnapshot(
+                accounts = accounts.allAccounts(),
+                transactions = finance.allTransactions(),
+                people = finance.allPersons(),
+                categories = finance.allCategories(),
+                budgets = finance.allBudgets(),
+                goals = finance.allGoals(),
+                contributions = finance.allGoalContributions(),
+                loans = finance.allLoans(),
+                payments = finance.allLoanPayments()
+            )
+        }
+        val accountRows = snapshot.accounts
+        val transactionRows = snapshot.transactions
+        val peopleRows = snapshot.people
+        val categoryRows = snapshot.categories
+        val budgetRows = snapshot.budgets
+        val goalRows = snapshot.goals
+        val contributionRows = snapshot.contributions
+        val loanRows = snapshot.loans
+        val paymentRows = snapshot.payments
 
         val root = JSONObject()
             .put("format", FORMAT)
