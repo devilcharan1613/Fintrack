@@ -216,36 +216,36 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
     FinTrackNativeTheme(darkTheme = dark) {
         CompositionLocalProvider(LocalFinTrackIconScale provides (iconScale / 100f)) {
             NativeFinTrackContent(
-            viewModel = viewModel,
-            darkTheme = dark,
-            onThemeChange = {
-                dark = it
-                context.getSharedPreferences("fintrack_native_settings", 0).edit().putBoolean("dark_theme", it).apply()
-            },
-            onExportBackup = { backupSave.launch("FinTrack_Backup.json") },
-            onImportBackup = { backupOpen.launch(arrayOf("application/json", "text/json", "application/octet-stream")) },
-            onExportCsv = { csvSave.launch("FinTrack_Transactions.csv") },
-            onExportXlsx = { xlsxSave.launch("FinTrack_Export.xlsx") },
-            onExportXlsxRange = { fromDate, toDate ->
-                pendingXlsxFromDate = fromDate
-                pendingXlsxToDate = toDate
-                xlsxRangeSave.launch("FinTrack_${fromDate}_to_${toDate}.xlsx")
-            },
-            onExportPdf = { pdfSave.launch("FinTrack_Statement.pdf") },
-            backgroundBitmap = decodedBackground,
-            backgroundOpacity = backgroundOpacity / 100f,
-            onChooseBackground = { backgroundPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-            onRemoveBackground = {
-                backgroundUri = null
-                appPrefs.edit().remove("background_uri").apply()
-                File(context.filesDir, "fintrack_background.jpg").delete()
-            },
-            onBackgroundOpacity = { backgroundOpacity = it.coerceIn(0f, 100f) },
-            iconScale = iconScale,
-            onIconScale = { iconScale = it.coerceIn(80f, 140f) },
-            onInstallApk = { apkPicker.launch(arrayOf("application/vnd.android.package-archive", "application/octet-stream")) },
-                initialQuickAction = initialQuickAction
-            )
+                viewModel = viewModel,
+                darkTheme = dark,
+                onThemeChange = {
+                    dark = it
+                    context.getSharedPreferences("fintrack_native_settings", 0).edit().putBoolean("dark_theme", it).apply()
+                },
+                onExportBackup = { backupSave.launch("FinTrack_Backup.json") },
+                onImportBackup = { backupOpen.launch(arrayOf("application/json", "text/json", "application/octet-stream")) },
+                onExportCsv = { csvSave.launch("FinTrack_Transactions.csv") },
+                onExportXlsx = { xlsxSave.launch("FinTrack_Export.xlsx") },
+                onExportXlsxRange = { fromDate, toDate ->
+                    pendingXlsxFromDate = fromDate
+                    pendingXlsxToDate = toDate
+                    xlsxRangeSave.launch("FinTrack_${fromDate}_to_${toDate}.xlsx")
+                },
+                onExportPdf = { pdfSave.launch("FinTrack_Statement.pdf") },
+                backgroundBitmap = decodedBackground,
+                backgroundOpacity = backgroundOpacity / 100f,
+                onChooseBackground = { backgroundPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                onRemoveBackground = {
+                    backgroundUri = null
+                    appPrefs.edit().remove("background_uri").apply()
+                    File(context.filesDir, "fintrack_background.jpg").delete()
+                },
+                onBackgroundOpacity = { backgroundOpacity = it.coerceIn(0f, 100f) },
+                iconScale = iconScale,
+                onIconScale = { iconScale = it.coerceIn(80f, 140f) },
+                onInstallApk = { apkPicker.launch(arrayOf("application/vnd.android.package-archive", "application/octet-stream")) },
+                    initialQuickAction = initialQuickAction
+                )
         }
     }
 }
