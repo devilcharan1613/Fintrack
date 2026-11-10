@@ -7,6 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.charan.fintrack.data.MoneyPaise
 import com.charan.fintrack.data.NativeLedgerCalculator
 import com.charan.fintrack.data.local.FinTrackDatabase
+import com.charan.fintrack.data.local.TransactionEntity
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -101,6 +102,18 @@ class NativeBackupServiceInstrumentedTest {
             }
         """.trimIndent()
         service.mergeJson(legacy)
+        val walletId = database.accountDao().allAccounts().single { it.name == "Wallet" }.id
+        val preciseTimestamp = 1_799_999_999_123L
+        database.financeDao().insertTransaction(
+            TransactionEntity(
+                accountId = walletId,
+                type = "EXPENSE",
+                amount = 1.23,
+                amountPaise = 123L,
+                category = "Precision check",
+                timestamp = preciseTimestamp
+            )
+        )
         val nativeBackup = service.exportJson()
 
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -108,14 +121,15 @@ class NativeBackupServiceInstrumentedTest {
         try {
             val restored = NativeBackupService(destination).mergeJson(nativeBackup)
             assertEquals(2, restored.accountsAdded)
-            assertEquals(3, restored.transactionsAdded)
+            assertEquals(4, restored.transactionsAdded)
             val restoredAccounts = destination.accountDao().allAccounts()
             val restoredTransactions = destination.financeDao().allTransactions()
             val wallet = restoredAccounts.single { it.name == "Wallet" }
             val bank = restoredAccounts.single { it.name == "Bank" }
             assertEquals(8_000L, wallet.openingBalancePaise) // ₹83.25 current minus ₹8.25 income and ₹5.00 transfer
             assertEquals(2_000L, bank.openingBalancePaise) // ₹25.00 current minus ₹5.00 transfer received
-            assertEquals(8_325L, NativeLedgerCalculator.accountBalancePaise(wallet, restoredTransactions))
+            assertEquals(8_202L, NativeLedgerCalculator.accountBalancePaise(wallet, restoredTransactions))
+            assertEquals(preciseTimestamp, restoredTransactions.single { it.category == "Precision check" }.timestamp)
             assertEquals("Bonus", restoredTransactions.single { it.type == "INCOME" }.subcategory)
             assertEquals(2_500L, NativeLedgerCalculator.accountBalancePaise(bank, restoredTransactions))
             assertEquals(1, restoredTransactions.count { it.type == "TRANSFER_OUT" })
