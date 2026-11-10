@@ -1,6 +1,6 @@
 # 💰 FinTrack
 
-**📱 Version 2.5.1 · Offline Edition · Android**
+**📱 Version 2.5.2 · Offline Edition · Android**
 
 FinTrack is a native Android personal finance tracker built with Kotlin, Jetpack Compose and Room. The development branch contains a native Kotlin/Jetpack Compose finance experience and a legacy WebView data-compatibility layer. Where legacy data migration is used, source records are retained during migration. This README distinguishes source implementation from runtime verification. A feature being present in source code does not mean it has passed every device test.
 
@@ -150,11 +150,11 @@ This is a development-branch README, not a release certification.
 
 - **Branch:** `fintrack-2.5.0-development`
 - **Recent UI updates:** safe-area spacing, keyboard-aware form layout, background photo controls, photo visibility and adjustable icon size are present in source; verify the latest CI run before treating them as release-ready.
-- **Native release line:** version `2.5.1` (version code `28`) on this development branch.
+- **Native release line:** version `2.5.2` (version code `29`) on this development branch.
 - **Main branch:** unchanged by this implementation work.
 - **Build verification:** check the latest GitHub Actions run for the exact commit before distributing an APK.
 - **Test coverage:** unit tests cover paise arithmetic, ledger calculations, reminder time, strict transaction dates, transaction-account filtering and the legacy migration recovery guard; instrumentation tests cover Room migrations, backup merge/restore, paired transfer integrity, XLSX structure, native navigation, settings and background-photo storage/replacement.
-- **Integrity fixes in this development line:** editing an expense/income into a transfer atomically creates a matched pair; transfer filters match both source and destination accounts; native backup restore preserves exact event timestamps and rejects missing or unsupported future schema versions; JSON/PDF export reads a consistent database snapshot; legacy migration stops rather than importing an empty seed when unreadable saved data was detected; replacing a background photo invalidates the Compose bitmap cache.
+- **Integrity fixes in this development line:** editing an expense/income into a transfer atomically creates a matched pair; transfer filters match both source and destination accounts; person associations are restricted to Borrow/Lend and old invalid links are cleared by the v5→v6 Room migration; native backup restore preserves exact event timestamps and rejects missing or unsupported future schema versions; JSON/PDF export reads a consistent database snapshot; legacy migration stops rather than importing an empty seed when unreadable saved data was detected; replacing a background photo invalidates the Compose bitmap cache.
 - **Not yet certified by this README:** physical-device testing, exhaustive regression testing, accessibility review, battery/background behaviour, and verification of every exported file in third-party applications.
 
 Do not treat a successful APK compilation as proof that every feature works correctly. Report bugs with the device model, Android version and steps to reproduce.
@@ -179,8 +179,8 @@ The GitHub Actions workflow is configured to build the debug APK and publish the
 |---|---|
 | App name | FinTrack |
 | Application ID | `com.charan.fintrack` |
-| Version name | `2.5.1` |
-| Version code | `28` |
+| Version name | `2.5.2` |
+| Version code | `29` |
 | Minimum Android | API 23 (Android 6.0) |
 | Target Android | API 35 (Android 15) |
 | Edition | Offline |
@@ -189,4 +189,4 @@ The GitHub Actions workflow is configured to build the debug APK and publish the
 
 **Made for simple, private, offline-first money management. 💚**
 
-*FinTrack v2.5.1 Offline Edition · Development branch documentation*
+*FinTrack v2.5.2 Offline Edition · Development branch documentation*
