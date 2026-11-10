@@ -136,7 +136,9 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
     val pdfSave = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) {
         it?.let(viewModel::exportPdf)
     }
-    val backgroundPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+    val backgroundPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
         if (uri != null) {
             imageScope.launch {
                 runCatching { withContext(Dispatchers.IO) { persistBackgroundImage(context, uri) } }
@@ -227,7 +229,7 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
             onExportPdf = { pdfSave.launch("FinTrack_Statement.pdf") },
             backgroundBitmap = decodedBackground,
             backgroundOpacity = backgroundOpacity / 100f,
-            onChooseBackground = { backgroundPicker.launch(arrayOf("image/*")) },
+            onChooseBackground = { backgroundPicker.launch(ActivityResultContracts.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onRemoveBackground = {
                 backgroundUri = null
                 appPrefs.edit().remove("background_uri").apply()
@@ -309,7 +311,9 @@ private fun NativeFinTrackContent(
     }
 
     Box(
-        Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding().background(
+        Modifier.fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+            .imePadding().background(
             Brush.linearGradient(listOf(MaterialTheme.colorScheme.background, Color(0xFF062A3A), MaterialTheme.colorScheme.background))
         )
     ) {
@@ -334,6 +338,7 @@ private fun NativeFinTrackContent(
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
                 NativeHeader(
+                    iconScale = iconScale,
                     title = if (page == FinPage.HOME) "FinTrack" else page.label,
                     subtitle = if (page == FinPage.HOME) greetingText() else "FinTrack Pro • Offline Edition",
                     onAdd = {
@@ -519,22 +524,22 @@ private fun NativeFinTrackContent(
 }
 
 @Composable
-private fun NativeHeader(title: String, subtitle: String, onAdd: () -> Unit) {
+private fun NativeHeader(iconScale: Float, title: String, subtitle: String, onAdd: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.BarChart, null, tint = Color(0xFF00E6D0), modifier = Modifier.size(30.dp))
+                Icon(Icons.Filled.BarChart, null, tint = Color(0xFF00E6D0), modifier = Modifier.size((30f * iconScale / 100f).dp))
                 Spacer(Modifier.width(9.dp))
                 Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
             }
             Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
         FilledTonalButton(onClick = onAdd, shape = RoundedCornerShape(24.dp)) {
-            Icon(Icons.Filled.Add, null)
+            Icon(Icons.Filled.Add, null, modifier = Modifier.size((20f * iconScale / 100f).dp))
             Text("Add")
         }
     }
@@ -1253,7 +1258,7 @@ private fun SettingsScreen(
             Text("Background visibility", style = MaterialTheme.typography.labelMedium)
             Slider(value = backgroundOpacity * 100f, onValueChange = onBackgroundOpacity, valueRange = 0f..100f)
             Text("${(backgroundOpacity * 100f).toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
-            Text("Navigation icon size", style = MaterialTheme.typography.labelMedium)
+            Text("UI icon size", style = MaterialTheme.typography.labelMedium)
             Slider(value = iconScale, onValueChange = onIconScale, valueRange = 80f..140f)
             Text("${iconScale.toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
         }
@@ -1845,14 +1850,16 @@ internal suspend fun persistBackgroundImage(context: Context, uri: Uri): String 
         )
     } else decoded
     val destination = File(context.filesDir, "fintrack_background.jpg")
-    val temporary = File(context.filesDir, "fintrack_background.tmp")
+    val temporary = File(context.cacheDir, "fintrack_background-${java.util.UUID.randomUUID()}.tmp")
     try {
         FileOutputStream(temporary).use { stream ->
             check(output.compress(Bitmap.CompressFormat.JPEG, 84, stream)) { "Photo compression failed" }
             stream.fd.sync()
         }
-        if (destination.exists() && !destination.delete()) throw IllegalStateException("Could not replace previous photo")
-        if (!temporary.renameTo(destination)) throw IllegalStateException("Could not save photo to app storage")
+        synchronized(context) {
+            if (destination.exists() && !destination.delete()) throw IllegalStateException("Could not replace previous photo")
+            if (!temporary.renameTo(destination)) throw IllegalStateException("Could not save photo to app storage")
+        }
     } finally {
         if (output !== decoded && !output.isRecycled) output.recycle()
         if (!decoded.isRecycled) decoded.recycle()
@@ -1884,10 +1891,12 @@ private fun decodeBackgroundBitmap(context: android.content.Context, uri: Uri): 
 
 private fun openSelectedApk(context: android.content.Context, uri: Uri) {
     try {
-        context.startActivity(Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
+        val installIntent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+            data = uri
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        })
+            putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+        }
+        context.startActivity(installIntent)
     } catch (error: Exception) {
         Toast.makeText(context, "Could not open Android package installer: ${error.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
     }
