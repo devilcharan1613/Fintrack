@@ -59,15 +59,19 @@ internal object XlsxExporter {
 
     private fun buildSummaryRows(state: JSONObject, transactions: JSONArray): List<List<Any?>> {
         val metadata = state.optJSONObject("exportMetadata")
-        var income = 0.0
-        var expense = 0.0
+        var incomePaise = 0L
+        var expensePaise = 0L
         for (i in 0 until transactions.length()) {
             val txn = transactions.optJSONObject(i) ?: continue
+            val amountPaise = exactAmountPaise(txn)
             when (txn.optString("type").lowercase(Locale.ROOT)) {
-                "income" -> income += txn.optDouble("amount", 0.0)
-                "expense" -> expense += txn.optDouble("amount", 0.0)
+                "income" -> incomePaise = Math.addExact(incomePaise, amountPaise)
+                "expense" -> expensePaise = Math.addExact(expensePaise, amountPaise)
             }
         }
+        val income = java.math.BigDecimal.valueOf(incomePaise, 2)
+        val expense = java.math.BigDecimal.valueOf(expensePaise, 2)
+        val netSavings = java.math.BigDecimal.valueOf(Math.subtractExact(incomePaise, expensePaise), 2)
         val generatedAt = metadata?.optString("generatedAt")?.takeIf { it.isNotBlank() }
             ?: currentUtcTimestamp()
         return listOf(
@@ -79,10 +83,26 @@ internal object XlsxExporter {
             listOf("Transactions included", transactions.length()),
             listOf("Income INR", income),
             listOf("Expense INR", expense),
-            listOf("Net savings INR", income - expense),
+            listOf("Net savings INR", netSavings),
             listOf("Accounts included", state.optJSONArray("accounts")?.length() ?: 0),
             listOf("People included", state.optJSONArray("persons")?.length() ?: 0)
         )
+    }
+
+    private fun exactAmountPaise(transaction: JSONObject): Long {
+        if (transaction.has("amountPaise") && !transaction.isNull("amountPaise")) {
+            return try {
+                java.math.BigDecimal(transaction.get("amountPaise").toString()).longValueExact()
+            } catch (error: ArithmeticException) {
+                throw IllegalArgumentException("XLSX export contains an invalid paise amount.", error)
+            }
+        }
+        val legacy = transaction.optDouble("amount", 0.0)
+        require(legacy.isFinite() && legacy >= 0.0) { "XLSX export contains an invalid legacy amount." }
+        return java.math.BigDecimal.valueOf(legacy)
+            .movePointRight(2)
+            .setScale(0, java.math.RoundingMode.HALF_UP)
+            .longValueExact()
     }
 
     private fun currentUtcTimestamp(): String =
