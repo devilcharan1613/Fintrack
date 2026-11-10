@@ -131,7 +131,7 @@ jobs:
     name: Android emulator regression tests
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 60
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -161,5 +161,26 @@ jobs:
           profile: pixel_2
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -wipe-data
           disable-animations: true
-          emulator-boot-timeout: 900
-          script: ./gradlew --no-daemon --stacktrace connectedDebugAndroidTest
+          emulator-boot-timeout: 1800
+          script: |
+            adb logcat -c || true
+            set +e
+            ./gradlew --no-daemon --stacktrace --max-workers=2 connectedDebugAndroidTest
+            test_status=$?
+            mkdir -p app/build/ci-diagnostics
+            adb logcat -d -v threadtime > app/build/ci-diagnostics/emulator-logcat.txt 2>&1 || true
+            adb shell dumpsys activity processes > app/build/ci-diagnostics/activity-processes.txt 2>&1 || true
+            adb shell dumpsys meminfo > app/build/ci-diagnostics/memory-info.txt 2>&1 || true
+            exit "$test_status"
+
+      - name: Upload emulator failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FinTrack-emulator-diagnostics
+          path: |
+            app/build/ci-diagnostics/**
+            app/build/reports/androidTests/connected/debug/**
+            app/build/outputs/androidTest-results/connected/**
+          if-no-files-found: warn
+          retention-days: 14
