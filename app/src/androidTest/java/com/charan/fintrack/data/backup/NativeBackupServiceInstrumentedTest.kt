@@ -126,7 +126,7 @@ class NativeBackupServiceInstrumentedTest {
             val restoredTransactions = destination.financeDao().allTransactions()
             val wallet = restoredAccounts.single { it.name == "Wallet" }
             val bank = restoredAccounts.single { it.name == "Bank" }
-            assertEquals(8_000L, wallet.openingBalancePaise) // ₹83.25 current minus ₹8.25 income and ₹5.00 transfer
+            assertEquals(6_877L, wallet.openingBalancePaise) // ₹83.25 current minus ₹8.25 income, ₹5.00 transfer and ₹1.23 expense
             assertEquals(2_000L, bank.openingBalancePaise) // ₹25.00 current minus ₹5.00 transfer received
             assertEquals(8_202L, NativeLedgerCalculator.accountBalancePaise(wallet, restoredTransactions))
             assertEquals(preciseTimestamp, restoredTransactions.single { it.category == "Precision check" }.timestamp)
