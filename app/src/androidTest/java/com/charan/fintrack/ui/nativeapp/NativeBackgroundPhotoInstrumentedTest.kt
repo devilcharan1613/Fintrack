@@ -75,6 +75,32 @@ class NativeBackgroundPhotoInstrumentedTest {
 
 
     @Test
+    fun failedPhotoReplacementKeepsPreviouslySavedBackground() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val validSource = File(context.cacheDir, "fintrack-background-valid-before-failure.png")
+        val missingSource = File(context.cacheDir, "fintrack-background-missing-source.png")
+        missingSource.delete()
+        writeSolidImage(validSource, 96, 64, Color.RED)
+
+        try {
+            val savedPath = persistBackgroundImage(context, Uri.fromFile(validSource))
+            val failedReplacement = runCatching {
+                persistBackgroundImage(context, Uri.fromFile(missingSource))
+            }
+            assertTrue("A missing source image must fail", failedReplacement.isFailure)
+
+            val saved = BitmapFactory.decodeFile(Uri.parse(savedPath).path!!)
+            assertNotNull("The previous background must remain readable after a failed replacement", saved)
+            val pixel = saved!!.getPixel(saved.width / 2, saved.height / 2)
+            assertTrue("The previous red background must not be removed", Color.red(pixel) > Color.blue(pixel))
+            saved.recycle()
+        } finally {
+            validSource.delete()
+            missingSource.delete()
+        }
+    }
+
+    @Test
     fun concurrentPhotoSelectionsDoNotLeavePartialOrCorruptFiles() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val redSource = File(context.cacheDir, "fintrack-background-concurrent-red.png")
