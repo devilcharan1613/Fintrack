@@ -107,6 +107,8 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
     val appPrefs = remember { context.getSharedPreferences("fintrack_native_settings", 0) }
     var dark by remember { mutableStateOf(appPrefs.getBoolean("dark_theme", true)) }
     var backgroundUri by remember { mutableStateOf(appPrefs.getString("background_uri", null)) }
+    // The file path is intentionally stable; increment this key whenever its contents change.
+    var backgroundImageRevision by remember { mutableIntStateOf(0) }
     var backgroundOpacity by remember { mutableFloatStateOf(appPrefs.getInt("background_opacity", 35).toFloat().coerceIn(0f, 100f)) }
     var iconScale by remember { mutableFloatStateOf(appPrefs.getInt("icon_scale", 100).toFloat().coerceIn(80f, 140f)) }
     val imageScope = rememberCoroutineScope()
@@ -140,6 +142,7 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
                 runCatching { withContext(Dispatchers.IO) { persistBackgroundImage(context, uri) } }
                     .onSuccess { savedUri ->
                         backgroundUri = savedUri
+                        backgroundImageRevision++
                         appPrefs.edit().putString("background_uri", savedUri).apply()
                         Toast.makeText(context, "Background photo saved on this device.", Toast.LENGTH_SHORT).show()
                     }
@@ -189,7 +192,11 @@ fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: St
             .apply()
     }
 
-    val decodedBackground by produceState<Bitmap?>(initialValue = null, backgroundUri) {
+    val decodedBackground by produceState<Bitmap?>(
+        initialValue = null,
+        backgroundUri,
+        backgroundImageRevision
+    ) {
         value = backgroundUri?.let { uriString ->
             withContext(Dispatchers.IO) {
                 decodeBackgroundBitmap(context, Uri.parse(uriString))
@@ -1807,7 +1814,7 @@ private fun EmptyState(title: String, description: String) {
     }
 }
 
-private suspend fun persistBackgroundImage(context: Context, uri: Uri): String {
+internal suspend fun persistBackgroundImage(context: Context, uri: Uri): String {
     val resolver = context.contentResolver
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
