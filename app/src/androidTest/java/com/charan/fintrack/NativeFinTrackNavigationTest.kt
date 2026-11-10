@@ -38,7 +38,7 @@ class NativeFinTrackNavigationTest {
         compose.onNodeWithText("Custom background image").fetchSemanticsNode()
         compose.onNodeWithText("Choose photo").fetchSemanticsNode()
         compose.onNodeWithText("Background visibility").fetchSemanticsNode()
-        compose.onNodeWithText("Navigation icon size").fetchSemanticsNode()
+        compose.onNodeWithText("UI icon size").fetchSemanticsNode()
         compose.onNodeWithText("Export full JSON backup").fetchSemanticsNode()
         compose.onNodeWithText("Select update APK").fetchSemanticsNode()
         compose.onNodeWithText("Reset all finance data").performScrollTo().performClick()
