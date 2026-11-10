@@ -146,10 +146,7 @@ class NativeBackupService(private val database: FinTrackDatabase) {
                     .put(
                         "spent",
                         MoneyPaise.fromSignedPaise(
-                            NativeLedgerCalculator.categoryExpensePaise(
-                                transactionRows, row.category,
-                                budgetWindow(row).first, budgetWindow(row).second
-                            )
+                            budgetSpentPaise(row, transactionRows)
                         ).toRupeesDecimal().toDouble()
                     )
                     .put("month", row.month).put("period", row.period))
@@ -742,6 +739,13 @@ class NativeBackupService(private val database: FinTrackDatabase) {
      * Match the budget progress window used by the native Budgets screen so XLSX
      * exports show the same calculated spend instead of an empty derived column.
      */
+    private fun budgetSpentPaise(budget: BudgetEntity, transactions: List<TransactionEntity>): Long {
+        val (start, end) = budgetWindow(budget)
+        return NativeLedgerCalculator.categoryExpensePaise(
+            transactions, budget.category, start, end
+        )
+    }
+
     private fun budgetWindow(budget: BudgetEntity): Pair<Long, Long> {
         val now = Calendar.getInstance()
         val start = Calendar.getInstance()
