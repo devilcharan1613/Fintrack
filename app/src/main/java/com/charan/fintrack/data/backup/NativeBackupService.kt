@@ -2,6 +2,7 @@ package com.charan.fintrack.data.backup
 
 import androidx.room.withTransaction
 import com.charan.fintrack.data.MoneyPaise
+import com.charan.fintrack.data.NativeLedgerCalculator
 import com.charan.fintrack.data.local.*
 import kotlinx.coroutines.flow.first
 import org.json.JSONArray
@@ -10,6 +11,7 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.ParsePosition
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -141,6 +143,15 @@ class NativeBackupService(private val database: FinTrackDatabase) {
                     .put("category", row.category).put("name", row.category)
                     .put("limitAmountPaise", row.limitAmountPaise)
                     .put("amount", MoneyPaise.fromSignedPaise(row.limitAmountPaise).toRupeesDecimal().toDouble())
+                    .put(
+                        "spent",
+                        MoneyPaise.fromSignedPaise(
+                            NativeLedgerCalculator.categoryExpensePaise(
+                                transactionRows, row.category,
+                                budgetWindow(row).first, budgetWindow(row).second
+                            )
+                        ).toRupeesDecimal().toDouble()
+                    )
                     .put("month", row.month).put("period", row.period))
             }
         })
@@ -725,6 +736,56 @@ class NativeBackupService(private val database: FinTrackDatabase) {
                 "Transfer $transferId has inconsistent source and destination accounts."
             }
         }
+    }
+
+    /**
+     * Match the budget progress window used by the native Budgets screen so XLSX
+     * exports show the same calculated spend instead of an empty derived column.
+     */
+    private fun budgetWindow(budget: BudgetEntity): Pair<Long, Long> {
+        val now = Calendar.getInstance()
+        val start = Calendar.getInstance()
+        val end = Calendar.getInstance()
+        when (budget.period.lowercase(Locale.ROOT)) {
+            "daily" -> {
+                start.set(Calendar.HOUR_OF_DAY, 0)
+                start.set(Calendar.MINUTE, 0)
+                start.set(Calendar.SECOND, 0)
+                start.set(Calendar.MILLISECOND, 0)
+                end.timeInMillis = start.timeInMillis
+                end.add(Calendar.DAY_OF_YEAR, 1)
+            }
+            "weekly" -> {
+                start.set(Calendar.HOUR_OF_DAY, 0)
+                start.set(Calendar.MINUTE, 0)
+                start.set(Calendar.SECOND, 0)
+                start.set(Calendar.MILLISECOND, 0)
+                val dayFromMonday = (start.get(Calendar.DAY_OF_WEEK) + 5) % 7
+                start.add(Calendar.DAY_OF_YEAR, -dayFromMonday)
+                end.timeInMillis = start.timeInMillis
+                end.add(Calendar.DAY_OF_YEAR, 7)
+            }
+            "yearly" -> {
+                start.set(Calendar.DAY_OF_YEAR, 1)
+                start.set(Calendar.HOUR_OF_DAY, 0)
+                start.set(Calendar.MINUTE, 0)
+                start.set(Calendar.SECOND, 0)
+                start.set(Calendar.MILLISECOND, 0)
+                end.timeInMillis = start.timeInMillis
+                end.add(Calendar.YEAR, 1)
+            }
+            else -> {
+                val parts = budget.month.split("-")
+                val year = parts.getOrNull(0)?.toIntOrNull() ?: now.get(Calendar.YEAR)
+                val month = (parts.getOrNull(1)?.toIntOrNull()?.minus(1))
+                    ?.takeIf { it in 0..11 } ?: now.get(Calendar.MONTH)
+                start.set(year, month, 1, 0, 0, 0)
+                start.set(Calendar.MILLISECOND, 0)
+                end.timeInMillis = start.timeInMillis
+                end.add(Calendar.MONTH, 1)
+            }
+        }
+        return start.timeInMillis to end.timeInMillis
     }
 
     private fun legacyAccountDeltas(transactions: JSONArray): Map<String, Long> {
