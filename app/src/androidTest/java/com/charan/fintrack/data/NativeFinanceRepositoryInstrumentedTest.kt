@@ -11,6 +11,7 @@ import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -85,6 +86,39 @@ class NativeFinanceRepositoryInstrumentedTest {
         val loan = database.financeDao().allLoans().single { it.id == loanId }
         assertEquals(750_025L, loan.paidAmountPaise)
         assertEquals(1, database.financeDao().allLoanPayments().count { it.loanId == loanId })
+    }
+
+    @Test
+    fun ordinaryTransactionsDoNotKeepHiddenDefaultPersonLinks() = runBlocking {
+        val accountId = repository.addAccount("Cash", "Wallet", MoneyPaise.ZERO)
+        val personId = repository.addPerson("Default person")
+
+        val expenseId = repository.saveTransaction(
+            accountId = accountId,
+            type = "EXPENSE",
+            amount = MoneyPaise.fromRupees("10"),
+            category = "Food",
+            personId = personId
+        )
+        var expense = database.financeDao().allTransactions().single { it.id == expenseId }
+        assertNull("An expense must not retain the hidden default person", expense.personId)
+
+        val borrowId = repository.saveTransaction(
+            accountId = accountId,
+            type = "BORROW",
+            amount = MoneyPaise.fromRupees("20"),
+            category = "Borrowed",
+            personId = personId
+        )
+        val borrow = database.financeDao().allTransactions().single { it.id == borrowId }
+        assertEquals(personId, borrow.personId)
+
+        repository.replaceTransaction(
+            borrow.copy(type = "EXPENSE", category = "Other", personId = personId),
+            destinationAccountId = null
+        )
+        expense = database.financeDao().allTransactions().single { it.id == borrowId }
+        assertNull("Converting Borrow to Expense must clear its person link", expense.personId)
     }
 
     @Test
