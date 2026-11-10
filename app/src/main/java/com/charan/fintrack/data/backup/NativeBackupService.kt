@@ -272,6 +272,14 @@ class NativeBackupService(private val database: FinTrackDatabase) {
         val transactionArray = root.optJSONArray("transactions")
             ?: throw IllegalArgumentException("Backup is missing transactions.")
         val nativeFormat = root.optString("format") == FORMAT
+        if (nativeFormat) {
+            // Never partially import an unsupported future backup schema. Older positive
+            // schema versions remain eligible for backward-compatible default handling.
+            val schemaVersion = root.optInt("schemaVersion", -1)
+            require(schemaVersion in 1..SCHEMA_VERSION) {
+                "Unsupported native backup schema version: $schemaVersion (supported: 1-$SCHEMA_VERSION)."
+            }
+        }
 
         val personArray = root.optJSONArray(if (nativeFormat) "people" else "persons") ?: JSONArray()
         val categoryArray = root.optJSONArray("categories") ?: JSONArray()
