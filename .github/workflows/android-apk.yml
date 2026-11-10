@@ -130,7 +130,9 @@ jobs:
   instrumentation:
     name: Android emulator regression tests
     needs: build
-    runs-on: ubuntu-latest
+    # Linux hosted runners here lack KVM; software emulation made the emulator boot for 13+ minutes and destabilized ADB.
+    # Use macOS hardware-accelerated virtualization for reliable instrumentation execution.
+    runs-on: macos-14
     timeout-minutes: 60
     steps:
       - name: Checkout source
