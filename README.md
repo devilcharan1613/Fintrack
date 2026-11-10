@@ -153,7 +153,8 @@ This is a development-branch README, not a release certification.
 - **Native release line:** version `2.5.1` (version code `28`) on this development branch.
 - **Main branch:** unchanged by this implementation work.
 - **Build verification:** check the latest GitHub Actions run for the exact commit before distributing an APK.
-- **Test coverage:** unit tests cover paise arithmetic, ledger calculations and reminder time; instrumentation tests cover Room migrations, backup merge/restore, XLSX structure, native navigation, settings and repository validation.
+- **Test coverage:** unit tests cover paise arithmetic, ledger calculations, reminder time, strict transaction dates, transaction-account filtering and the legacy migration recovery guard; instrumentation tests cover Room migrations, backup merge/restore, paired transfer integrity, XLSX structure, native navigation, settings and background-photo storage/replacement.
+- **Integrity fixes in this development line:** editing an expense/income into a transfer atomically creates a matched pair; transfer filters match both source and destination accounts; native backup restore preserves exact event timestamps and rejects missing or unsupported future schema versions; JSON/PDF export reads a consistent database snapshot; legacy migration stops rather than importing an empty seed when unreadable saved data was detected; replacing a background photo invalidates the Compose bitmap cache.
 - **Not yet certified by this README:** physical-device testing, exhaustive regression testing, accessibility review, battery/background behaviour, and verification of every exported file in third-party applications.
 
 Do not treat a successful APK compilation as proof that every feature works correctly. Report bugs with the device model, Android version and steps to reproduce.
