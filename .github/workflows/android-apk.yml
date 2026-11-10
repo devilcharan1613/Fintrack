@@ -130,8 +130,8 @@ jobs:
   instrumentation:
     name: Android emulator regression tests
     needs: build
-    # Use the standard Linux x86_64 runner, where the Android Emulator can use KVM.
-    # macOS hosted ARM runners do not expose HVF to nested QEMU in this workflow.
+    # Use the standard Linux x86_64 runner and explicitly grant the runner access to KVM.
+    # Without /dev/kvm permissions, x86_64 software emulation cannot boot reliably.
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -153,6 +153,17 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+
+      - name: Grant runner access to KVM
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+            ls -l /dev/kvm
+            test -r /dev/kvm && test -w /dev/kvm
+          else
+            echo "KVM device is not available on this runner"
+            exit 1
+          fi
 
       - name: Run Android instrumented tests on emulator
         uses: ReactiveCircus/android-emulator-runner@v2
