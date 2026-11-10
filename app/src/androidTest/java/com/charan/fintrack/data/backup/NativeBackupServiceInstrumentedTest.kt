@@ -110,7 +110,7 @@ class NativeBackupServiceInstrumentedTest {
             val wallet = restoredAccounts.single { it.name == "Wallet" }
             val bank = restoredAccounts.single { it.name == "Bank" }
             assertEquals(8_000L, wallet.openingBalancePaise) // ₹83.25 current minus ₹8.25 income and ₹5.00 transfer
-            assertEquals(20_000L, bank.openingBalancePaise)
+            assertEquals(2_000L, bank.openingBalancePaise) // ₹25.00 current minus ₹5.00 transfer received
             assertEquals(8_325L, NativeLedgerCalculator.accountBalancePaise(wallet, restoredTransactions))
             assertEquals("Bonus", restoredTransactions.single { it.type == "INCOME" }.subcategory)
             assertEquals(2_500L, NativeLedgerCalculator.accountBalancePaise(bank, restoredTransactions))
