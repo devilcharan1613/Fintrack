@@ -917,6 +917,13 @@ class NativeBackupService(private val database: FinTrackDatabase) {
         if (value == null || value == JSONObject.NULL || value.toString().isBlank()) null else timestamp(value)
 
     private fun timestampFromTransaction(item: JSONObject): Long {
+        // Native backups include the original epoch timestamp. Prefer it over the
+        // display date/time strings so restores preserve seconds, milliseconds and
+        // the source timezone rather than interpreting the same local time again.
+        val exactTimestamp = item.opt("timestamp")
+        if (exactTimestamp != null && exactTimestamp != JSONObject.NULL) {
+            return timestamp(exactTimestamp)
+        }
         val date = text(item, "date")
         val time = text(item, "time").ifBlank { "12:00" }
         if (date.isNotBlank()) {
