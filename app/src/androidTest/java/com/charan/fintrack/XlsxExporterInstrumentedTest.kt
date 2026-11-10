@@ -40,7 +40,7 @@ class XlsxExporterInstrumentedTest {
         assertTrue("Missing 'Summary' in xl/workbook.xml: "+entries["xl/workbook.xml"].orEmpty(), entries["xl/workbook.xml"].orEmpty().contains("Summary"))
         assertTrue("Missing 'Transactions' in xl/workbook.xml: "+entries["xl/workbook.xml"].orEmpty(), entries["xl/workbook.xml"].orEmpty().contains("Transactions"))
         assertTrue("Missing 'FinTrack Export Summary' in xl/worksheets/sheet1.xml: "+entries["xl/worksheets/sheet1.xml"].orEmpty(), entries["xl/worksheets/sheet1.xml"].orEmpty().contains("FinTrack Export Summary"))
-        assertTrue("Missing '150.0' in xl/worksheets/sheet1.xml: "+entries["xl/worksheets/sheet1.xml"].orEmpty(), entries["xl/worksheets/sheet1.xml"].orEmpty().contains("150.0"))
+        assertTrue("Missing '150.0' in xl/worksheets/sheet1.xml: "+entries["xl/worksheets/sheet1.xml"].orEmpty(), entries["xl/worksheets/sheet1.xml"].orEmpty().contains("150.00"))
         assertTrue("Missing 'Generated at' in xl/worksheets/sheet1.xml: "+entries["xl/worksheets/sheet1.xml"].orEmpty(), entries["xl/worksheets/sheet1.xml"].orEmpty().contains("Generated at"))
         assertTrue("Missing 'Income INR' in xl/worksheets/sheet1.xml: "+entries["xl/worksheets/sheet1.xml"].orEmpty(), entries["xl/worksheets/sheet1.xml"].orEmpty().contains("Income INR"))
         assertTrue("Missing 'Daily Cash' in xl/worksheets/sheet2.xml: "+entries["xl/worksheets/sheet2.xml"].orEmpty(), entries["xl/worksheets/sheet2.xml"].orEmpty().contains("Daily Cash"))
@@ -69,6 +69,32 @@ class XlsxExporterInstrumentedTest {
                 zip.closeEntry()
             }
         }
+    }
+
+    @Test
+    fun summaryTotalsUseExactPaiseInsteadOfFloatingPointAddition() {
+        val state = JSONObject()
+            .put("accounts", JSONArray())
+            .put("transactions", JSONArray()
+                .put(JSONObject().put("type", "income").put("amount", 0.10).put("amountPaise", 10))
+                .put(JSONObject().put("type", "income").put("amount", 0.20).put("amountPaise", 20))
+                .put(JSONObject().put("type", "expense").put("amount", 0.01).put("amountPaise", 1))
+            )
+        val output = XlsxExporter.create(state.toString())
+        var summary = ""
+        ZipInputStream(ByteArrayInputStream(output)).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                if (entry.name == "xl/worksheets/sheet1.xml") {
+                    summary = zip.readBytes().toString(Charsets.UTF_8)
+                    break
+                }
+                zip.closeEntry()
+            }
+        }
+        assertTrue("Income total should be exactly ₹0.30: $summary", summary.contains("<v>0.30</v>"))
+        assertTrue("Expense total should be exactly ₹0.01: $summary", summary.contains("<v>0.01</v>"))
+        assertTrue("Net savings should be exactly ₹0.29: $summary", summary.contains("<v>0.29</v>"))
     }
 
     @Test
