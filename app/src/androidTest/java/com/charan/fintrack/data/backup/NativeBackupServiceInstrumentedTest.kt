@@ -11,6 +11,7 @@ import com.charan.fintrack.data.local.TransactionEntity
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -84,6 +85,29 @@ class NativeBackupServiceInstrumentedTest {
         assertEquals(1, database.financeDao().allGoalContributions().size)
         assertEquals(1, database.financeDao().allLoanPayments().size)
         assertTrue(second.duplicatesSkipped > 0)
+    }
+
+    @Test
+    fun legacyRestoreOnlyKeepsPersonLinksForBorrowAndLendTransactions() = runBlocking {
+        val backup = """
+            {
+              "accounts":[{"id":"cash","name":"Cash","type":"wallet","balance":100.00}],
+              "persons":[{"id":"person-1","name":"Alex","phone":"","notes":""}],
+              "transactions":[
+                {"id":"expense","type":"expense","amount":10.00,"accountId":"cash","category":"Food","personId":"person-1"},
+                {"id":"borrow","type":"borrow","amount":20.00,"accountId":"cash","category":"Borrowed","personId":"person-1"}
+              ]
+            }
+        """.trimIndent()
+
+        service.mergeJson(backup)
+        val rows = database.financeDao().allTransactions()
+        val expense = rows.single { it.type == "EXPENSE" }
+        val borrow = rows.single { it.type == "BORROW" }
+        val person = database.financeDao().allPersons().single()
+
+        assertNull("Ordinary income/expense rows must not retain person associations", expense.personId)
+        assertEquals(person.id, borrow.personId)
     }
 
     @Test
