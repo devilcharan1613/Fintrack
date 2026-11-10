@@ -11,6 +11,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -28,20 +29,25 @@ class NativeBackgroundPhotoInstrumentedTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val source = createPhotoUri(context, "fintrack-background-source", 96, 64, Color.RED)
 
-        val storedPath = persistBackgroundImage(context, source)
-        val stored = Uri.parse(storedPath)
-        assertEquals("file", stored.scheme)
-        assertTrue(FileForUri(stored).exists())
-        assertTrue(FileForUri(stored).absolutePath.startsWith(context.filesDir.absolutePath))
+        try {
+            val storedPath = persistBackgroundImage(context, source)
+            val stored = Uri.parse(storedPath)
+            assertEquals("file", stored.scheme)
+            val storedFile = File(stored.path!!)
+            assertTrue(storedFile.exists())
+            assertTrue(storedFile.absolutePath.startsWith(context.filesDir.absolutePath))
 
-        // Remove the source media item to prove the saved background no longer relies on
-        // the picker/media-provider URI or its temporary read permission.
-        assertEquals(1, context.contentResolver.delete(source, null, null))
-        val restored = BitmapFactory.decodeFile(stored.path)
-        assertNotNull(restored)
-        assertEquals(96, restored!!.width)
-        assertEquals(64, restored.height)
-        restored.recycle()
+            // Remove the source media item to prove the saved background no longer relies on
+            // the picker/media-provider URI or its temporary read permission.
+            assertEquals(1, context.contentResolver.delete(source, null, null))
+            val restored = BitmapFactory.decodeFile(stored.path)
+            assertNotNull(restored)
+            assertEquals(96, restored!!.width)
+            assertEquals(64, restored.height)
+            restored.recycle()
+        } finally {
+            context.contentResolver.delete(source, null, null)
+        }
         Unit
     }
 
@@ -173,6 +179,4 @@ class NativeBackgroundPhotoInstrumentedTest {
             bitmap.recycle()
         }
     }
-
-    private fun FileForUri(uri: Uri): java.io.File = java.io.File(uri.path!!)
 }
