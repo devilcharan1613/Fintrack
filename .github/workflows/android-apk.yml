@@ -132,7 +132,7 @@ jobs:
     needs: build
     # Linux hosted runners here lack KVM; software emulation made the emulator boot for 13+ minutes and destabilized ADB.
     # Use macOS hardware-accelerated virtualization for reliable instrumentation execution.
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 60
     steps:
       - name: Checkout source
@@ -159,7 +159,7 @@ jobs:
         with:
           api-level: 34
           target: google_apis
-          arch: x86_64
+          arch: arm64-v8a
           profile: pixel_2
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -wipe-data
           disable-animations: true
