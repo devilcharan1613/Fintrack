@@ -1850,7 +1850,7 @@ internal suspend fun persistBackgroundImage(context: Context, uri: Uri): String 
         )
     } else decoded
     val destination = File(context.filesDir, "fintrack_background.jpg")
-    val temporary = File(context.cacheDir, "fintrack_background-${java.util.UUID.randomUUID()}.tmp")
+    val temporary = File(context.filesDir, "fintrack_background-${java.util.UUID.randomUUID()}.tmp")
     try {
         FileOutputStream(temporary).use { stream ->
             check(output.compress(Bitmap.CompressFormat.JPEG, 84, stream)) { "Photo compression failed" }
