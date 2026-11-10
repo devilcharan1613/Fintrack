@@ -104,6 +104,7 @@ private enum class FinPage(val label: String, val route: String) {
 private enum class EditorKind { NONE, TRANSACTION, ACCOUNT, PERSON, BUDGET, GOAL, LOAN, CONTRIBUTION, REPAYMENT, CATEGORY }
 
 private val LocalFinTrackIconScale = compositionLocalOf { 1f }
+private val backgroundImageSaveLock = Any()
 
 @Composable
 fun NativeFinTrackApp(viewModel: NativeFinTrackViewModel, initialQuickAction: String? = null) {
@@ -1881,9 +1882,10 @@ internal suspend fun persistBackgroundImage(context: Context, uri: Uri): String 
             check(output.compress(Bitmap.CompressFormat.JPEG, 84, stream)) { "Photo compression failed" }
             stream.fd.sync()
         }
-        synchronized(context) {
-            if (destination.exists() && !destination.delete()) throw IllegalStateException("Could not replace previous photo")
-            if (!temporary.renameTo(destination)) throw IllegalStateException("Could not save photo to app storage")
+        synchronized(backgroundImageSaveLock) {
+            // POSIX rename replaces the destination atomically because both files are in filesDir.
+            // The previous image remains available if the new file cannot be renamed.
+            android.system.Os.rename(temporary.absolutePath, destination.absolutePath)
         }
     } finally {
         if (output !== decoded && !output.isRecycled) output.recycle()
