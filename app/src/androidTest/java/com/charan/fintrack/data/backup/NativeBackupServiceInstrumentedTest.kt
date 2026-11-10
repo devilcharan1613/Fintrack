@@ -140,6 +140,36 @@ class NativeBackupServiceInstrumentedTest {
     }
 
     @Test
+    fun nativeRestoreRejectsMissingOrFutureSchemaVersionBeforeWritingRecords() = runBlocking {
+        val accounts = JSONArray().put(
+            JSONObject()
+                .put("id", "cash")
+                .put("name", "Cash")
+                .put("accountType", "Wallet")
+                .put("openingBalancePaise", 10_000)
+                .put("stableUid", "account:cash")
+        )
+        val unsupported = listOf(
+            JSONObject()
+                .put("format", NativeBackupService.FORMAT)
+                .put("schemaVersion", NativeBackupService.SCHEMA_VERSION + 1)
+                .put("accounts", accounts)
+                .put("transactions", JSONArray()),
+            JSONObject()
+                .put("format", NativeBackupService.FORMAT)
+                .put("accounts", accounts)
+                .put("transactions", JSONArray())
+        )
+
+        unsupported.forEach { backup ->
+            val rejected = runCatching { service.mergeJson(backup.toString()) }.isFailure
+            assertTrue("Missing/future schema versions must be rejected", rejected)
+            assertTrue("Rejected schema must not insert accounts", database.accountDao().allAccounts().isEmpty())
+            assertTrue("Rejected schema must not insert transactions", database.financeDao().allTransactions().isEmpty())
+        }
+    }
+
+    @Test
     fun nativeRestoreRejectsIncompleteTransferPairWithoutWritingPartialData() = runBlocking {
         val backup = JSONObject()
             .put("format", NativeBackupService.FORMAT)
