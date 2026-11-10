@@ -88,6 +88,60 @@ class NativeFinanceRepositoryInstrumentedTest {
     }
 
     @Test
+    fun editingExpenseIntoTransferReplacesOriginalWithBalancedPair() = runBlocking {
+        val sourceId = repository.addAccount(
+            "Wallet", "Wallet", MoneyPaise.fromRupees("100.00")
+        )
+        val destinationId = repository.addAccount(
+            "Bank", "Bank", MoneyPaise.ZERO
+        )
+        val expenseId = repository.saveTransaction(
+            accountId = sourceId,
+            type = "EXPENSE",
+            amount = MoneyPaise.fromRupees("30.00"),
+            category = "Food",
+            note = "Move money instead"
+        )
+        val original = database.financeDao().allTransactions().single { it.id == expenseId }
+
+        repository.replaceTransaction(
+            original.copy(
+                type = "TRANSFER",
+                amount = 25.00,
+                amountPaise = 2_500,
+                category = "Transfer",
+                note = "Move to bank"
+            ),
+            destinationId
+        )
+
+        val rows = database.financeDao().allTransactions()
+        val outgoing = rows.single { it.type == "TRANSFER_OUT" }
+        val incoming = rows.single { it.type == "TRANSFER_IN" }
+        assertEquals(expenseId, outgoing.id)
+        assertEquals(sourceId, outgoing.accountId)
+        assertEquals(destinationId, outgoing.transferAccountId)
+        assertEquals(destinationId, incoming.accountId)
+        assertEquals(sourceId, incoming.transferAccountId)
+        assertEquals(outgoing.transferId, incoming.transferId)
+        assertEquals(2_500L, outgoing.amountPaise)
+        assertEquals(2_500L, incoming.amountPaise)
+        assertEquals(2, rows.size)
+        assertEquals(
+            7_500L,
+            NativeLedgerCalculator.accountBalancePaise(
+                database.accountDao().getAccountById(sourceId)!!, rows
+            )
+        )
+        assertEquals(
+            2_500L,
+            NativeLedgerCalculator.accountBalancePaise(
+                database.accountDao().getAccountById(destinationId)!!, rows
+            )
+        )
+    }
+
+    @Test
     fun resetDeletesAllFinanceRecordsInsideSingleDatabaseTransaction() = runBlocking {
         val accountId = repository.addAccount(
             "Cash", "Wallet", MoneyPaise.fromRupees("1000")
