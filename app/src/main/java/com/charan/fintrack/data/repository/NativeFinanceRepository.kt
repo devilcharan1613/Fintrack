@@ -180,7 +180,7 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
                     transaction.copy(
                         id = original.id, type = "TRANSFER_OUT", amount = legacyAmount,
                         category = "Transfer", transferAccountId = destinationAccountId,
-                        transferId = transferId, stableUid = original.stableUid
+                        transferId = transferId, personId = null, stableUid = original.stableUid
                     )
                 )
                 dao.insertTransaction(
@@ -196,7 +196,9 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
                 val updated = transaction.copy(
                     id = original.id, type = type,
                     amount = MoneyPaise.fromSignedPaise(transaction.amountPaise).toRupeesDecimal().toDouble(),
-                    transferAccountId = null, transferId = null, stableUid = original.stableUid
+                    transferAccountId = null, transferId = null,
+                    personId = transaction.personId.takeIf { type == "BORROW" || type == "LEND" },
+                    stableUid = original.stableUid
                 )
                 if (oldTransferId != null) dao.insertTransaction(updated)
                 else dao.updateTransaction(updated)
@@ -223,22 +225,24 @@ class NativeFinanceRepository(private val database: FinTrackDatabase) {
     ): Long {
         require(amount.paise > 0L) { "Amount must be greater than zero" }
         require(category.isNotBlank()) { "Category is required" }
-        require(type.uppercase() in setOf("INCOME", "EXPENSE", "BORROW", "LEND")) {
+        val normalizedType = type.uppercase()
+        require(normalizedType in setOf("INCOME", "EXPENSE", "BORROW", "LEND")) {
             "Unsupported transaction type"
         }
         require(accountDao.getAccountById(accountId) != null) { "Account does not exist" }
-        if (type.equals("BORROW", true) || type.equals("LEND", true)) {
-            require(personId != null) { "Select a person for borrowed/lent money" }
-            require(dao.personByStableUid(personId.toString()) != null || dao.allPersons().any { it.id == personId }) {
+        val linkedPersonId = personId.takeIf { normalizedType == "BORROW" || normalizedType == "LEND" }
+        if (normalizedType == "BORROW" || normalizedType == "LEND") {
+            require(linkedPersonId != null) { "Select a person for borrowed/lent money" }
+            require(dao.allPersons().any { it.id == linkedPersonId }) {
                 "Selected person does not exist"
             }
         }
         return dao.insertTransaction(
             TransactionEntity(
-                accountId = accountId, type = type.uppercase(),
+                accountId = accountId, type = normalizedType,
                 amount = amount.toRupeesDecimal().toDouble(), amountPaise = amount.paise,
                 category = category.trim(), note = note, timestamp = timestamp,
-                subcategory = subcategory.trim(), personId = personId,
+                subcategory = subcategory.trim(), personId = linkedPersonId,
                 paymentMethod = paymentMethod.trim(), upiApp = upiApp.trim()
             )
         )
