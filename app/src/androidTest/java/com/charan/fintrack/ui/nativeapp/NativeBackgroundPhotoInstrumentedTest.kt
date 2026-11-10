@@ -9,6 +9,8 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.io.File
 import java.io.FileOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -68,6 +70,37 @@ class NativeBackgroundPhotoInstrumentedTest {
         } finally {
             firstSource.delete()
             secondSource.delete()
+        }
+    }
+
+
+    @Test
+    fun concurrentPhotoSelectionsDoNotLeavePartialOrCorruptFiles() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val redSource = File(context.cacheDir, "fintrack-background-concurrent-red.png")
+        val blueSource = File(context.cacheDir, "fintrack-background-concurrent-blue.png")
+        writeSolidImage(redSource, 96, 64, Color.RED)
+        writeSolidImage(blueSource, 128, 80, Color.BLUE)
+
+        try {
+            val redSave = async(Dispatchers.IO) { persistBackgroundImage(context, Uri.fromFile(redSource)) }
+            val blueSave = async(Dispatchers.IO) { persistBackgroundImage(context, Uri.fromFile(blueSource)) }
+            val savedPaths = listOf(redSave.await(), blueSave.await())
+            assertEquals("Both selections use the stable preference path", 1, savedPaths.distinct().size)
+
+            val stored = Uri.parse(savedPaths.last())
+            val bitmap = BitmapFactory.decodeFile(stored.path!!)
+            assertNotNull("The final selected photo must remain readable", bitmap)
+            assertTrue(bitmap!!.width == 96 || bitmap.width == 128)
+            assertTrue(bitmap.height == 64 || bitmap.height == 80)
+            bitmap.recycle()
+            assertTrue(
+                "No partial photo files should remain",
+                context.filesDir.listFiles()?.none { it.name.startsWith("fintrack_background-") && it.name.endsWith(".tmp") } != false
+            )
+        } finally {
+            redSource.delete()
+            blueSource.delete()
         }
     }
 
