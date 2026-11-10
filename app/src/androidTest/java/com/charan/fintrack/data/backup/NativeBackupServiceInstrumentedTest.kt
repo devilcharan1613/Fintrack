@@ -73,6 +73,10 @@ class NativeBackupServiceInstrumentedTest {
         assertEquals(1, database.financeDao().allGoalContributions().size)
         assertEquals(1, database.financeDao().allLoanPayments().size)
 
+        val exportedBudget = JSONObject(service.exportJson())
+            .getJSONArray("budgets").getJSONObject(0)
+        assertEquals(50.0, exportedBudget.getDouble("spent"), 0.001)
+
         val second = service.mergeJson(backup)
         assertEquals(0, second.totalAdded)
         assertEquals(4, database.financeDao().allTransactions().size)
