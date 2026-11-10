@@ -666,8 +666,9 @@ private fun TransactionsScreen(
     val visibleRows = transactions.filterNot { it.type.equals("TRANSFER_IN", true) }
     val fromBound = parseDateBound(fromDate, endOfDay = false)
     val toBound = parseDateBound(toDate, endOfDay = true)
+    val dateRangeValid = transactionDateRangeIsValid(fromDate, toDate, fromBound, toBound)
     val selectedAccountId = accountFilter.toLongOrNull()
-    val filtered = visibleRows.filter { row ->
+    val filtered = (if (dateRangeValid) visibleRows else emptyList()).filter { row ->
         val typeMatches = filter == "ALL" || row.type.equals(filter, true) ||
             (filter == "TRANSFER" && row.type.startsWith("TRANSFER", true))
         val accountMatches = transactionMatchesAccount(row, selectedAccountId)
@@ -730,8 +731,12 @@ private fun TransactionsScreen(
             OutlinedTextField(fromDate, { fromDate = it }, modifier = Modifier.weight(1f), label = { Text("From date") }, placeholder = { Text("YYYY-MM-DD") }, singleLine = true)
             OutlinedTextField(toDate, { toDate = it }, modifier = Modifier.weight(1f), label = { Text("To date") }, placeholder = { Text("YYYY-MM-DD") }, singleLine = true)
         }
-        if ((fromDate.isNotBlank() && fromBound == null) || (toDate.isNotBlank() && toBound == null)) {
-            Text("Dates must use YYYY-MM-DD.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+        if (!dateRangeValid) {
+            Text(
+                "Enter valid dates using YYYY-MM-DD. From date must not be after To date.",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.labelSmall
+            )
         }
         Text(filtered.size.toString() + " transactions", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
         if (filtered.isEmpty()) EmptyState("No matching transactions", "Change the search or filters, or add a new transaction.")
@@ -1886,6 +1891,17 @@ private fun openSelectedApk(context: android.content.Context, uri: Uri) {
     } catch (error: Exception) {
         Toast.makeText(context, "Could not open Android package installer: ${error.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
     }
+}
+
+internal fun transactionDateRangeIsValid(
+    fromDate: String,
+    toDate: String,
+    fromBound: Long?,
+    toBound: Long?
+): Boolean {
+    if (fromDate.isNotBlank() && fromBound == null) return false
+    if (toDate.isNotBlank() && toBound == null) return false
+    return fromBound == null || toBound == null || fromBound <= toBound
 }
 
 private fun parseDateBound(value: String, endOfDay: Boolean): Long? {
