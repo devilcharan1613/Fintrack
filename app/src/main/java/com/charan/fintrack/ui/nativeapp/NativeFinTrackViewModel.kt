@@ -388,8 +388,6 @@ class NativeFinTrackViewModel(application: Application) : AndroidViewModel(appli
 
     private fun parseDateTime(date: String, time: String): Long {
         if (date.isBlank()) return System.currentTimeMillis()
-        val input = date + " " + time.ifBlank { "12:00" }
-        return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).apply { isLenient = false }
-            .parse(input)?.time ?: throw IllegalArgumentException("Invalid transaction date or time")
+        return parseTransactionDateTime(date, time)
     }
 }
