@@ -176,6 +176,13 @@ class ReminderBootReceiver : android.content.BroadcastReceiver() {
     }
 }
 
+/** Prevent an unreadable legacy WebView save from being migrated as an empty seed database. */
+internal fun requireReadableLegacyState(recoveryRequired: Boolean) {
+    require(!recoveryRequired) {
+        "Saved finance data could not be read. The legacy recovery copy was preserved and native migration was stopped. Restore a valid backup before retrying."
+    }
+}
+
 class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_QUICK_ACTION = "com.charan.fintrack.EXTRA_QUICK_ACTION"
@@ -374,6 +381,7 @@ class MainActivity : ComponentActivity() {
                     reminder = savedReminder ? JSON.parse(savedReminder) : null;
                 } catch (error) {}
                 return JSON.stringify({
+                    recoveryRequired: window.stateLoadWarning === true,
                     state: current,
                     theme: localStorage.getItem('fintrack_theme') || 'dark',
                     backgroundPhoto: localStorage.getItem('fintrack_custom_background') || '',
@@ -389,6 +397,8 @@ class MainActivity : ComponentActivity() {
                     throw IllegalStateException("Legacy finance data is not ready to migrate.")
                 }
                 val payload = JSONObject("{\"value\":$encoded}").getString("value")
+                val wrapper = JSONObject(payload)
+                requireReadableLegacyState(wrapper.optBoolean("recoveryRequired", false))
                 migrateLegacyPayload(payload)
             } catch (error: Exception) {
                 Toast.makeText(
