@@ -629,6 +629,17 @@ private fun DashboardScreen(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * TRANSFER_IN rows are hidden so each transfer appears once in the list.
+ * The remaining TRANSFER_OUT row must still match both participating accounts.
+ */
+internal fun transactionMatchesAccount(transaction: TransactionEntity, selectedAccountId: Long?): Boolean {
+    if (selectedAccountId == null) return true
+    return transaction.accountId == selectedAccountId ||
+        (transaction.type.equals("TRANSFER_OUT", ignoreCase = true) &&
+            transaction.transferAccountId == selectedAccountId)
+}
+
 @Composable
 private fun TransactionsScreen(
     transactions: List<TransactionEntity>,
@@ -648,10 +659,11 @@ private fun TransactionsScreen(
     val visibleRows = transactions.filterNot { it.type.equals("TRANSFER_IN", true) }
     val fromBound = parseDateBound(fromDate, endOfDay = false)
     val toBound = parseDateBound(toDate, endOfDay = true)
+    val selectedAccountId = accountFilter.toLongOrNull()
     val filtered = visibleRows.filter { row ->
         val typeMatches = filter == "ALL" || row.type.equals(filter, true) ||
             (filter == "TRANSFER" && row.type.startsWith("TRANSFER", true))
-        val accountMatches = accountFilter == "ALL" || row.accountId.toString() == accountFilter
+        val accountMatches = transactionMatchesAccount(row, selectedAccountId)
         val textMatches = search.isBlank() || row.note.contains(search, true) ||
             row.category.contains(search, true) || row.type.contains(search, true) ||
             row.amountPaise.toString().contains(search)
