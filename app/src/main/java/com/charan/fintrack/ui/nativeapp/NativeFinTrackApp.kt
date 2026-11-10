@@ -628,7 +628,6 @@ private fun DashboardScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 /**
  * TRANSFER_IN rows are hidden so each transfer appears once in the list.
  * The remaining TRANSFER_OUT row must still match both participating accounts.
@@ -640,6 +639,7 @@ internal fun transactionMatchesAccount(transaction: TransactionEntity, selectedA
             transaction.transferAccountId == selectedAccountId)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TransactionsScreen(
     transactions: List<TransactionEntity>,
