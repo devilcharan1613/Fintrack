@@ -6,14 +6,15 @@ plugins {
 }
 
 android {
-    namespace = "com.charan.fintrack"
+    namespace = "com.charan.tracmio"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.charan.fintrack"
+        applicationId = "com.charan.tracmio"
         minSdk = 23
         targetSdk = 35
-        versionCode = 24
-        versionName = "2.4.0"
+        versionCode = 29
+        versionName = "2.5.2"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true }
     compileOptions {
@@ -21,6 +22,28 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+    applicationVariants.all {
+        val variant = this
+        variant.outputs
+            .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
+            .forEach { output ->
+                output.outputFileName = "Tracmio-${variant.versionName}-${variant.buildType.name}.apk"
+            }
+    }
+}
+
+afterEvaluate {
+    tasks.findByName("assembleDebug")?.doLast {
+        val debugDir = file("${layout.buildDirectory.get().asFile}/outputs/apk/debug")
+        val tracmioApk = File(debugDir, "Tracmio-2.5.2-debug.apk")
+        val defaultApk = File(debugDir, "app-debug.apk")
+        if (tracmioApk.exists()) {
+            tracmioApk.copyTo(defaultApk, overwrite = true)
+        }
+    }
 }
 
 dependencies {
@@ -42,6 +65,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("org.json:json:20231013")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:core:1.6.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
