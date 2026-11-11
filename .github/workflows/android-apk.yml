@@ -2,17 +2,138 @@ name: Build FinTrack APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, fintrack-2.5.0-development]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  # Only the newest commit on a given branch needs a build and emulator run.
+  # Keep main and the development branch independent.
+  group: fintrack-apk-${{ github.workflow }}-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: true
+
 jobs:
   build:
-    name: Assemble debug APK
+    name: Compile, test and assemble debug APK
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Verify offline-only app configuration
+        run: |
+          python3 - <<'PY'
+          import re
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          manifest = ET.parse("app/src/main/AndroidManifest.xml").getroot()
+          android_ns = "{http://schemas.android.com/apk/res/android}"
+          permissions = {node.attrib.get(android_ns + "name") for node in manifest.findall("uses-permission")}
+          assert "android.permission.INTERNET" not in permissions, "Offline Edition must not request INTERNET permission"
+          application = manifest.find("application")
+          assert application is not None
+          assert application.attrib.get(android_ns + "allowBackup") == "false", "Android backup must remain disabled"
+          assert application.attrib.get(android_ns + "usesCleartextTraffic") == "false", "Cleartext traffic must remain disabled"
+
+          html = Path("app/src/main/assets/index.html").read_text(encoding="utf-8")
+          kotlin = "\n".join(p.read_text(encoding="utf-8") for p in Path("app/src/main/java").rglob("*.kt"))
+          remote_asset = r"<(?:script|link|img|iframe)\b[^>]*(?:src|href)\s*=\s*['\"]https?://"
+          remote_css = r"(?:@import\s+(?:url\()?\s*['\"]?https?://|url\(\s*['\"]?https?://)"
+          assert not re.search(remote_asset, html, flags=re.I), "Bundled HTML must not load remote assets"
+          assert not re.search(remote_css, html, flags=re.I), "Bundled CSS must not load remote styles or images"
+          sources = html + "\n" + kotlin
+          assert not re.search(r"\b(fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(", sources), "Unexpected network API in offline app sources"
+          PY
+
+      - name: Check inline JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          html = Path("app/src/main/assets/index.html").read_text(encoding="utf-8")
+          blocks = re.findall(r'<script\b([^>]*)>(.*?)</script\s*>', html, flags=re.I | re.S)
+          for index, (attrs, body) in enumerate(blocks):
+              if re.search(r'\bsrc\s*=', attrs, flags=re.I) or not body.strip():
+                  continue
+              Path(f"/tmp/fintrack-{index}.js").write_text(body, encoding="utf-8")
+          PY
+          for script in /tmp/fintrack-*.js; do node --check "$script"; done
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Restore stable debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: fintrack-debug-signing-key-v1
+
+      - name: Create debug signing key when not cached
+        run: |
+          mkdir -p "$HOME/.android"
+          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+            keytool -genkeypair -v \
+              -keystore "$HOME/.android/debug.keystore" \
+              -storepass android -alias androiddebugkey -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US" \
+              -keyalg RSA -keysize 2048 -validity 10000
+          fi
+
+      - name: Save stable debug signing key
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: fintrack-debug-signing-key-v1
+
+      - name: Build unit tests, test APK and debug APK
+        id: build_apk
+        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest assembleDebugAndroidTest assembleDebug
+
+      - name: Verify APK identity and version
+        if: steps.build_apk.outcome == 'success'
+        run: |
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$APK"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-name "$APK"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-code "$APK"
+
+      - name: Upload debug APK
+        if: steps.build_apk.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: FinTrack-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  instrumentation:
+    name: Android emulator regression tests
+    needs: build
+    # Use the standard Linux x86_64 runner and explicitly grant the runner access to KVM.
+    # Without /dev/kvm permissions, x86_64 software emulation cannot boot reliably.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -26,21 +147,53 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          # The legacy 'tools' SDK package was removed. Gradle fetches the compile/build tools it needs.
           packages: 'platform-tools'
 
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses || true
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
 
-      - name: Build debug APK
+      - name: Grant runner access to KVM
         run: |
-          chmod +x ./gradlew
-          ./gradlew --no-daemon --stacktrace assembleDebug
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+            ls -l /dev/kvm
+            test -r /dev/kvm && test -w /dev/kvm
+          else
+            echo "KVM device is not available on this runner"
+            exit 1
+          fi
 
-      - name: Upload APK
+      - name: Run Android instrumented tests on emulator
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -wipe-data -accel on
+          disable-animations: true
+          emulator-boot-timeout: 600
+          script: |
+            adb logcat -c || true
+            set +e
+            ./gradlew --no-daemon --stacktrace --max-workers=2 connectedDebugAndroidTest
+            test_status=$?
+            mkdir -p app/build/ci-diagnostics
+            adb logcat -d -v threadtime > app/build/ci-diagnostics/emulator-logcat.txt 2>&1 || true
+            adb shell dumpsys activity processes > app/build/ci-diagnostics/activity-processes.txt 2>&1 || true
+            adb shell dumpsys meminfo > app/build/ci-diagnostics/memory-info.txt 2>&1 || true
+            exit "$test_status"
+
+      - name: Upload emulator failure diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: FinTrack-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+          name: FinTrack-emulator-diagnostics
+          path: |
+            app/build/ci-diagnostics/**
+            app/build/reports/androidTests/connected/debug/**
+            app/build/outputs/androidTest-results/connected/**
+          if-no-files-found: warn
           retention-days: 14

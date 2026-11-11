@@ -16,6 +16,12 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE id = :accountId LIMIT 1")
     suspend fun getAccountById(accountId: Long): AccountEntity?
 
+    @Query("SELECT * FROM accounts")
+    suspend fun allAccounts(): List<AccountEntity>
+
+    @Query("SELECT * FROM accounts WHERE stableUid = :stableUid LIMIT 1")
+    suspend fun accountByStableUid(stableUid: String): AccountEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAccount(account: AccountEntity): Long
 

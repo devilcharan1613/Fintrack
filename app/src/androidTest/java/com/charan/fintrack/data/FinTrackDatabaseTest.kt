@@ -43,7 +43,7 @@ class FinTrackDatabaseTest {
             )
         )
 
-        assertEquals(1, database.accountDao().getAccountById(accountId)?.id)
+        assertEquals(1L, database.accountDao().getAccountById(accountId)?.id)
         assertEquals(1, database.financeDao().transactions().first().size)
     }
 }
