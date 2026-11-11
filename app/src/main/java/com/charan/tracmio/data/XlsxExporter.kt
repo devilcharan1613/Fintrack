@@ -17,8 +17,166 @@ object XlsxExporter {
 
     fun create(json: String): ByteArray {
         val root = runCatching { JSONObject(json) }.getOrDefault(JSONObject())
-        val sheets = buildSheets(root)
+        val sheets = if (root.optBoolean("isCustomTrackerWorkbook", false) || root.has("trackerOverview")) {
+            buildTrackerSheets(root)
+        } else {
+            buildSheets(root)
+        }
         return buildWorkbookBytes(sheets)
+    }
+
+    fun createTrackerWorkbook(json: String): ByteArray {
+        val root = runCatching { JSONObject(json) }.getOrDefault(JSONObject())
+        return buildWorkbookBytes(buildTrackerSheets(root))
+    }
+
+    /**
+     * Builds the exact 8 worksheets required for Custom Tracker Excel Export:
+     * 1. Overview
+     * 2. Transactions
+     * 3. Categories
+     * 4. Daily Summary
+     * 5. Payment Methods
+     * 6. People
+     * 7. Settlements
+     * 8. Custom Fields
+     */
+    private fun buildTrackerSheets(root: JSONObject): List<SheetSpec> {
+        val ov = root.optJSONObject("trackerOverview") ?: root
+        val overviewRows = listOf(
+            listOf("Application", "Tracmio — Finance & Expenses Tracker (v1.00)"),
+            listOf("Tracker Name", ov.optString("name", "Custom Tracker")),
+            listOf("Tracker Type", ov.optString("type", "Custom")),
+            listOf("Description", ov.optString("description", "")),
+            listOf("Date Range", "${ov.optString("startDate", "—")} to ${ov.optString("endDate", "—")}"),
+            listOf("Currency", ov.optString("currency", "₹")),
+            listOf("Budget", ov.optDouble("budget", 0.0)),
+            listOf("Remaining Budget", ov.optDouble("remainingBudget", 0.0)),
+            listOf("Budget Utilization (%)", ov.optDouble("budgetUtilizationPct", 0.0)),
+            listOf("Total Income", ov.optDouble("totalIncome", 0.0)),
+            listOf("Total Expenses", ov.optDouble("totalExpenses", 0.0)),
+            listOf("Total Refunds", ov.optDouble("totalRefunds", 0.0)),
+            listOf("Net Expenses", ov.optDouble("netExpenses", 0.0)),
+            listOf("Net Cash Flow", ov.optDouble("netCashFlow", 0.0)),
+            listOf("Transaction Count", ov.optInt("transactionCount", 0)),
+            listOf("Export Timestamp", ov.optString("exportedAt", ""))
+        )
+
+        val txArray = root.optJSONArray("transactions") ?: JSONArray()
+        val txRows = mutableListOf<List<Any?>>()
+        for (i in 0 until txArray.length()) {
+            val tx = txArray.optJSONObject(i) ?: continue
+            txRows += listOf(
+                tx.optString("date", ""),
+                tx.optString("type", "").uppercase(),
+                tx.optString("category", ""),
+                tx.optString("subcategory", ""),
+                tx.optString("accountName", tx.optString("account", "")),
+                tx.optString("paymentMethod", "Cash"),
+                tx.optString("personName", ""),
+                tx.optDouble("amount", 0.0),
+                if (tx.optBoolean("isRefund", false)) "YES" else "NO",
+                tx.optString("note", "")
+            )
+        }
+
+        val catArray = root.optJSONArray("categories") ?: JSONArray()
+        val catRows = mutableListOf<List<Any?>>()
+        for (i in 0 until catArray.length()) {
+            val c = catArray.optJSONObject(i) ?: continue
+            catRows += listOf(
+                c.optString("category", ""),
+                c.optDouble("amount", 0.0),
+                c.optDouble("sharePct", 0.0),
+                c.optInt("count", 0)
+            )
+        }
+
+        val dailyArray = root.optJSONArray("dailySummary") ?: JSONArray()
+        val dailyRows = mutableListOf<List<Any?>>()
+        for (i in 0 until dailyArray.length()) {
+            val d = dailyArray.optJSONObject(i) ?: continue
+            dailyRows += listOf(
+                d.optString("date", ""),
+                d.optDouble("income", 0.0),
+                d.optDouble("expense", 0.0),
+                d.optDouble("refund", 0.0),
+                d.optDouble("netExpense", 0.0)
+            )
+        }
+
+        val pmArray = root.optJSONArray("paymentMethods") ?: JSONArray()
+        val pmRows = mutableListOf<List<Any?>>()
+        for (i in 0 until pmArray.length()) {
+            val pm = pmArray.optJSONObject(i) ?: continue
+            pmRows += listOf(
+                pm.optString("method", ""),
+                pm.optDouble("amount", 0.0),
+                pm.optDouble("sharePct", 0.0),
+                pm.optInt("count", 0)
+            )
+        }
+
+        val peopleArray = root.optJSONArray("people") ?: JSONArray()
+        val peopleRows = mutableListOf<List<Any?>>()
+        for (i in 0 until peopleArray.length()) {
+            val p = peopleArray.optJSONObject(i) ?: continue
+            peopleRows += listOf(
+                p.optString("name", ""),
+                p.optString("phone", ""),
+                p.optDouble("paid", 0.0),
+                p.optDouble("shareOwed", 0.0),
+                p.optDouble("amountOwed", 0.0),
+                p.optDouble("amountReceivable", 0.0),
+                p.optDouble("netBalance", 0.0),
+                p.optString("notes", "")
+            )
+        }
+
+        val settlementsArray = root.optJSONArray("settlements") ?: JSONArray()
+        val settlementRows = mutableListOf<List<Any?>>()
+        for (i in 0 until settlementsArray.length()) {
+            val s = settlementsArray.optJSONObject(i) ?: continue
+            settlementRows += listOf(
+                s.optString("date", ""),
+                s.optString("fromName", ""),
+                s.optString("toName", ""),
+                s.optDouble("amount", 0.0),
+                if (s.optBoolean("isFull", false)) "Full" else "Partial",
+                s.optString("note", "")
+            )
+        }
+
+        val cfArray = root.optJSONArray("customFields") ?: JSONArray()
+        val cfRows = mutableListOf<List<Any?>>()
+        for (i in 0 until cfArray.length()) {
+            val cf = cfArray.optJSONObject(i) ?: continue
+            cfRows += listOf(
+                cf.optString("name", ""),
+                cf.optString("type", "TEXT"),
+                cf.optString("value", ""),
+                cf.optString("options", "")
+            )
+        }
+
+        return listOf(
+            SheetSpec("Overview", listOf("Field", "Value"), overviewRows),
+            SheetSpec(
+                "Transactions",
+                listOf("Date", "Type", "Category", "Subcategory", "Account", "Payment Method", "Person", "Amount", "Refund", "Notes"),
+                txRows
+            ),
+            SheetSpec("Categories", listOf("Category", "Net Spent", "Share (%)", "Transactions"), catRows),
+            SheetSpec("Daily Summary", listOf("Date", "Income", "Expenses", "Refunds", "Net Spend"), dailyRows),
+            SheetSpec("Payment Methods", listOf("Payment Method", "Amount", "Share (%)", "Transactions"), pmRows),
+            SheetSpec(
+                "People",
+                listOf("Name", "Phone", "Total Paid", "Share Owed", "Amount Owed", "Amount Receivable", "Net Balance", "Notes"),
+                peopleRows
+            ),
+            SheetSpec("Settlements", listOf("Date", "From", "To", "Amount", "Type", "Note"), settlementRows),
+            SheetSpec("Custom Fields", listOf("Field Name", "Field Type", "Value", "Options"), cfRows)
+        )
     }
 
     private fun buildSheets(root: JSONObject): List<SheetSpec> {

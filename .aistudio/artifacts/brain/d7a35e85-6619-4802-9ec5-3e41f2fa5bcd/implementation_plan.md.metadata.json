@@ -1,6 +1,0 @@
-{
-  "summary":  "Implementation plan for migrating Tracmio (v1.00, versionCode 1) to a 100% pure native Kotlin and Jetpack Compose architecture with Room database persistence, 10 background themes, 10 Liquid Glass UI styles, 3D vector badges, 4 interactive Canvas chart styles, and the 100-item smart offline notification rotation engine.",
-  "updatedAt":  "2026-11-11T12:22:59.023647289Z",
-  "requestFeedback":  true,
-  "userFacing":  true
-}

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path name="exports" path="exports/" />
+    <files-path name="tracker_attachments" path="tracker_attachments/" />
+    <files-path name="app_files" path="." />
+</paths>

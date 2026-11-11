@@ -3,9 +3,6 @@ package com.charan.tracmio.data
 import com.charan.tracmio.DailyReminderReceiver
 import com.charan.tracmio.data.local.AccountEntity
 import com.charan.tracmio.data.local.TransactionEntity
-import com.charan.tracmio.ui.nativeapp.TRACMIO_BG_THEMES
-import com.charan.tracmio.ui.nativeapp.TRACMIO_GLASS_UI_STYLES
-import com.charan.tracmio.ui.nativeapp.computeSixMonthTrend
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -66,18 +63,22 @@ class FinancialCalculatorTest {
     }
 
     @Test
-    fun nativeComposeThemesAnd100NotificationsCatalogAreConfigured() {
-        assertEquals(10, TRACMIO_BG_THEMES.size)
-        assertEquals(10, TRACMIO_GLASS_UI_STYLES.size)
-
-        val trend = computeSixMonthTrend(
-            listOf(
-                TransactionEntity(accountId = 1, type = "INCOME", amount = 1200.0, category = "Salary"),
-                TransactionEntity(accountId = 1, type = "EXPENSE", amount = 450.0, category = "Food")
-            )
+    fun liquidGlassWebViewUiAnd100NotificationsCatalogAreConfigured() {
+        val htmlCandidates = listOf(
+            File("src/main/assets/index.html"),
+            File("app/src/main/assets/index.html")
         )
-        assertEquals(6, trend.size)
-        assertEquals(750.0, trend.last().net, 0.001)
+        val htmlFile = htmlCandidates.firstOrNull { it.exists() }
+        assertTrue("index.html must exist in assets", htmlFile != null)
+        val html = htmlFile!!.readText()
+        assertTrue(html.contains("TRACMIO · OFFLINE FINANCE MANAGER"))
+        assertTrue(html.contains("v1.00"))
+        assertTrue(html.contains("id=\"page-themes\""))
+        assertTrue(html.contains("setTracmioGlassUi"))
+        assertTrue(html.contains("tracmio-3d-badge"))
+        assertTrue(html.contains("nav-scroll-hidden"))
+        assertFalse(html.contains("Cloud Sync"))
+        assertFalse(html.contains("Install Update from APK"))
 
         val notifCandidates = listOf(
             File("src/main/assets/notifications.json"),
@@ -90,10 +91,5 @@ class FinancialCalculatorTest {
         assertTrue(parsed.any { it.category == "MEME" })
         assertTrue(parsed.any { it.category == "HYGIENE" })
         assertTrue(parsed.any { it.category == "MILESTONES" })
-
-        val legacyHtml = File("src/main/assets/index.html")
-        val appLegacyHtml = File("app/src/main/assets/index.html")
-        assertFalse(legacyHtml.exists())
-        assertFalse(appLegacyHtml.exists())
     }
 }

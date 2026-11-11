@@ -17,15 +17,27 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         LoanEntity::class,
         CategoryEntity::class,
         PersonEntity::class,
-        LoanPaymentEntity::class
+        LoanPaymentEntity::class,
+        CustomTrackerEntity::class,
+        TrackerTransactionCrossRefEntity::class,
+        TrackerBudgetEntity::class,
+        TrackerPersonEntity::class,
+        TrackerSettlementEntity::class,
+        TrackerAttachmentEntity::class,
+        TrackerCustomFieldEntity::class,
+        TrackerCustomValueEntity::class,
+        TrackerRecurringRuleEntity::class,
+        TrackerAlertSettingEntity::class,
+        TrackerActivityLogEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class TracmioDatabase : RoomDatabase() {
 
     abstract fun accountDao(): AccountDao
     abstract fun financeDao(): FinanceDao
+    abstract fun customTrackerDao(): CustomTrackerDao
 
     companion object {
         const val DATABASE_NAME = "tracmio_database"
@@ -44,7 +56,8 @@ abstract class TracmioDatabase : RoomDatabase() {
                     MIGRATION_2_3,
                     MIGRATION_3_4,
                     MIGRATION_4_5,
-                    MIGRATION_5_6
+                    MIGRATION_5_6,
+                    MIGRATION_6_7
                 ).build()
 
                 INSTANCE = instance
@@ -132,6 +145,209 @@ abstract class TracmioDatabase : RoomDatabase() {
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE transactions ADD COLUMN upiApp TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `custom_trackers` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `stableUid` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `trackerType` TEXT NOT NULL,
+                        `customTypeName` TEXT NOT NULL DEFAULT '',
+                        `description` TEXT NOT NULL DEFAULT '',
+                        `icon` TEXT NOT NULL DEFAULT '🎯',
+                        `themeColor` TEXT NOT NULL DEFAULT '#00f5d4',
+                        `startDate` TEXT NOT NULL DEFAULT '',
+                        `endDate` TEXT NOT NULL DEFAULT '',
+                        `budgetAmount` REAL NOT NULL DEFAULT 0.0,
+                        `budgetMode` TEXT NOT NULL DEFAULT 'NONE',
+                        `currency` TEXT NOT NULL DEFAULT '₹',
+                        `notes` TEXT NOT NULL DEFAULT '',
+                        `status` TEXT NOT NULL DEFAULT 'ACTIVE',
+                        `isArchived` INTEGER NOT NULL DEFAULT 0,
+                        `createdAt` INTEGER NOT NULL DEFAULT 0,
+                        `updatedAt` INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_custom_trackers_stableUid` ON `custom_trackers` (`stableUid`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_custom_trackers_status` ON `custom_trackers` (`status`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_custom_trackers_isArchived` ON `custom_trackers` (`isArchived`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `tracker_transactions` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `trackerUid` TEXT NOT NULL,
+                        `transactionUid` TEXT NOT NULL,
+                        `isRefund` INTEGER NOT NULL DEFAULT 0,
+                        `paidByPersonUid` TEXT NOT NULL DEFAULT '',
+                        `splitMode` TEXT NOT NULL DEFAULT 'EQUAL',
+                        `splitSharesJson` TEXT NOT NULL DEFAULT '{}',
+                        `linkedAt` INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY(`trackerUid`) REFERENCES `custom_trackers`(`stableUid`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_tracker_transactions_trackerUid_transactionUid` ON `tracker_transactions` (`trackerUid`, `transactionUid`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_tracker_transactions_transactionUid` ON `tracker_transactions` (`transactionUid`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `tracker_budgets` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `trackerUid` TEXT NOT NULL,
+                        `budgetMode` TEXT NOT NULL DEFAULT 'FIXED',
+                        `plannedAmount` REAL NOT NULL DEFAULT 0.0,
+                        `adjustmentAmount` REAL NOT NULL DEFAULT 0.0,
+                        `startDate` TEXT NOT NULL DEFAULT '',
+                        `endDate` TEXT NOT NULL DEFAULT '',
+                        `categoryLimitsJson` TEXT NOT NULL DEFAULT '{}',
+                        FOREIGN KEY(`trackerUid`) REFERENCES `custom_trackers`(`stableUid`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_tracker_budgets_trackerUid` ON `tracker_budgets` (`trackerUid`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `tracker_people` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `personUid` TEXT NOT NULL,
+                        `trackerUid` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `phone` TEXT NOT NULL DEFAULT '',
+                        `notes` TEXT NOT NULL DEFAULT '',
+                        `avatarColor` TEXT NOT NULL DEFAULT '#00f5d4',
+                        FOREIGN KEY(`trackerUid`) REFERENCES `custom_trackers`(`stableUid`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_tracker_people_trackerUid` ON `tracker_people` (`trackerUid`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_tracker_people_personUid` ON `tracker_people` (`personUid`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `tracker_settlements` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `settlementUid` TEXT NOT NULL,
+                        `trackerUid` TEXT NOT NULL,
+                        `fromPersonUid` TEXT NOT NULL,
+                        `toPersonUid` TEXT NOT NULL,
+                        `amount` REAL NOT NULL,
+                        `isFullSettlement` INTEGER NOT NULL DEFAULT 0,
+                        `date` TEXT NOT NULL,
+                        `note` TEXT NOT NULL DEFAULT '',
+                        `timestamp` INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY(`trackerUid`) REFERENCES `custom_trackers`(`stableUid`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_tracker_settlements_trackerUid` ON `tracker_settlements` (`trackerUid`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_tracker_settlements_settlementUid` ON `tracker_settlements` (`settlementUid`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `tracker_attachments` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `attachmentUid` TEXT NOT NULL,
+                        `trackerUid` TEXT NOT NULL,
+                        `transactionUid` TEXT NOT NULL DEFAULT '',
+                        `fileName` TEXT NOT NULL,
+                        `mimeType` TEXT NOT NULL,
+                        `localPath` TEXT NOT NULL,
+                        `contentUri` TEXT NOT NULL DEFAULT '',
+                        `fileSizeBytes` INTEGER NOT NULL DEFAULT 0,
+                        `addedAt` INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY(`trackerUid`) REFERENCES `custom_trackers`(`stableUid`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_tracker_attachments_trackerUid` ON `tracker_attachments` (`trackerUid`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_tracker_attachments_attachmentUid` ON `tracker_attachments` (`attachmentUid`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `tracker_custom_fields` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `fieldUid` TEXT NOT NULL,
+                        `trackerUid` TEXT NOT NULL,
+                        `fieldName` TEXT NOT NULL,
+                        `fieldType` TEXT NOT NULL,
+                        `optionsJson` TEXT NOT NULL DEFAULT '[]',
+                        FOREIGN KEY(`trackerUid`) REFERENCES `custom_trackers`(`stableUid`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_tracker_custom_fields_trackerUid` ON `tracker_custom_fields` (`trackerUid`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_tracker_custom_fields_fieldUid` ON `tracker_custom_fields` (`fieldUid`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `tracker_custom_values` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `trackerUid` TEXT NOT NULL,
+                        `fieldUid` TEXT NOT NULL,
+                        `fieldValue` TEXT NOT NULL,
+                        FOREIGN KEY(`trackerUid`) REFERENCES `custom_trackers`(`stableUid`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_tracker_custom_values_trackerUid_fieldUid` ON `tracker_custom_values` (`trackerUid`, `fieldUid`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `tracker_recurring_rules` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `trackerUid` TEXT NOT NULL,
+                        `frequency` TEXT NOT NULL DEFAULT 'NONE',
+                        `customIntervalDays` INTEGER NOT NULL DEFAULT 30,
+                        `startDate` TEXT NOT NULL DEFAULT '',
+                        `endDate` TEXT NOT NULL DEFAULT '',
+                        `nextOccurrenceDate` TEXT NOT NULL DEFAULT '',
+                        `reminderDaysBefore` INTEGER NOT NULL DEFAULT 1,
+                        `status` TEXT NOT NULL DEFAULT 'ACTIVE',
+                        FOREIGN KEY(`trackerUid`) REFERENCES `custom_trackers`(`stableUid`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_tracker_recurring_rules_trackerUid` ON `tracker_recurring_rules` (`trackerUid`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `tracker_alert_settings` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `trackerUid` TEXT NOT NULL,
+                        `alert50` INTEGER NOT NULL DEFAULT 1,
+                        `alert75` INTEGER NOT NULL DEFAULT 1,
+                        `alert90` INTEGER NOT NULL DEFAULT 1,
+                        `alert100` INTEGER NOT NULL DEFAULT 1,
+                        `customPercent` INTEGER NOT NULL DEFAULT 0,
+                        `firedThresholdsJson` TEXT NOT NULL DEFAULT '[]',
+                        FOREIGN KEY(`trackerUid`) REFERENCES `custom_trackers`(`stableUid`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_tracker_alert_settings_trackerUid` ON `tracker_alert_settings` (`trackerUid`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `tracker_activity_logs` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `logUid` TEXT NOT NULL,
+                        `trackerUid` TEXT NOT NULL,
+                        `actionType` TEXT NOT NULL,
+                        `description` TEXT NOT NULL,
+                        `timestamp` INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY(`trackerUid`) REFERENCES `custom_trackers`(`stableUid`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_tracker_activity_logs_trackerUid_timestamp` ON `tracker_activity_logs` (`trackerUid`, `timestamp`)")
             }
         }
     }
