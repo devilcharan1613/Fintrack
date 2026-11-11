@@ -51,18 +51,15 @@ class DailyReminderReceiver : BroadcastReceiver() {
 
         fun nextMessage(context: Context, memeMode: Boolean): String {
             val prefs = TracmioReminderScheduler.getPrefs(context)
-            val legacyPrefs = context.getSharedPreferences(TracmioReminderScheduler.LEGACY_PREFS, Context.MODE_PRIVATE)
             return if (memeMode) {
-                val last = prefs.getInt(KEY_LAST_MEME_INDEX, legacyPrefs.getInt(KEY_LAST_MEME_INDEX, -1))
+                val last = prefs.getInt(KEY_LAST_MEME_INDEX, -1)
                 val next = (last + 1) % MEME_MESSAGES.size
                 prefs.edit().putInt(KEY_LAST_MEME_INDEX, next).apply()
-                legacyPrefs.edit().putInt(KEY_LAST_MEME_INDEX, next).apply()
                 MEME_MESSAGES[next]
             } else {
-                val last = prefs.getInt(KEY_LAST_STD_INDEX, legacyPrefs.getInt(KEY_LAST_STD_INDEX, -1))
+                val last = prefs.getInt(KEY_LAST_STD_INDEX, -1)
                 val next = (last + 1) % STANDARD_MESSAGES.size
                 prefs.edit().putInt(KEY_LAST_STD_INDEX, next).apply()
-                legacyPrefs.edit().putInt(KEY_LAST_STD_INDEX, next).apply()
                 STANDARD_MESSAGES[next]
             }
         }

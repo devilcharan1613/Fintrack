@@ -49,6 +49,17 @@ class MainActivity : ComponentActivity() {
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
+        val notifGranted = results[Manifest.permission.POST_NOTIFICATIONS]
+        if (notifGranted != null && ::webView.isInitialized && pageLoaded) {
+            val reminderEnabled = TracmioReminderScheduler.getPrefs(this)
+                .getBoolean(TracmioReminderScheduler.KEY_ENABLED, true)
+            webView.post {
+                webView.evaluateJavascript(
+                    "window.tracmioReminderPermissionResult && window.tracmioReminderPermissionResult($notifGranted, $reminderEnabled);",
+                    null
+                )
+            }
+        }
         val allGranted = results.values.all { it }
         if (allGranted && results.isNotEmpty()) {
             Toast.makeText(this, "Permissions granted", Toast.LENGTH_SHORT).show()
@@ -170,7 +181,6 @@ class MainActivity : ComponentActivity() {
 
             val bridge = TracmioBridge()
             addJavascriptInterface(bridge, "TracmioBridge")
-            addJavascriptInterface(bridge, "FinTrackBridge")
 
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
@@ -216,7 +226,7 @@ class MainActivity : ComponentActivity() {
             val imeBottom = ((ime.bottom - systemBars.bottom).coerceAtLeast(0) / density).toInt()
             view.post {
                 webView.evaluateJavascript(
-                    "window.finTrackApplyInsets && window.finTrackApplyInsets($left, $top, $right, $bottom, $imeBottom);",
+                    "window.tracmioApplyInsets && window.tracmioApplyInsets($left, $top, $right, $bottom, $imeBottom);",
                     null
                 )
             }
@@ -230,7 +240,7 @@ class MainActivity : ComponentActivity() {
                     onBackPressedDispatcher.onBackPressed()
                     return
                 }
-                webView.evaluateJavascript("(function(){ return window.finTrackHandleBack ? window.finTrackHandleBack() : false; })()") { result ->
+                webView.evaluateJavascript("(function(){ return window.tracmioHandleBack ? window.tracmioHandleBack() : false; })()") { result ->
                     if (result != "true") {
                         if (webView.canGoBack()) {
                             webView.goBack()
@@ -267,7 +277,7 @@ class MainActivity : ComponentActivity() {
         val quoted = JSONObject.quote(action)
         webView.post {
             webView.evaluateJavascript(
-                "window.finTrackHandleNotificationAction && window.finTrackHandleNotificationAction($quoted);",
+                "window.tracmioHandleNotificationAction && window.tracmioHandleNotificationAction($quoted);",
                 null
             )
         }
@@ -344,7 +354,7 @@ class MainActivity : ComponentActivity() {
             val dataUrl = "data:image/jpeg;base64,$base64"
             val quoted = JSONObject.quote(dataUrl)
             webView.post {
-                webView.evaluateJavascript("window.setFinTrackBackgroundFromNative($quoted);", null)
+                webView.evaluateJavascript("window.setTracmioBackgroundFromNative($quoted);", null)
             }
         }.onFailure {
             Toast.makeText(this, "Could not load photo: ${it.message}", Toast.LENGTH_SHORT).show()
@@ -445,7 +455,7 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun getLegacyData(): String? {
-            val prefs = getSharedPreferences("fintrack_legacy_bridge", Context.MODE_PRIVATE)
+            val prefs = getSharedPreferences("tracmio_legacy_bridge", Context.MODE_PRIVATE)
             return prefs.getString("legacy_state_json", null)
         }
     }

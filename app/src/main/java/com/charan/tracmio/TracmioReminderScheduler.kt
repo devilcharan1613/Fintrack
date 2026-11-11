@@ -9,24 +9,13 @@ import java.util.Calendar
 
 object TracmioReminderScheduler {
     const val PREFS = "tracmio_reminders"
-    const val LEGACY_PREFS = "fintrack_reminders"
     const val KEY_ENABLED = "enabled"
     const val KEY_HOUR = "hour"
     const val KEY_MINUTE = "minute"
     const val KEY_MEME = "meme_mode"
     private const val REQUEST_CODE = 4102
 
-    fun getPrefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).also { prefs ->
-        val legacy = context.getSharedPreferences(LEGACY_PREFS, Context.MODE_PRIVATE)
-        if (!prefs.contains(KEY_ENABLED) && legacy.contains(KEY_ENABLED)) {
-            prefs.edit()
-                .putBoolean(KEY_ENABLED, legacy.getBoolean(KEY_ENABLED, true))
-                .putInt(KEY_HOUR, legacy.getInt(KEY_HOUR, 20))
-                .putInt(KEY_MINUTE, legacy.getInt(KEY_MINUTE, 0))
-                .putBoolean(KEY_MEME, legacy.getBoolean(KEY_MEME, true))
-                .apply()
-        }
-    }
+    fun getPrefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     fun update(
         context: Context,
@@ -37,15 +26,13 @@ object TracmioReminderScheduler {
     ) {
         val safeHour = hour.coerceIn(0, 23)
         val safeMinute = minute.coerceIn(0, 59)
-        listOf(PREFS, LEGACY_PREFS).forEach { name ->
-            context.getSharedPreferences(name, Context.MODE_PRIVATE)
-                .edit()
-                .putBoolean(KEY_ENABLED, enabled)
-                .putInt(KEY_HOUR, safeHour)
-                .putInt(KEY_MINUTE, safeMinute)
-                .putBoolean(KEY_MEME, memeMode)
-                .apply()
-        }
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_ENABLED, enabled)
+            .putInt(KEY_HOUR, safeHour)
+            .putInt(KEY_MINUTE, safeMinute)
+            .putBoolean(KEY_MEME, memeMode)
+            .apply()
         if (enabled) {
             scheduleNext(context, safeHour, safeMinute, memeMode)
         } else {

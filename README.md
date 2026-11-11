@@ -7,7 +7,7 @@ Tracmio — Finance & Expenses Tracker is an offline-first Android personal fina
 ## 2.5.2 update
 
 - Complete rebrand and upgrade to **Tracmio — Finance & Expenses Tracker** (`com.charan.tracmio`, version 2.5.2, versionCode 29).
-- Dual WebView bridge registration (`TracmioBridge` & `FinTrackBridge`) for 100% compatibility.
+- Native WebView bridge (`TracmioBridge`) connecting the Single-Page Application to Android storage, print, and reminder services.
 - 3D Liquid Glass Tracmio brand identity, animated Welcome Overlay, 10 built-in Liquid Glass themes + Custom Neon Theme Studio, custom photo background & UI scale controls.
 - Custom UPI App creator inside the Add Transaction modal (`Income`, `Expense`, `Transfer`, `Borrow`, `Lend`).
 - 4-Style Chart Switcher (`3D Neon Bars`, `Area Wave`, `Capsules & Polar`, `Executive`) and 4 Color Theme Palettes on Reports.

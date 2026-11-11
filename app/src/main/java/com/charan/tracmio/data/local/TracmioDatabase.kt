@@ -29,14 +29,12 @@ abstract class TracmioDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "tracmio_database"
-        private const val LEGACY_DATABASE_NAME = "fintrack_database"
 
         @Volatile
         private var INSTANCE: TracmioDatabase? = null
 
         fun getDatabase(context: Context): TracmioDatabase {
             return INSTANCE ?: synchronized(this) {
-                migrateLegacyDatabaseFileIfNeeded(context.applicationContext)
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     TracmioDatabase::class.java,
@@ -51,24 +49,6 @@ abstract class TracmioDatabase : RoomDatabase() {
 
                 INSTANCE = instance
                 instance
-            }
-        }
-
-        private fun migrateLegacyDatabaseFileIfNeeded(context: Context) {
-            val newDb = context.getDatabasePath(DATABASE_NAME)
-            val oldDb = context.getDatabasePath(LEGACY_DATABASE_NAME)
-            if (!newDb.exists() && oldDb.exists()) {
-                runCatching {
-                    newDb.parentFile?.mkdirs()
-                    oldDb.copyTo(newDb, overwrite = false)
-                    listOf("-wal", "-shm").forEach { suffix ->
-                        val oldAux = context.getDatabasePath(LEGACY_DATABASE_NAME + suffix)
-                        val newAux = context.getDatabasePath(DATABASE_NAME + suffix)
-                        if (oldAux.exists()) {
-                            oldAux.copyTo(newAux, overwrite = true)
-                        }
-                    }
-                }
             }
         }
 
