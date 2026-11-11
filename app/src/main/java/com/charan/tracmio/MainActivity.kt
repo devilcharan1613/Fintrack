@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -46,6 +47,8 @@ import com.charan.tracmio.data.local.TrackerCustomValueEntity
 import com.charan.tracmio.data.local.TrackerPersonEntity
 import com.charan.tracmio.data.local.TrackerSettlementEntity
 import com.charan.tracmio.data.local.TrackerTransactionCrossRefEntity
+import com.charan.tracmio.data.security.TracmioSecurityEngine
+import android.app.AlarmManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -101,11 +104,49 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private var pendingCameraAction = "attachment"
+
     private val captureCameraPhotoLauncher = registerForActivityResult(
         ActivityResultContracts.TakePicturePreview()
     ) { bitmap: Bitmap? ->
         if (bitmap != null) {
             handleCapturedTrackerCameraPhoto(bitmap)
+        }
+    }
+
+    private val captureBackgroundImageLauncher = registerForActivityResult(
+        ActivityResultContracts.TakePicturePreview()
+    ) { bitmap: Bitmap? ->
+        if (bitmap != null) {
+            handleCapturedBackgroundImage(bitmap)
+        }
+    }
+
+    private val requestCameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            runCatching {
+                if (pendingCameraAction == "background") {
+                    captureBackgroundImageLauncher.launch(null)
+                } else {
+                    captureCameraPhotoLauncher.launch(null)
+                }
+            }.onFailure {
+                Toast.makeText(this, "Could not open camera: ${it.message}", Toast.LENGTH_SHORT).show()
+                if (pendingCameraAction == "background") {
+                    chooseBackgroundImageLauncher.launch("image/*")
+                } else {
+                    pickTrackerAttachmentLauncher.launch("image/*")
+                }
+            }
+        } else {
+            Toast.makeText(this, "Camera permission denied. Opening gallery.", Toast.LENGTH_SHORT).show()
+            if (pendingCameraAction == "background") {
+                chooseBackgroundImageLauncher.launch("image/*")
+            } else {
+                pickTrackerAttachmentLauncher.launch("image/*")
+            }
         }
     }
 
@@ -426,6 +467,37 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun handleCapturedBackgroundImage(bitmap: Bitmap) {
+        runCatching {
+            val maxDim = 960
+            val scale = minOf(
+                maxDim.toFloat() / bitmap.width.coerceAtLeast(1),
+                maxDim.toFloat() / bitmap.height.coerceAtLeast(1),
+                1f
+            )
+            val scaled = if (scale < 1f) {
+                Bitmap.createScaledBitmap(
+                    bitmap,
+                    (bitmap.width * scale).toInt().coerceAtLeast(1),
+                    (bitmap.height * scale).toInt().coerceAtLeast(1),
+                    true
+                )
+            } else bitmap
+            val out = ByteArrayOutputStream()
+            scaled.compress(Bitmap.CompressFormat.JPEG, 60, out)
+            val bytes = out.toByteArray()
+            File(filesDir, "tracmio_custom_bg.jpg").writeBytes(bytes)
+            val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+            val dataUrl = "data:image/jpeg;base64,$base64"
+            val quoted = JSONObject.quote(dataUrl)
+            webView.post {
+                webView.evaluateJavascript("window.setTracmioBackgroundFromNative && window.setTracmioBackgroundFromNative($quoted);", null)
+            }
+        }.onFailure {
+            Toast.makeText(this, "Camera photo failed: ${it.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun handlePickedTrackerAttachmentUri(uri: Uri) {
         runCatching {
             val mimeType = contentResolver.getType(uri) ?: "application/octet-stream"
@@ -603,8 +675,15 @@ class MainActivity : ComponentActivity() {
             val mode = kind?.lowercase()?.trim() ?: "gallery"
             runOnUiThread {
                 when (mode) {
-                    "camera" -> runCatching { captureCameraPhotoLauncher.launch(null) }.onFailure {
-                        pickTrackerAttachmentLauncher.launch("image/*")
+                    "camera" -> {
+                        pendingCameraAction = "attachment"
+                        if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                            runCatching { captureCameraPhotoLauncher.launch(null) }.onFailure {
+                                pickTrackerAttachmentLauncher.launch("image/*")
+                            }
+                        } else {
+                            requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
                     }
                     "pdf" -> pickTrackerAttachmentLauncher.launch("application/pdf")
                     else -> pickTrackerAttachmentLauncher.launch("image/*")
@@ -661,7 +740,8 @@ class MainActivity : ComponentActivity() {
 
                     for (i in 0 until arr.length()) {
                         val t = arr.optJSONObject(i) ?: continue
-                        val tUid = t.optString("id", "").ifBlank { continue }
+                        val tUid = t.optString("id", "")
+                        if (tUid.isBlank()) continue
                         trackers += CustomTrackerEntity(
                             stableUid = tUid,
                             name = t.optString("name", "Tracker"),
@@ -685,7 +765,8 @@ class MainActivity : ComponentActivity() {
                         val txLinks = t.optJSONArray("transactionLinks") ?: JSONArray()
                         for (j in 0 until txLinks.length()) {
                             val lk = txLinks.optJSONObject(j) ?: continue
-                            val txId = lk.optString("transactionId", "").ifBlank { continue }
+                            val txId = lk.optString("transactionId", "")
+                            if (txId.isBlank()) continue
                             links += TrackerTransactionCrossRefEntity(
                                 trackerUid = tUid,
                                 transactionUid = txId,
@@ -700,7 +781,8 @@ class MainActivity : ComponentActivity() {
                         val pArr = t.optJSONArray("people") ?: JSONArray()
                         for (j in 0 until pArr.length()) {
                             val p = pArr.optJSONObject(j) ?: continue
-                            val pUid = p.optString("id", "").ifBlank { continue }
+                            val pUid = p.optString("id", "")
+                            if (pUid.isBlank()) continue
                             people += TrackerPersonEntity(
                                 personUid = "$tUid-$pUid",
                                 trackerUid = tUid,
@@ -714,7 +796,8 @@ class MainActivity : ComponentActivity() {
                         val sArr = t.optJSONArray("settlements") ?: JSONArray()
                         for (j in 0 until sArr.length()) {
                             val s = sArr.optJSONObject(j) ?: continue
-                            val sUid = s.optString("id", "").ifBlank { continue }
+                            val sUid = s.optString("id", "")
+                            if (sUid.isBlank()) continue
                             settlements += TrackerSettlementEntity(
                                 settlementUid = sUid,
                                 trackerUid = tUid,
@@ -731,7 +814,8 @@ class MainActivity : ComponentActivity() {
                         val aArr = t.optJSONArray("attachments") ?: JSONArray()
                         for (j in 0 until aArr.length()) {
                             val a = aArr.optJSONObject(j) ?: continue
-                            val aUid = a.optString("id", "").ifBlank { continue }
+                            val aUid = a.optString("id", "")
+                            if (aUid.isBlank()) continue
                             attachments += TrackerAttachmentEntity(
                                 attachmentUid = aUid,
                                 trackerUid = tUid,
@@ -748,7 +832,8 @@ class MainActivity : ComponentActivity() {
                         val cfArr = t.optJSONArray("customFields") ?: JSONArray()
                         for (j in 0 until cfArr.length()) {
                             val cf = cfArr.optJSONObject(j) ?: continue
-                            val fUid = cf.optString("id", "").ifBlank { continue }
+                            val fUid = cf.optString("id", "")
+                            if (fUid.isBlank()) continue
                             customFields += TrackerCustomFieldEntity(
                                 fieldUid = "$tUid-$fUid",
                                 trackerUid = tUid,
@@ -816,6 +901,20 @@ class MainActivity : ComponentActivity() {
         }
 
         @JavascriptInterface
+        fun captureBackgroundImage() {
+            runOnUiThread {
+                pendingCameraAction = "background"
+                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                    runCatching { captureBackgroundImageLauncher.launch(null) }.onFailure {
+                        chooseBackgroundImageLauncher.launch("image/*")
+                    }
+                } else {
+                    requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun scheduleDailyReminder(enabled: Boolean, hour: Int, minute: Int, memeMode: Boolean) {
             runOnUiThread {
                 TracmioReminderScheduler.update(this@MainActivity, enabled, hour, minute, memeMode)
@@ -840,6 +939,122 @@ class MainActivity : ComponentActivity() {
         fun requestAllPermissions() {
             runOnUiThread {
                 requestRuntimePermissions(includeNotifications = true, includeMedia = true)
+            }
+        }
+
+        @JavascriptInterface
+        fun encryptBackup(plaintextJson: String, password: String): String {
+            return runCatching {
+                TracmioSecurityEngine.encryptBackup(plaintextJson, password.toCharArray())
+            }.getOrElse {
+                JSONObject().apply {
+                    put("error", it.message ?: "Encryption failed")
+                }.toString()
+            }
+        }
+
+        @JavascriptInterface
+        fun decryptBackup(envelopeJson: String, password: String): String {
+            return runCatching {
+                TracmioSecurityEngine.decryptBackup(envelopeJson, password.toCharArray())
+            }.getOrElse {
+                JSONObject().apply {
+                    put("error", it.message ?: "Decryption failed (check password)")
+                }.toString()
+            }
+        }
+
+        @JavascriptInterface
+        fun checkDatabaseHealth(): String {
+            return runCatching {
+                val db = TracmioDatabase.getDatabase(this@MainActivity)
+                val report = TracmioSecurityEngine.checkDatabaseIntegrity(db)
+                JSONObject().apply {
+                    put("isHealthy", report.isHealthy)
+                    put("pragmaIntegrity", report.pragmaIntegrity)
+                    put("foreignKeyErrors", report.foreignKeyErrors)
+                    put("accountCount", report.accountCount)
+                    put("transactionCount", report.transactionCount)
+                    put("trackerCount", report.trackerCount)
+                    put("orphanedTransactions", report.orphanedTransactions)
+                    put("diagnosticSummary", report.diagnosticSummary)
+                    put("timestamp", report.timestamp)
+                }.toString()
+            }.getOrElse {
+                JSONObject().apply {
+                    put("isHealthy", false)
+                    put("error", it.message ?: "Check failed")
+                }.toString()
+            }
+        }
+
+        @JavascriptInterface
+        fun scheduleCalendarEventReminder(title: String, message: String, triggerMillis: Long, eventId: String) {
+            runOnUiThread {
+                val alarmManager = getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return@runOnUiThread
+                val intent = Intent(this@MainActivity, EventReminderReceiver::class.java).apply {
+                    putExtra(EventReminderReceiver.EXTRA_TYPE, EventReminderReceiver.TYPE_CALENDAR_EVENT)
+                    putExtra(EventReminderReceiver.EXTRA_TITLE, title)
+                    putExtra(EventReminderReceiver.EXTRA_MESSAGE, message)
+                    putExtra(EventReminderReceiver.EXTRA_EVENT_ID, eventId)
+                }
+                val requestCode = (eventId.hashCode() and 0x7FFFFFFF)
+                val pendingIntent = PendingIntent.getBroadcast(
+                    this@MainActivity,
+                    requestCode,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+                    } else {
+                        alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+                    }
+                } catch (_: SecurityException) {
+                    alarmManager.set(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun scheduleMonthlyBackupReminder(enabled: Boolean, dayOfMonth: Int, hour: Int, minute: Int) {
+            runOnUiThread {
+                val alarmManager = getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return@runOnUiThread
+                val intent = Intent(this@MainActivity, EventReminderReceiver::class.java).apply {
+                    putExtra(EventReminderReceiver.EXTRA_TYPE, EventReminderReceiver.TYPE_MONTHLY_BACKUP)
+                    putExtra(EventReminderReceiver.EXTRA_TITLE, "Tracmio — Monthly Data Protection")
+                    putExtra(EventReminderReceiver.EXTRA_MESSAGE, "Your Tracmio financial data is stored locally. Create a backup to protect your records.")
+                    putExtra(EventReminderReceiver.EXTRA_EVENT_ID, "monthly_backup_reminder")
+                }
+                val requestCode = 9988
+                val pendingIntent = PendingIntent.getBroadcast(
+                    this@MainActivity,
+                    requestCode,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                if (!enabled) {
+                    alarmManager.cancel(pendingIntent)
+                    return@runOnUiThread
+                }
+
+                val now = java.util.Calendar.getInstance()
+                val target = java.util.Calendar.getInstance().apply {
+                    set(java.util.Calendar.DAY_OF_MONTH, dayOfMonth.coerceIn(1, 28))
+                    set(java.util.Calendar.HOUR_OF_DAY, hour.coerceIn(0, 23))
+                    set(java.util.Calendar.MINUTE, minute.coerceIn(0, 59))
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                    if (!after(now)) {
+                        add(java.util.Calendar.MONTH, 1)
+                    }
+                }
+                try {
+                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target.timeInMillis, pendingIntent)
+                } catch (_: SecurityException) {
+                    alarmManager.set(AlarmManager.RTC_WAKEUP, target.timeInMillis, pendingIntent)
+                }
             }
         }
 
