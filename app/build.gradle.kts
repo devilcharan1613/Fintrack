@@ -12,8 +12,8 @@ android {
         applicationId = "com.charan.tracmio"
         minSdk = 23
         targetSdk = 35
-        versionCode = 29
-        versionName = "2.5.2"
+        versionCode = 1
+        versionName = "1.00"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true }
@@ -38,10 +38,12 @@ android {
 afterEvaluate {
     tasks.findByName("assembleDebug")?.doLast {
         val debugDir = file("${layout.buildDirectory.get().asFile}/outputs/apk/debug")
-        val tracmioApk = File(debugDir, "Tracmio-2.5.2-debug.apk")
+        val tracmioApk = File(debugDir, "Tracmio-1.00-debug.apk")
         val defaultApk = File(debugDir, "app-debug.apk")
+        val legacyApk = File(debugDir, "Tracmio-2.5.2-debug.apk")
         if (tracmioApk.exists()) {
             tracmioApk.copyTo(defaultApk, overwrite = true)
+            tracmioApk.copyTo(legacyApk, overwrite = true)
         }
     }
 }

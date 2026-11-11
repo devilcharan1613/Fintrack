@@ -12,6 +12,16 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import org.json.JSONArray
+import java.nio.charset.StandardCharsets
+
+data class NotificationItem(
+    val id: Int,
+    val category: String,
+    val icon: String,
+    val title: String,
+    val body: String
+)
 
 class DailyReminderReceiver : BroadcastReceiver() {
 
@@ -33,6 +43,7 @@ class DailyReminderReceiver : BroadcastReceiver() {
         const val EXTRA_QUICK_ACTION = "tracmio_quick_action"
         private const val KEY_LAST_MEME_INDEX = "last_meme_index"
         private const val KEY_LAST_STD_INDEX = "last_std_index"
+        private const val KEY_LAST_NOTIFICATION_INDEX = "last_notification_index"
 
         val MEME_MESSAGES = listOf(
             "Your wallet called. It wants today's transactions logged 💸 Add your income and expenses!",
@@ -48,6 +59,67 @@ class DailyReminderReceiver : BroadcastReceiver() {
             "A one-minute update helps you stay on top of your money. Log today's transactions in Tracmio.",
             "Small daily updates make monthly reports useful. Add any income or expenses you made today."
         )
+
+        fun parseNotificationCatalogJson(jsonText: String): List<NotificationItem> {
+            return runCatching {
+                val array = JSONArray(jsonText)
+                buildList {
+                    for (i in 0 until array.length()) {
+                        val obj = array.optJSONObject(i) ?: continue
+                        add(
+                            NotificationItem(
+                                id = obj.optInt("id", i + 1),
+                                category = obj.optString("category", "ALL"),
+                                icon = obj.optString("icon", "💸"),
+                                title = obj.optString("title", "Tracmio — Daily Check-In"),
+                                body = obj.optString("body", "")
+                            )
+                        )
+                    }
+                }
+            }.getOrDefault(emptyList())
+        }
+
+        fun loadNotificationListFromAssets(context: Context): List<NotificationItem> {
+            val jsonText = runCatching {
+                context.assets.open("notifications.json")
+                    .bufferedReader(StandardCharsets.UTF_8)
+                    .use { it.readText() }
+            }.getOrDefault("")
+            val parsed = if (jsonText.isNotBlank()) parseNotificationCatalogJson(jsonText) else emptyList()
+            if (parsed.isNotEmpty()) return parsed
+            return MEME_MESSAGES.mapIndexed { idx, body ->
+                NotificationItem(
+                    id = idx + 1,
+                    category = "MEME",
+                    icon = "💸",
+                    title = "Tracmio — Daily Check-In",
+                    body = body
+                )
+            }
+        }
+
+        fun getNextNotification(context: Context, memeMode: Boolean = true): NotificationItem {
+            val prefs = TracmioReminderScheduler.getPrefs(context)
+            val categoryPref = prefs.getString(
+                TracmioReminderScheduler.KEY_ALERT_CATEGORY,
+                if (memeMode) "ALL" else "HYGIENE"
+            ) ?: "ALL"
+            val allItems = loadNotificationListFromAssets(context)
+            val filtered = when (categoryPref.uppercase()) {
+                "MEME" -> allItems.filter { it.category.equals("MEME", ignoreCase = true) }
+                "MILESTONES" -> allItems.filter { it.category.equals("MILESTONES", ignoreCase = true) }
+                "HYGIENE" -> allItems.filter { it.category.equals("HYGIENE", ignoreCase = true) }
+                else -> allItems
+            }.ifEmpty { allItems }
+
+            val currentIndex = prefs.getInt(KEY_LAST_NOTIFICATION_INDEX, 0).coerceAtLeast(0)
+            val selectedItem = filtered[currentIndex % filtered.size]
+            prefs.edit()
+                .putInt(KEY_LAST_NOTIFICATION_INDEX, (currentIndex + 1) % allItems.size.coerceAtLeast(1))
+                .apply()
+            return selectedItem
+        }
 
         fun nextMessage(context: Context, memeMode: Boolean): String {
             val prefs = TracmioReminderScheduler.getPrefs(context)
@@ -72,7 +144,9 @@ class DailyReminderReceiver : BroadcastReceiver() {
                 return
             }
 
-            val message = nextMessage(context, memeMode)
+            val item = getNextNotification(context, memeMode)
+            val title = if (item.icon.isNotBlank()) "${item.icon} ${item.title}" else item.title
+            val message = item.body.ifBlank { nextMessage(context, memeMode) }
             val immutableFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
             val flags = PendingIntent.FLAG_UPDATE_CURRENT or immutableFlag
 
@@ -93,14 +167,14 @@ class DailyReminderReceiver : BroadcastReceiver() {
 
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle("Tracmio — Daily Check-In")
+                .setContentTitle(title)
                 .setContentText(message)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(message))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
                 .setContentIntent(contentPendingIntent)
-                .addAction(0, "Add income", incomePendingIntent)
-                .addAction(0, "Add expense", expensePendingIntent)
+                .addAction(0, "+ Add Income", incomePendingIntent)
+                .addAction(0, "+ Add Expense", expensePendingIntent)
                 .build()
 
             runCatching {

@@ -14,9 +14,10 @@ class NativeTracmioActivity : ComponentActivity() {
         enableEdgeToEdge()
         val database = TracmioDatabase.getDatabase(applicationContext)
         val repository = FinanceRepository(database)
+        val preferencesStore = TracmioPreferencesStore(applicationContext)
         val viewModel = ViewModelProvider(
             this,
-            NativeTracmioViewModel.factory(repository)
+            NativeTracmioViewModel.factory(repository, preferencesStore)
         )[NativeTracmioViewModel::class.java]
 
         setContent {

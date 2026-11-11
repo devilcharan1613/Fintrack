@@ -115,7 +115,7 @@ object XlsxExporter {
         }
 
         val summaryRows = listOf(
-            listOf("Application", "Tracmio — Finance & Expenses Tracker (v2.5.2)"),
+            listOf("Application", "Tracmio — Finance & Expenses Tracker (v1.00)"),
             listOf("Total Transactions", transactions.length()),
             listOf("Total Accounts", accounts.length()),
             listOf("Total Inflow (Income + Borrow)", totalIncome),

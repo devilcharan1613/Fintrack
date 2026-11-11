@@ -1,12 +1,12 @@
 # Tracmio
 
-**Version 2.5.2**
+**Version 1.00**
 
 Tracmio — Finance & Expenses Tracker is an offline-first Android personal finance & ledger manager.
 
-## 2.5.2 update
+## 1.00 release
 
-- Complete rebrand and upgrade to **Tracmio — Finance & Expenses Tracker** (`com.charan.tracmio`, version 2.5.2, versionCode 29).
+- Complete rebrand and upgrade to **Tracmio — Finance & Expenses Tracker** (`com.charan.tracmio`, version 1.00, versionCode 1).
 - Native WebView bridge (`TracmioBridge`) connecting the Single-Page Application to Android storage, print, and reminder services.
 - 3D Liquid Glass Tracmio brand identity, animated Welcome Overlay, 10 built-in Liquid Glass themes + Custom Neon Theme Studio, custom photo background & UI scale controls.
 - Custom UPI App creator inside the Add Transaction modal (`Income`, `Expense`, `Transfer`, `Borrow`, `Lend`).
@@ -40,7 +40,7 @@ Use JDK 17 and Android SDK Platform 35.
 ./gradlew --no-daemon testDebugUnitTest assembleDebug
 ```
 
-APK output: `app/build/outputs/apk/debug/Tracmio-2.5.2-debug.apk`
+APK output: `app/build/outputs/apk/debug/Tracmio-1.00-debug.apk`
 
 GitHub Actions uploads the build as `Tracmio-debug-apk`.
 
@@ -49,7 +49,7 @@ GitHub Actions uploads the build as `Tracmio-debug-apk`.
 - App name: Tracmio
 - Tagline: Finance & Expenses Tracker
 - Application ID: `com.charan.tracmio`
-- Version name: `2.5.2`
-- Version code: `29`
+- Version name: `1.00`
+- Version code: `1`
 - Minimum Android SDK: 23
 - Target Android SDK: 35
