@@ -2,41 +2,42 @@
 
 **Baseline:** `main` at `fb4a7f51308458e3e6683035cf128ebe507cdfe6`  
 **Working branch:** `feature/tracmio-1.3-native-migration`  
-**Target:** Tracmio 1.3, Kotlin + Jetpack Compose + Room  
-**Decisions confirmed by owner:**
-- Target application ID: `com.tracmio.app` (change from `com.charan.tracmio`)
+**Target:** Tracmio 1.3, Kotlin + Jetpack Compose + Room
+
+## Owner decisions
+- Requested target application ID: `com.tracmio.app`
 - Data reconciliation: merge legacy HTML data and Room data
 - Legacy recovery: on-device extraction from the existing installed app
-- Encryption: harden encrypted backups first; do not migrate the Room database to encrypted storage in this phase
+- Encryption: harden encrypted backups first; do not migrate Room to encrypted storage in this phase
 - Preserve all user data; no destructive migration or deletion
 
 ## Audit findings
-
-1. The current production launcher is `com.tracmio.app.MainActivity`, which hosts the HTML application in a WebView.
+1. The production launcher is `com.tracmio.app.MainActivity`, which hosts the HTML application in a WebView.
 2. A separate native Compose activity and app implementation exists, but the native UI is not feature-parity complete.
-3. Room is present at schema version 7. Schema export is currently disabled.
-4. Existing Kotlin financial calculators, repositories, account/transaction models, custom tracker models, backup/security components, and reminder receivers should be reused where possible.
-5. `LegacyMigrationGuard.shouldImportLegacyJson()` currently skips legacy import when Room already has accounts or transactions. This is incompatible with merge semantics and must not be used as the final merge policy.
-6. `NativeBackupService.restoreJson()` clears live Room tables before restore. It is a restore path, not a safe merge importer. Do not call it for migration reconciliation.
-7. The existing backup encryption implementation uses AES-GCM and PBKDF2-HMAC-SHA256. Input validation and password handling need hardening. The live Room database is not proven encrypted.
-8. Root-level debug APKs and `public/assets/aistudio` contain release/development artifacts. Cleanup is deferred until a recoverable backup and reference audit exist.
-9. Latest inspected CI run on the baseline commit completed successfully, but it does not establish native feature parity or instrumentation coverage.
+3. The inspected `app/build.gradle.kts` already sets both `namespace` and `applicationId` to `com.tracmio.app`. Thus the requested target ID is already configured in the current repository source. The package ID actually installed on the user's device must still be checked before release; source configuration alone cannot prove the installed APK identity.
+4. Room is present at schema version 7. Schema export is currently disabled.
+5. Existing Kotlin financial calculators, repositories, account/transaction models, custom tracker models, backup/security components, and reminder receivers should be reused where possible.
+6. `LegacyMigrationGuard.shouldImportLegacyJson()` currently skips legacy import when Room already has accounts or transactions. This is incompatible with merge semantics and must not be used as the final merge policy.
+7. `NativeBackupService.restoreJson()` clears live Room tables before restore. It is a restore path, not a safe merge importer. Do not call it for migration reconciliation.
+8. The existing backup encryption implementation uses AES-GCM and PBKDF2-HMAC-SHA256. Input validation and password handling need hardening. The live Room database is not proven encrypted.
+9. Root-level debug APKs and `public/assets/aistudio` contain release/development artifacts. Cleanup is deferred until a recoverable backup and reference audit exist.
+10. The latest inspected CI run on the baseline commit completed successfully, but it does not establish native feature parity or instrumentation coverage.
 
 ## Critical package-ID / on-device migration constraint
+The current repository source already targets `com.tracmio.app`. If the installed legacy app on the user's device has a different package ID, Android isolates its private WebView data, SharedPreferences, and Room database. The new package cannot directly read that private data.
 
-Changing the application ID from `com.charan.tracmio` to `com.tracmio.app` means Android treats the target as a different application. The new package cannot directly read the old package's private WebView data, SharedPreferences, or Room database.
+Before release, inspect the installed app's actual package ID and version. If it differs from `com.tracmio.app`, migration must be staged:
+1. Keep the legacy app installed and operational.
+2. Add/run an export bridge in the legacy app while it still has access to its private data.
+3. Export a versioned, integrity-checked migration bundle through Android's Storage Access Framework.
+4. Install/run the `com.tracmio.app` target and import the bundle into a staging database.
+5. Merge with target Room records using stable IDs, relationship validation, and duplicate detection.
+6. Verify counts, relationships, and financial totals before marking migration complete.
+7. Keep the old app and exported bundle until the user verifies the new app. Do not silently uninstall or clear the old app.
 
-Therefore the migration must be staged:
-1. Ship/run a data-export bridge in the currently installed `com.charan.tracmio` app while it still has access to its private data.
-2. Export a versioned, integrity-checked migration bundle through Android's Storage Access Framework or another explicit user-mediated handoff.
-3. Install/run the `com.tracmio.app` target and import the bundle into a staging database.
-4. Merge with target Room records using stable IDs, relationship validation, and duplicate detection.
-5. Verify counts, relationships, and financial totals before marking migration complete.
-6. Keep the old app and exported bundle until the user verifies the new app. Do not silently uninstall or clear the old app.
+If the installed app already uses `com.tracmio.app`, an in-place package upgrade may be possible, subject to signing-key compatibility and a verified app-data backup. Do not assume this without checking the actual installed APK.
 
-Do not change the application ID in the old installed build before its export path is available. A single APK cannot perform a normal in-place update across two different application IDs.
-
-## Required next implementation stages
+## Required implementation stages
 
 ### Stage A - safe recovery/export
 - Add a versioned migration bundle format and manifest.
@@ -73,7 +74,6 @@ Do not change the application ID in the old installed build before its export pa
 - Update version metadata and release workflow only after package-ID and upgrade behavior are validated.
 
 ## Safety gates
-
 - Never run destructive Room migrations.
 - Never clear live tables as part of merge import.
 - Never switch the launcher before feature parity and migration tests.
@@ -82,10 +82,11 @@ Do not change the application ID in the old installed build before its export pa
 - Keep this branch separate from `main` until review and acceptance.
 
 ## Status
-
 - [x] Repository baseline inspected.
 - [x] Owner decisions recorded.
 - [x] Recoverable migration branch created from baseline.
+- [x] Target application ID confirmed in current Gradle source as `com.tracmio.app`.
+- [ ] Actual installed package ID and signing compatibility verified.
 - [ ] Legacy on-device export bridge implemented and tested.
 - [ ] Staging merge importer implemented and tested.
 - [ ] Native feature parity completed.
