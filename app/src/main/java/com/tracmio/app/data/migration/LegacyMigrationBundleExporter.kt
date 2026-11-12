@@ -65,10 +65,7 @@ object LegacyMigrationBundleExporter {
     private fun readTables(database: SupportSQLiteDatabase): JSONArray {
         val result = JSONArray()
         val names = mutableListOf<String>()
-        database.rawQuery(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-            null
-        ).use { cursor ->
+        database.query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").use { cursor ->
             while (cursor.moveToNext()) {
                 val name = cursor.getString(0) ?: continue
                 if (name.matches(Regex("[A-Za-z0-9_]+"))) names += name
