@@ -96,6 +96,15 @@ The migration branch now includes an initial, user-triggered recovery export pat
 - The existing Room database is still schema version 7 with schema export disabled. No Room schema migration was made by this exporter.
 - Existing backup encryption parameters and password cleanup still need dedicated security hardening; this implementation reuses the existing encryption engine rather than claiming it is fully hardened.
 
+
+## Recovery exporter follow-up
+
+- Tracker attachment payloads are now copied into the encrypted bundle when their canonical paths resolve inside the app-private `files/tracker_attachments` directory.
+- Attachment file bytes are embedded as Base64 with filename, MIME type, size, stable attachment UID, and SHA-256 digest. Each file is capped at 8 MB and total attachment bytes at 24 MB.
+- Paths outside the expected app-private attachment directory are not read. This blocks arbitrary file path traversal from database content.
+- Backup encryption now uses 310,000 PBKDF2-HMAC-SHA256 iterations for new exports. Decryption remains compatible with existing 100,000-iteration V1 backups, validates KDF bounds and salt/IV/ciphertext lengths, and clears password/key/plaintext byte buffers after use.
+- A unit test now checks password-buffer clearing. CI must pass after these latest changes before any device test.
+
 ## Safety gates
 - Never run destructive Room migrations.
 - Never clear live tables as part of merge import.
