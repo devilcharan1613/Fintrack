@@ -88,7 +88,7 @@ class MigrationBundleValidatorTest {
         return JSONObject().apply {
             put("format", "tracmio-migration-envelope")
             put("formatVersion", 1)
-            put("sha256", sha256(payload.toString().toByteArray(Charsets.UTF_8)))
+            put("sha256", sha256(com.tracmio.app.data.migration.MigrationJsonCanonicalizer.canonicalize(payload).toByteArray(Charsets.UTF_8)))
             put("payload", payload)
         }
     }
