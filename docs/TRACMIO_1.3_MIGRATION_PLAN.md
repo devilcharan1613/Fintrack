@@ -73,6 +73,29 @@ If the installed app already uses `com.tracmio.app`, an in-place package upgrade
 - Perform asset cleanup only after references are checked and recoverable copies exist.
 - Update version metadata and release workflow only after package-ID and upgrade behavior are validated.
 
+
+## Initial recovery exporter implementation
+
+The migration branch now includes an initial, user-triggered recovery export path:
+
+- The existing encrypted-backup panel has a separate **Export Full Migration Recovery Bundle** action.
+- The page captures the current JavaScript app state and every WebView localStorage key/value.
+- It attempts to enumerate and export IndexedDB databases and object stores when the WebView supports `indexedDB.databases()`.
+- The Android bridge takes a read-only snapshot of every non-internal SQLite table in the existing Room database, preserving column names, values, blobs (Base64), and the SQLite user version.
+- The bundle records the running source package name and export timestamp, adds a SHA-256 payload digest, and is encrypted using the existing AES-GCM/PBKDF2 backup envelope before the user chooses a destination with SAF.
+- The exporter does not delete, update, or migrate any source data. It enforces a 20-million-character legacy payload cap and 50 MB final bundle cap.
+- The CI workflow now includes the migration branch so the new code can be compiled by GitHub Actions.
+
+### Known limitations of this first exporter pass
+
+- The bundle has not yet been compiled or exercised on a physical Android device; do not use it as the only recovery copy until CI and device verification pass.
+- The source package field records the package of the running build, but this does not establish which package is currently installed on the owner's phone.
+- Attachment database rows and paths are captured, but referenced app-private attachment files are not yet embedded in the bundle. A follow-up pass must copy those files safely and map them into the target app's private storage.
+- IndexedDB extraction depends on WebView support for database enumeration. The bundle records whether that API was available; it must not be assumed complete if unsupported.
+- The bundle importer and deterministic merge engine are not implemented yet. The encrypted bundle is a recovery artifact only, not an import-ready migration.
+- The existing Room database is still schema version 7 with schema export disabled. No Room schema migration was made by this exporter.
+- Existing backup encryption parameters and password cleanup still need dedicated security hardening; this implementation reuses the existing encryption engine rather than claiming it is fully hardened.
+
 ## Safety gates
 - Never run destructive Room migrations.
 - Never clear live tables as part of merge import.
@@ -87,7 +110,7 @@ If the installed app already uses `com.tracmio.app`, an in-place package upgrade
 - [x] Recoverable migration branch created from baseline.
 - [x] Target application ID confirmed in current Gradle source as `com.tracmio.app`.
 - [ ] Actual installed package ID and signing compatibility verified.
-- [ ] Legacy on-device export bridge implemented and tested.
+- [x] Initial on-device encrypted recovery export bridge implemented (runtime verification still pending).
 - [ ] Staging merge importer implemented and tested.
 - [ ] Native feature parity completed.
 - [ ] Launcher/package transition validated on a real upgrade path.
