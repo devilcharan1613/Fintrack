@@ -17,7 +17,9 @@ object TracmioSecurityEngine {
     private const val PBKDF2_ALGORITHM = "PBKDF2WithHmacSHA256"
     private const val AES_GCM_ALGORITHM = "AES/GCM/NoPadding"
     private const val KEY_LENGTH_BITS = 256
-    private const val ITERATIONS = 100_000
+    private const val ITERATIONS = 310_000
+    private const val MIN_ACCEPTED_ITERATIONS = 100_000
+    private const val MAX_ACCEPTED_ITERATIONS = 1_000_000
     private const val SALT_LENGTH_BYTES = 16
     private const val IV_LENGTH_BYTES = 12
     private const val GCM_TAG_LENGTH_BITS = 128
@@ -34,68 +36,101 @@ object TracmioSecurityEngine {
         val diagnosticSummary: String
     )
 
+    /**
+     * Encrypts a backup with AES-256-GCM and PBKDF2-HMAC-SHA256.
+     * The caller transfers ownership of the password array; it is cleared before return.
+     */
     fun encryptBackup(plaintextJson: String, password: CharArray): String {
         require(password.isNotEmpty()) { "Password cannot be empty" }
-        val secureRandom = SecureRandom()
-        val salt = ByteArray(SALT_LENGTH_BYTES).also { secureRandom.nextBytes(it) }
-        val iv = ByteArray(IV_LENGTH_BYTES).also { secureRandom.nextBytes(it) }
-
+        val salt = ByteArray(SALT_LENGTH_BYTES).also { SecureRandom().nextBytes(it) }
+        val iv = ByteArray(IV_LENGTH_BYTES).also { SecureRandom().nextBytes(it) }
+        var derivedKey: ByteArray? = null
+        var plaintextBytes: ByteArray? = null
         val keySpec = PBEKeySpec(password, salt, ITERATIONS, KEY_LENGTH_BITS)
-        val keyFactory = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM)
-        val secretKey = SecretKeySpec(keyFactory.generateSecret(keySpec).encoded, "AES")
+        try {
+            derivedKey = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM)
+                .generateSecret(keySpec).encoded
+            val secretKey = SecretKeySpec(derivedKey, "AES")
+            val cipher = Cipher.getInstance(AES_GCM_ALGORITHM)
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv))
+            plaintextBytes = plaintextJson.toByteArray(StandardCharsets.UTF_8)
+            val cipherBytes = cipher.doFinal(plaintextBytes)
 
-        val cipher = Cipher.getInstance(AES_GCM_ALGORITHM)
-        val gcmSpec = GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv)
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey, gcmSpec)
-
-        val plaintextBytes = plaintextJson.toByteArray(StandardCharsets.UTF_8)
-        val cipherBytes = cipher.doFinal(plaintextBytes)
-
-        val saltBase64 = encodeBase64(salt)
-        val ivBase64 = encodeBase64(iv)
-        val cipherBase64 = encodeBase64(cipherBytes)
-
-        val envelope = JSONObject().apply {
-            put("app", "Tracmio")
-            put("format", BACKUP_ENCRYPTION_FORMAT)
-            put("version", 1)
-            put("kdf", PBKDF2_ALGORITHM)
-            put("iterations", ITERATIONS)
-            put("salt", saltBase64)
-            put("iv", ivBase64)
-            put("cipherText", cipherBase64)
-            put("createdAt", System.currentTimeMillis())
+            return JSONObject().apply {
+                put("app", "Tracmio")
+                put("format", BACKUP_ENCRYPTION_FORMAT)
+                put("version", 1)
+                put("kdf", PBKDF2_ALGORITHM)
+                put("iterations", ITERATIONS)
+                put("salt", encodeBase64(salt))
+                put("iv", encodeBase64(iv))
+                put("cipherText", encodeBase64(cipherBytes))
+                put("createdAt", System.currentTimeMillis())
+            }.toString()
+        } finally {
+            keySpec.clearPassword()
+            password.fill('\u0000')
+            derivedKey?.fill(0)
+            plaintextBytes?.fill(0)
+            salt.fill(0)
+            iv.fill(0)
         }
-        return envelope.toString()
     }
 
+    /**
+     * Decrypts current backups and legacy V1 envelopes. KDF work factors are bounded
+     * before derivation to prevent malformed files from requesting excessive CPU time.
+     * The caller transfers ownership of the password array; it is cleared before return.
+     */
     fun decryptBackup(encryptedEnvelopeJson: String, password: CharArray): String {
         require(password.isNotEmpty()) { "Password cannot be empty" }
+        var derivedKey: ByteArray? = null
+        var decryptedBytes: ByteArray? = null
         val root = JSONObject(encryptedEnvelopeJson)
-        val format = root.optString("format", "")
-        if (format != BACKUP_ENCRYPTION_FORMAT) {
-            throw IllegalArgumentException("Unsupported backup format: $format. Expected $BACKUP_ENCRYPTION_FORMAT")
+        try {
+            val format = root.optString("format", "")
+            require(format == BACKUP_ENCRYPTION_FORMAT) {
+                "Unsupported backup format: $format. Expected $BACKUP_ENCRYPTION_FORMAT"
+            }
+            val version = root.optInt("version", 1)
+            require(version == 1) { "Unsupported encrypted backup version: $version" }
+
+            val iterations = root.optInt("iterations", 100_000)
+            require(iterations in MIN_ACCEPTED_ITERATIONS..MAX_ACCEPTED_ITERATIONS) {
+                "Backup encryption work factor is outside the supported safe range"
+            }
+            val salt = decodeBase64(root.getString("salt"))
+            val iv = decodeBase64(root.getString("iv"))
+            val cipherBytes = decodeBase64(root.getString("cipherText"))
+            require(salt.size == SALT_LENGTH_BYTES) { "Invalid backup salt length" }
+            require(iv.size == IV_LENGTH_BYTES) { "Invalid backup IV length" }
+            require(cipherBytes.size >= GCM_TAG_LENGTH_BITS / 8) { "Encrypted backup is truncated" }
+
+            val keySpec = PBEKeySpec(password, salt, iterations, KEY_LENGTH_BITS)
+            try {
+                derivedKey = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM)
+                    .generateSecret(keySpec).encoded
+            } finally {
+                keySpec.clearPassword()
+            }
+
+            val cipher = Cipher.getInstance(AES_GCM_ALGORITHM)
+            cipher.init(
+                Cipher.DECRYPT_MODE,
+                SecretKeySpec(derivedKey, "AES"),
+                GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv)
+            )
+            decryptedBytes = try {
+                cipher.doFinal(cipherBytes)
+            } catch (e: Exception) {
+                throw IllegalArgumentException("Decryption failed: invalid password or corrupted data", e)
+            }
+            return String(decryptedBytes, StandardCharsets.UTF_8)
+        } finally {
+            password.fill('\u0000')
+            derivedKey?.fill(0)
+            decryptedBytes?.fill(0)
         }
-
-        val iterations = root.optInt("iterations", ITERATIONS)
-        val salt = decodeBase64(root.getString("salt"))
-        val iv = decodeBase64(root.getString("iv"))
-        val cipherBytes = decodeBase64(root.getString("cipherText"))
-
-        val keySpec = PBEKeySpec(password, salt, iterations, KEY_LENGTH_BITS)
-        val keyFactory = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM)
-        val secretKey = SecretKeySpec(keyFactory.generateSecret(keySpec).encoded, "AES")
-
-        val cipher = Cipher.getInstance(AES_GCM_ALGORITHM)
-        val gcmSpec = GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv)
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, gcmSpec)
-
-        val decryptedBytes = try {
-            cipher.doFinal(cipherBytes)
-        } catch (e: Exception) {
-            throw IllegalArgumentException("Decryption failed: invalid password or corrupted data", e)
-        }
-        return String(decryptedBytes, StandardCharsets.UTF_8)
     }
 
     private fun encodeBase64(bytes: ByteArray): String {
