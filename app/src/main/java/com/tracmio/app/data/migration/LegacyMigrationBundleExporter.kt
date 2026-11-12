@@ -172,7 +172,9 @@ object LegacyMigrationBundleExporter {
                     continue
                 }
 
-                val bytes = runCatching { candidate.readBytes() }.getOrElse {
+                val bytes = try {
+                    candidate.readBytes()
+                } catch (_: Exception) {
                     warn(row, "FILE_READ_FAILED")
                     continue
                 }
