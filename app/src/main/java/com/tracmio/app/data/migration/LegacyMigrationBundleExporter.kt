@@ -34,12 +34,14 @@ object LegacyMigrationBundleExporter {
 
         val sqlite = database.openHelper.readableDatabase
         val tables = readTables(sqlite)
-        val attachmentFiles = readAttachmentFiles(tables, appFilesDir)
+        val attachmentResult = readAttachmentFiles(tables, appFilesDir)
         val userVersion = sqlite.query("PRAGMA user_version").use { cursor -> if (cursor.moveToFirst()) cursor.getInt(0) else 0 }
         val roomSnapshot = JSONObject().apply {
             put("userVersion", userVersion)
             put("tables", tables)
-            put("attachmentFiles", attachmentFiles)
+            put("attachmentFiles", attachmentResult.files)
+            put("attachmentWarnings", attachmentResult.warnings)
+            put("attachmentExportComplete", attachmentResult.warnings.length() == 0)
         }
 
         val payload = JSONObject().apply {
@@ -102,10 +104,30 @@ object LegacyMigrationBundleExporter {
      * Copies only files inside this app's tracker_attachments directory. Absolute paths
      * from database rows are treated as untrusted and are never followed outside that folder.
      */
-    private fun readAttachmentFiles(tables: JSONArray, appFilesDir: File): JSONArray {
+    private data class AttachmentExportResult(
+        val files: JSONArray,
+        val warnings: JSONArray
+    )
+
+    /**
+     * Copies only files inside this app's tracker_attachments directory. Absolute paths
+     * from database rows are treated as untrusted and are never followed outside that folder.
+     * Every skipped row is reported so a bundle can never silently claim complete attachment
+     * recovery when a referenced file was missing or unsafe.
+     */
+    private fun readAttachmentFiles(tables: JSONArray, appFilesDir: File): AttachmentExportResult {
         val result = JSONArray()
+        val warnings = JSONArray()
         val attachmentRoot = File(appFilesDir, "tracker_attachments").canonicalFile
         var totalBytes = 0L
+
+        fun warn(row: JSONObject, reason: String) {
+            warnings.put(JSONObject().apply {
+                put("attachmentUid", row.optString("attachmentUid", ""))
+                put("fileName", row.optString("fileName", ""))
+                put("reason", reason)
+            })
+        }
 
         for (tableIndex in 0 until tables.length()) {
             val table = tables.optJSONObject(tableIndex) ?: continue
@@ -115,23 +137,50 @@ object LegacyMigrationBundleExporter {
             for (rowIndex in 0 until rows.length()) {
                 val row = rows.optJSONObject(rowIndex) ?: continue
                 val rawPath = row.optString("localPath", "")
-                if (rawPath.isBlank()) continue
-
-                val candidate = runCatching { File(rawPath).canonicalFile }.getOrNull() ?: continue
-                val rootPrefix = attachmentRoot.path + File.separator
-                if (!candidate.path.startsWith(rootPrefix) || !candidate.isFile) continue
-
-                val length = candidate.length()
-                if (length <= 0L || length > MAX_ATTACHMENT_BYTES_EACH) continue
-                if (totalBytes + length > MAX_ATTACHMENT_BYTES_TOTAL) {
-                    throw IllegalArgumentException("Tracker attachments exceed the 24 MB recovery limit. Export attachments separately before continuing.")
+                if (rawPath.isBlank()) {
+                    warn(row, "EMPTY_LOCAL_PATH")
+                    continue
                 }
 
-                val bytes = candidate.readBytes()
+                val candidate = runCatching { File(rawPath).canonicalFile }.getOrNull()
+                if (candidate == null) {
+                    warn(row, "INVALID_LOCAL_PATH")
+                    continue
+                }
+
+                val rootPrefix = attachmentRoot.path + File.separator
+                if (!candidate.path.startsWith(rootPrefix)) {
+                    warn(row, "PATH_OUTSIDE_ATTACHMENT_DIRECTORY")
+                    continue
+                }
+                if (!candidate.isFile) {
+                    warn(row, "FILE_MISSING")
+                    continue
+                }
+
+                val length = candidate.length()
+                if (length <= 0L) {
+                    warn(row, "EMPTY_FILE")
+                    continue
+                }
+                if (length > MAX_ATTACHMENT_BYTES_EACH) {
+                    warn(row, "FILE_EXCEEDS_8_MB_LIMIT")
+                    continue
+                }
+                if (totalBytes + length > MAX_ATTACHMENT_BYTES_TOTAL) {
+                    warn(row, "TOTAL_ATTACHMENT_EXPORT_LIMIT_REACHED")
+                    continue
+                }
+
+                val bytes = runCatching { candidate.readBytes() }.getOrElse {
+                    warn(row, "FILE_READ_FAILED")
+                    continue
+                }
                 val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
                 result.put(JSONObject().apply {
                     put("attachmentUid", row.optString("attachmentUid", ""))
-                    put("fileName", candidate.name)
+                    put("fileName", row.optString("fileName", candidate.name))
+                    put("storedFileName", candidate.name)
                     put("mimeType", row.optString("mimeType", "application/octet-stream"))
                     put("sizeBytes", bytes.size)
                     put("sha256", digest.joinToString("") { "%02x".format(it) })
@@ -140,7 +189,7 @@ object LegacyMigrationBundleExporter {
                 totalBytes += bytes.size
             }
         }
-        return result
+        return AttachmentExportResult(result, warnings)
     }
 
     private fun cursorValue(cursor: Cursor, index: Int): Any {
