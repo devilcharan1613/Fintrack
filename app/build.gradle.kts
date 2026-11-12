@@ -9,7 +9,7 @@ android {
     namespace = "com.tracmio.app"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.tracmio.app"
+        applicationId = "com.aistudio.tracmio.tracmioxyz"
         minSdk = 23
         targetSdk = 35
         versionCode = 12
