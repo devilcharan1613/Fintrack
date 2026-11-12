@@ -102,12 +102,15 @@ object TracmioSecurityEngine {
             require(iterations in MIN_ACCEPTED_ITERATIONS..MAX_ACCEPTED_ITERATIONS) {
                 "Backup encryption work factor is outside the supported safe range"
             }
-            salt = decodeBase64(root.getString("salt"))
-            iv = decodeBase64(root.getString("iv"))
-            cipherBytes = decodeBase64(root.getString("cipherText"))
-            require(salt.size == SALT_LENGTH_BYTES) { "Invalid backup salt length" }
-            require(iv.size == IV_LENGTH_BYTES) { "Invalid backup IV length" }
-            require(cipherBytes.size >= GCM_TAG_LENGTH_BITS / 8) { "Encrypted backup is truncated" }
+            val decodedSalt = decodeBase64(root.getString("salt"))
+            val decodedIv = decodeBase64(root.getString("iv"))
+            val decodedCipherBytes = decodeBase64(root.getString("cipherText"))
+            salt = decodedSalt
+            iv = decodedIv
+            cipherBytes = decodedCipherBytes
+            require(decodedSalt.size == SALT_LENGTH_BYTES) { "Invalid backup salt length" }
+            require(decodedIv.size == IV_LENGTH_BYTES) { "Invalid backup IV length" }
+            require(decodedCipherBytes.size >= GCM_TAG_LENGTH_BITS / 8) { "Encrypted backup is truncated" }
 
             val keySpec = PBEKeySpec(password, salt, iterations, KEY_LENGTH_BITS)
             try {
@@ -121,10 +124,10 @@ object TracmioSecurityEngine {
             cipher.init(
                 Cipher.DECRYPT_MODE,
                 SecretKeySpec(derivedKey, "AES"),
-                GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv)
+                GCMParameterSpec(GCM_TAG_LENGTH_BITS, decodedIv)
             )
             decryptedBytes = try {
-                cipher.doFinal(cipherBytes)
+                cipher.doFinal(decodedCipherBytes)
             } catch (e: Exception) {
                 throw IllegalArgumentException("Decryption failed: invalid password or corrupted data", e)
             }
