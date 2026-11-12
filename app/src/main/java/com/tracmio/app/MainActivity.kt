@@ -47,6 +47,7 @@ import com.tracmio.app.data.local.TrackerCustomValueEntity
 import com.tracmio.app.data.local.TrackerPersonEntity
 import com.tracmio.app.data.local.TrackerSettlementEntity
 import com.tracmio.app.data.local.TrackerTransactionCrossRefEntity
+import com.tracmio.app.data.migration.LegacyMigrationBundleExporter
 import com.tracmio.app.data.security.TracmioSecurityEngine
 import android.app.AlarmManager
 import kotlinx.coroutines.Dispatchers
@@ -587,6 +588,44 @@ class MainActivity : ComponentActivity() {
             runOnUiThread {
                 pendingExportContent = json
                 createBackupDocumentLauncher.launch(safeName)
+            }
+        }
+
+        /**
+         * Exports a password-encrypted recovery bundle containing the complete WebView
+         * payload supplied by the legacy page and a read-only snapshot of every Room table.
+         * This method never mutates the source database.
+         */
+        @JavascriptInterface
+        fun exportMigrationBundle(legacyPayloadJson: String, password: String) {
+            if (password.length < 8) {
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "Migration password must be at least 8 characters", Toast.LENGTH_LONG).show()
+                }
+                return
+            }
+            lifecycleScope.launch(Dispatchers.IO) {
+                val result = runCatching {
+                    val database = TracmioDatabase.getDatabase(this@MainActivity)
+                    val bundle = LegacyMigrationBundleExporter.create(
+                        database = database,
+                        legacyPayloadJson = legacyPayloadJson,
+                        sourcePackage = packageName
+                    )
+                    TracmioSecurityEngine.encryptBackup(bundle, password.toCharArray())
+                }
+                runOnUiThread {
+                    result.onSuccess { encryptedEnvelope ->
+                        pendingExportContent = encryptedEnvelope
+                        createBackupDocumentLauncher.launch("tracmio_migration_recovery_${System.currentTimeMillis()}.json")
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Migration export failed: ${error.message ?: "Unable to create recovery bundle"}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
             }
         }
 
