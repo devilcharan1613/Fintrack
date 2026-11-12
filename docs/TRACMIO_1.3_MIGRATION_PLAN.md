@@ -107,6 +107,9 @@ The migration branch now includes an initial, user-triggered recovery export pat
 
 - Attachment payloads are now embedded from app-private storage with per-file and aggregate limits; paths outside the attachment root are excluded.
 - Encryption work factor increased for new exports, legacy V1 decryption retained, and sensitive byte/password buffers are cleared in finally blocks.
+- The attachment exporter now emits an explicit warning record for every skipped or inaccessible attachment, including missing files, unsafe paths, invalid paths, empty files, per-file/aggregate size limits, and URI-only records. The bundle includes `attachmentExportComplete`, warning details, and original content-URI metadata; partial recovery is no longer silently represented as complete.
+- Added a read-only `MigrationBundleValidator` that verifies envelope/payload versions, SHA-256 payload integrity, attachment Base64, byte sizes, per-file/aggregate limits, and per-attachment SHA-256 checksums before any future importer can stage data.
+- Added JVM tests for valid bundle validation, partial attachment warnings, payload tampering, and attachment checksum mismatch. These tests still require a successful CI run.
 
 ## Safety gates
 - Never run destructive Room migrations.
