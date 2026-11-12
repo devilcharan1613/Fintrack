@@ -3,6 +3,7 @@ package com.tracmio.app.data.migration
 import android.database.Cursor
 import androidx.sqlite.db.SupportSQLiteDatabase
 import android.util.Base64
+import java.io.File
 import androidx.room.RoomDatabase
 import org.json.JSONArray
 import org.json.JSONObject
@@ -16,11 +17,14 @@ import java.security.MessageDigest
 object LegacyMigrationBundleExporter {
     private const val MAX_LEGACY_PAYLOAD_CHARS = 20_000_000
     private const val MAX_BUNDLE_BYTES = 50 * 1024 * 1024
+    private const val MAX_ATTACHMENT_BYTES_TOTAL = 24 * 1024 * 1024
+    private const val MAX_ATTACHMENT_BYTES_EACH = 8 * 1024 * 1024
 
     fun create(
         database: RoomDatabase,
         legacyPayloadJson: String,
         sourcePackage: String,
+        appFilesDir: File,
         exportedAt: Long = System.currentTimeMillis()
     ): String {
         require(legacyPayloadJson.isNotBlank()) { "Legacy app data is empty" }
@@ -30,10 +34,12 @@ object LegacyMigrationBundleExporter {
 
         val sqlite = database.openHelper.readableDatabase
         val tables = readTables(sqlite)
+        val attachmentFiles = readAttachmentFiles(tables, appFilesDir)
         val userVersion = sqlite.query("PRAGMA user_version").use { cursor -> if (cursor.moveToFirst()) cursor.getInt(0) else 0 }
         val roomSnapshot = JSONObject().apply {
             put("userVersion", userVersion)
             put("tables", tables)
+            put("attachmentFiles", attachmentFiles)
         }
 
         val payload = JSONObject().apply {
@@ -88,6 +94,51 @@ object LegacyMigrationBundleExporter {
                 put("name", table)
                 put("rows", rows)
             })
+        }
+        return result
+    }
+
+    /**
+     * Copies only files inside this app's tracker_attachments directory. Absolute paths
+     * from database rows are treated as untrusted and are never followed outside that folder.
+     */
+    private fun readAttachmentFiles(tables: JSONArray, appFilesDir: File): JSONArray {
+        val result = JSONArray()
+        val attachmentRoot = File(appFilesDir, "tracker_attachments").canonicalFile
+        var totalBytes = 0L
+
+        for (tableIndex in 0 until tables.length()) {
+            val table = tables.optJSONObject(tableIndex) ?: continue
+            if (table.optString("name") != "tracker_attachments") continue
+            val rows = table.optJSONArray("rows") ?: continue
+
+            for (rowIndex in 0 until rows.length()) {
+                val row = rows.optJSONObject(rowIndex) ?: continue
+                val rawPath = row.optString("localPath", "")
+                if (rawPath.isBlank()) continue
+
+                val candidate = runCatching { File(rawPath).canonicalFile }.getOrNull() ?: continue
+                val rootPrefix = attachmentRoot.path + File.separator
+                if (!candidate.path.startsWith(rootPrefix) || !candidate.isFile) continue
+
+                val length = candidate.length()
+                if (length <= 0L || length > MAX_ATTACHMENT_BYTES_EACH) continue
+                if (totalBytes + length > MAX_ATTACHMENT_BYTES_TOTAL) {
+                    throw IllegalArgumentException("Tracker attachments exceed the 24 MB recovery limit. Export attachments separately before continuing.")
+                }
+
+                val bytes = candidate.readBytes()
+                val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
+                result.put(JSONObject().apply {
+                    put("attachmentUid", row.optString("attachmentUid", ""))
+                    put("fileName", candidate.name)
+                    put("mimeType", row.optString("mimeType", "application/octet-stream"))
+                    put("sizeBytes", bytes.size)
+                    put("sha256", digest.joinToString("") { "%02x".format(it) })
+                    put("contentBase64", Base64.encodeToString(bytes, Base64.NO_WRAP))
+                })
+                totalBytes += bytes.size
+            }
         }
         return result
     }
