@@ -15,7 +15,7 @@ class TracmioSecurityEngineTest {
         val originalPayload = """{"accounts":[{"id":"acc-1","name":"Checking","balance":50000.0}],"transactions":[{"id":"tx-1","amount":1200.0,"type":"expense"}]}"""
         val password = "SuperSecretMasterKey#2026".toCharArray()
 
-        val envelope = TracmioSecurityEngine.encryptBackup(originalPayload, password)
+        val envelope = TracmioSecurityEngine.encryptBackup(originalPayload, password.copyOf())
         assertNotNull(envelope)
         assertTrue(envelope.contains("app"))
         assertTrue(envelope.contains("Tracmio"))
@@ -24,7 +24,7 @@ class TracmioSecurityEngineTest {
         assertTrue(envelope.contains("salt"))
         assertTrue(envelope.contains("iv"))
 
-        val decrypted = TracmioSecurityEngine.decryptBackup(envelope, password)
+        val decrypted = TracmioSecurityEngine.decryptBackup(envelope, password.copyOf())
         assertEquals(originalPayload, decrypted)
     }
 
@@ -34,8 +34,8 @@ class TracmioSecurityEngineTest {
         val correctPassword = "CorrectPassword123!".toCharArray()
         val wrongPassword = "WrongPassword999!".toCharArray()
 
-        val envelope = TracmioSecurityEngine.encryptBackup(payload, correctPassword)
-        TracmioSecurityEngine.decryptBackup(envelope, wrongPassword)
+        val envelope = TracmioSecurityEngine.encryptBackup(payload, correctPassword.copyOf())
+        TracmioSecurityEngine.decryptBackup(envelope, wrongPassword.copyOf())
     }
 
     @Test
