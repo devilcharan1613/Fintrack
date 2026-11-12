@@ -57,10 +57,32 @@ android {
 afterEvaluate {
     tasks.findByName("assembleDebug")?.doLast {
         val debugDir = file("${layout.buildDirectory.get().asFile}/outputs/apk/debug")
-        val tracmioApk = File(debugDir, "Tracmio-1.2-debug.apk")
-        val defaultApk = File(debugDir, "app-debug.apk")
-        if (tracmioApk.exists()) {
-            tracmioApk.copyTo(defaultApk, overwrite = true)
+        if (debugDir.exists()) {
+            val apkFiles = debugDir.listFiles { _, name -> name.endsWith(".apk") }
+            if (apkFiles != null && apkFiles.isNotEmpty()) {
+                val primaryApk = apkFiles.first()
+                val targetTracmio = File(debugDir, "Tracmio-1.2-debug.apk")
+                val targetLegacy = File(debugDir, "Tracmio-1.00-debug.apk")
+                val targetDefault = File(debugDir, "app-debug.apk")
+                
+                if (!targetTracmio.exists() || primaryApk != targetTracmio) {
+                    primaryApk.copyTo(targetTracmio, overwrite = true)
+                }
+                if (!targetLegacy.exists()) {
+                    targetTracmio.copyTo(targetLegacy, overwrite = true)
+                }
+                if (!targetDefault.exists()) {
+                    targetTracmio.copyTo(targetDefault, overwrite = true)
+                }
+                
+                // Also copy to root directory
+                val rootTracmio = rootProject.file("Tracmio-1.2-debug.apk")
+                val rootLegacy = rootProject.file("Tracmio-1.00-debug.apk")
+                val rootDefault = rootProject.file("app-debug.apk")
+                targetTracmio.copyTo(rootTracmio, overwrite = true)
+                targetTracmio.copyTo(rootLegacy, overwrite = true)
+                targetTracmio.copyTo(rootDefault, overwrite = true)
+            }
         }
     }
 }
