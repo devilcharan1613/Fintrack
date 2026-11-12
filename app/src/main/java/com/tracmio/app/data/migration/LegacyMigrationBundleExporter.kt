@@ -1,7 +1,7 @@
 package com.tracmio.app.data.migration
 
 import android.database.Cursor
-import android.database.sqlite.SQLiteDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import android.util.Base64
 import androidx.room.RoomDatabase
 import org.json.JSONArray
@@ -30,8 +30,9 @@ object LegacyMigrationBundleExporter {
 
         val sqlite = database.openHelper.readableDatabase
         val tables = readTables(sqlite)
+        val userVersion = sqlite.query("PRAGMA user_version").use { cursor -> if (cursor.moveToFirst()) cursor.getInt(0) else 0 }
         val roomSnapshot = JSONObject().apply {
-            put("userVersion", sqlite.version)
+            put("userVersion", userVersion)
             put("tables", tables)
         }
 
@@ -61,7 +62,7 @@ object LegacyMigrationBundleExporter {
         return bundle
     }
 
-    private fun readTables(database: SQLiteDatabase): JSONArray {
+    private fun readTables(database: SupportSQLiteDatabase): JSONArray {
         val result = JSONArray()
         val names = mutableListOf<String>()
         database.rawQuery(
@@ -77,7 +78,7 @@ object LegacyMigrationBundleExporter {
         names.forEach { table ->
             val rows = JSONArray()
             val quotedTable = "`$table`"
-            database.rawQuery("SELECT * FROM $quotedTable", null).use { cursor ->
+            database.query("SELECT * FROM $quotedTable").use { cursor ->
                 while (cursor.moveToNext()) {
                     val row = JSONObject()
                     for (index in 0 until cursor.columnCount) {
