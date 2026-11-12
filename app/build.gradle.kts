@@ -12,8 +12,8 @@ android {
         applicationId = "com.tracmio.app"
         minSdk = 23
         targetSdk = 35
-        versionCode = 12
-        versionName = "1.2"
+        versionCode = 13
+        versionName = "1.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
@@ -61,27 +61,21 @@ afterEvaluate {
             val apkFiles = debugDir.listFiles { _, name -> name.endsWith(".apk") }
             if (apkFiles != null && apkFiles.isNotEmpty()) {
                 val primaryApk = apkFiles.first()
-                val targetTracmio = File(debugDir, "Tracmio-1.2-debug.apk")
-                val targetLegacy = File(debugDir, "Tracmio-1.00-debug.apk")
+                val targetTracmio13 = File(debugDir, "Tracmio-1.3-debug.apk")
                 val targetDefault = File(debugDir, "app-debug.apk")
                 
-                if (!targetTracmio.exists() || primaryApk != targetTracmio) {
-                    primaryApk.copyTo(targetTracmio, overwrite = true)
-                }
-                if (!targetLegacy.exists()) {
-                    targetTracmio.copyTo(targetLegacy, overwrite = true)
+                if (!targetTracmio13.exists() || primaryApk != targetTracmio13) {
+                    primaryApk.copyTo(targetTracmio13, overwrite = true)
                 }
                 if (!targetDefault.exists()) {
-                    targetTracmio.copyTo(targetDefault, overwrite = true)
+                    targetTracmio13.copyTo(targetDefault, overwrite = true)
                 }
                 
                 // Also copy to root directory
-                val rootTracmio = rootProject.file("Tracmio-1.2-debug.apk")
-                val rootLegacy = rootProject.file("Tracmio-1.00-debug.apk")
+                val rootTracmio13 = rootProject.file("Tracmio-1.3-debug.apk")
                 val rootDefault = rootProject.file("app-debug.apk")
-                targetTracmio.copyTo(rootTracmio, overwrite = true)
-                targetTracmio.copyTo(rootLegacy, overwrite = true)
-                targetTracmio.copyTo(rootDefault, overwrite = true)
+                targetTracmio13.copyTo(rootTracmio13, overwrite = true)
+                targetTracmio13.copyTo(rootDefault, overwrite = true)
             }
         }
     }
