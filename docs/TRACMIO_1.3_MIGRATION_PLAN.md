@@ -105,6 +105,9 @@ The migration branch now includes an initial, user-triggered recovery export pat
 - Backup encryption now uses 310,000 PBKDF2-HMAC-SHA256 iterations for new exports. Decryption remains compatible with existing 100,000-iteration V1 backups, validates KDF bounds and salt/IV/ciphertext lengths, and clears password/key/plaintext byte buffers after use.
 - A unit test now checks password-buffer clearing. CI must pass after these latest changes before any device test.
 
+- Attachment payloads are now embedded from app-private storage with per-file and aggregate limits; paths outside the attachment root are excluded.
+- Encryption work factor increased for new exports, legacy V1 decryption retained, and sensitive byte/password buffers are cleared in finally blocks.
+
 ## Safety gates
 - Never run destructive Room migrations.
 - Never clear live tables as part of merge import.
