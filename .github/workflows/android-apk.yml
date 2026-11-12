@@ -2,7 +2,7 @@ name: Build Tracmio APK
 
 on:
   push:
-    branches: [main, master, tracmio-2.5.2-development]
+    branches: [main, master, tracmio-2.5.2-development, feature/tracmio-1.3-native-migration]
   pull_request:
     branches: [main, master, tracmio-2.5.2-development]
   workflow_dispatch:
