@@ -750,11 +750,28 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
     <div id="loansList"></div>
   </div>
 
+  <!-- ================= SUBSCRIPTIONS & RECURRING BILL AUTOPILOT ================= -->
+  <div class="page" id="page-subscriptions">
+    <div class="card" style="margin-bottom:14px;padding:16px;background:linear-gradient(135deg,rgba(14,116,144,0.3),rgba(88,28,135,0.3));border:1.4px solid rgba(56,189,248,0.4);border-radius:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:11px;font-weight:900;letter-spacing:0.1em;color:#38bdf8;text-transform:uppercase;">💳 RECURRING BILL AUTOPILOT</div>
+          <div style="font-size:22px;font-weight:900;color:#fff;margin-top:2px;" id="subTotalMonthly">₹0 / mo</div>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="openSubscriptionModal()" style="height:38px;padding:0 14px;font-size:12px;font-weight:800;border-radius:12px;">+ Add Sub</button>
+      </div>
+      <div style="font-size:11.5px;color:#cbd5e1;margin-top:6px;" id="subAiHealthHint">Analyzing recurring subscription commitments...</div>
+    </div>
+    <div class="section-title">Active Subscriptions &amp; Bills</div>
+    <div id="subscriptionsList"></div>
+  </div>
+
   <!-- ================= MORE ================= -->
   <div class="page" id="page-more">
     <div class="more-grid">
       <button class="more-tile" onclick="showPage('reports')"><span class="more-emoji">📊</span><b>Reports</b><small>Insights, date ranges and exports</small></button>
       <button class="more-tile" onclick="showPage('transactions')"><span class="more-emoji">🧾</span><b>Transactions</b><small>Search, filter and manage activity</small></button>
+      <button class="more-tile" onclick="showPage('subscriptions')"><span class="more-emoji">💳</span><b>Subscriptions Autopilot</b><small>Recurring bills, renewals &amp; splitting</small></button>
       <button class="more-tile" onclick="showPage('xray')"><span class="more-emoji">🩺</span><b>Financial X-Ray</b><small>Health score &amp; 10 indicators</small></button>
       <button class="more-tile" onclick="showPage('story')"><span class="more-emoji">📖</span><b>Money Story</b><small>Narrative milestones &amp; summary</small></button>
       <button class="more-tile" onclick="showPage('globalsearch')"><span class="more-emoji">🔍</span><b>Global Search</b><small>Search activity, notes &amp; people</small></button>
@@ -1019,8 +1036,66 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
     </div>
   </div>
 
+  <!-- ================= APP GUIDE & MANUAL (SETTINGS ONLY) ================= -->
+  <div class="page" id="page-guide">
+    <div class="card" style="margin-bottom:16px;padding:18px;background:linear-gradient(135deg,rgba(6,34,48,0.92),rgba(8,20,34,0.96));border:1.4px solid rgba(0,245,212,0.45);border-radius:22px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <span style="font-size:32px;">📖</span>
+        <div>
+          <div style="font-size:17px;font-weight:900;color:#fff;">Tracmio Master User Guide</div>
+          <div style="font-size:12px;color:#a7f3d0;">Offline-first personal finance management manual</div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#cbd5e1;line-height:1.6;margin:0;">
+        Tracmio is built for 100% privacy and local device control. No cloud synchronization, no account logins, and zero internet required. All financial records, receipts, and backups stay securely on your device.
+      </p>
+    </div>
+
+    <div class="section-title">1. How Saved Money is Tracked & Viewed</div>
+    <div class="card" style="margin-bottom:14px;padding:16px;">
+      <div style="font-size:14px;font-weight:800;color:#22f59b;margin-bottom:6px;">Net Savings & Savings Rate</div>
+      <p style="font-size:12.5px;color:#cbd5e1;line-height:1.5;margin:0 0 10px;">
+        • <b>Net Savings</b> is calculated automatically as: <b>Total Income − Total Expenses</b> across all active accounts and wallets.<br>
+        • <b>Savings Rate</b> is the percentage of your total income that you retain as savings: <b>(Net Savings / Total Income) × 100</b>.
+      </p>
+      <div style="font-size:14px;font-weight:800;color:#38bdf8;margin-bottom:6px;">Where to See Your Saved Money</div>
+      <p style="font-size:12.5px;color:#cbd5e1;line-height:1.5;margin:0;">
+        1. <b>Home Dashboard Hero Card</b>: Shows your real-time Net balance and financial health.<br>
+        2. <b>Accounts Page</b>: Displays individual and total cumulative balances across all bank accounts and cash wallets.<br>
+        3. <b>Reports Page</b>: Summarizes cumulative income, expenses, and net savings for Today, This Week, This Month, or Custom Date Ranges.<br>
+        4. <b>Financial X-Ray (`🩺`)</b>: Evaluates your exact Savings Rate score against the 20% target.
+      </p>
+    </div>
+
+    <div class="section-title">2. Complete Feature Walkthrough</div>
+    <div class="card" style="margin-bottom:14px;padding:16px;">
+      <div style="font-size:13.5px;font-weight:800;color:#fff;margin-bottom:4px;">🧾 Transactions & Receipts</div>
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:10px;">Record Income, Expense, Transfer, Borrow, and Lend transactions with custom categories, subcategories, UPI tags, and receipt photo attachments.</div>
+
+      <div style="font-size:13.5px;font-weight:800;color:#fff;margin-bottom:4px;">🏦 Accounts & Wallets</div>
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:10px;">Manage multiple bank accounts, digital wallets, cash, and credit cards with built-in deposit, withdrawal, and transfer actions.</div>
+
+      <div style="font-size:13.5px;font-weight:800;color:#fff;margin-bottom:10px;">🧭 Custom Trackers</div>
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:10px;">Group related expenses into folder-like trackers (Trips, Projects, Events) with dedicated reports, transaction lists, and exports.</div>
+
+      <div style="font-size:13.5px;font-weight:800;color:#fff;margin-bottom:4px;">⏳ Time Machine (Historical Balance)</div>
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:0px;">Reconstruct exact balances and net worth as of any past date.</div>
+    </div>
+  </div>
+
   <!-- ================= SETTINGS ================= -->
   <div class="page" id="page-settings">
+    <div class="section-title" style="margin-top:0;">Documentation & Manual</div>
+    <div class="card" style="margin-bottom:14px;">
+      <div class="set-item" onclick="showPage('guide')" style="cursor:pointer;">
+        <div class="set-icon">📖</div>
+        <div class="set-mid">
+          <div class="set-name">App Guide & Manual</div>
+          <div class="set-desc">Complete user manual, feature breakdown & saved money explanation</div>
+        </div>
+        <span class="pill-btn" style="padding:4px 10px;font-size:11px;">Open ›</span>
+      </div>
+    </div>
     <div class="section-title" style="margin-top:0;">Appearance &amp; Themes</div>
     <div class="card">
       <div class="set-item" onclick="showPage('themes')" style="cursor:pointer;">
@@ -1177,9 +1252,8 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
     <div class="section-title" style="margin:16px 0 8px;">Month Inflow vs Outflow Shift</div>
     <div class="card" id="storyShiftCard" style="padding:14px;margin-bottom:16px;"></div>
 
-    <div style="display:flex;gap:10px;margin-bottom:20px;">
-      <button type="button" class="btn btn-primary" onclick="exportMoneyStoryPdf()" style="flex:1;">⇩ Export Story (PDF)</button>
-      <button type="button" class="btn" onclick="shareMoneyStorySummary()" style="flex:1;background:rgba(255,255,255,0.08);color:#fff;">🔗 Share Summary</button>
+    <div style="margin-bottom:20px;">
+      <button type="button" class="btn btn-primary" onclick="exportMoneyStoryPdf()" style="width:100%;height:44px;font-weight:800;">⇩ Export Story (PDF)</button>
     </div>
   </div>
 
@@ -1883,6 +1957,26 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
     </div>
   </div>
 
+  <!-- ================= MODAL: SUBSCRIPTION ================= -->
+  <div class="overlay" id="overlay-subscription" onclick="if(event.target===this)closeSubscriptionModal()">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="subModalTitle">Add Subscription</div>
+      <input type="hidden" id="editingSubId">
+      <div class="field"><label for="subName">Service Name</label><input type="text" id="subName" placeholder="e.g. Netflix, Spotify, Wi-Fi"></div>
+      <div class="field"><label for="subAmount">Amount (₹)</label><input type="number" step="any" id="subAmount" placeholder="e.g. 649"></div>
+      <div class="row2">
+        <div class="field"><label for="subFrequency">Billing Cycle</label><select id="subFrequency"><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="weekly">Weekly</option></select></div>
+        <div class="field"><label for="subNextDate">Next Renewal Date</label><input type="date" id="subNextDate"></div>
+      </div>
+      <div class="field"><label for="subAccount">Default Payment Account / Wallet</label><select id="subAccount"></select></div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button type="button" class="btn btn-primary" onclick="saveSubscription()" style="flex:1">Save Subscription</button>
+        <button type="button" class="btn" id="subDeleteBtn" onclick="deleteSubscription()" style="display:none;background:rgba(248,113,113,0.2);color:#f87171;border:1px solid rgba(248,113,113,0.4)">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast"></div>
 </div>
 
@@ -2372,13 +2466,38 @@ function captureTracmioBackground(){
 }
 window.captureTracmioBackground = captureTracmioBackground;
 
+function setTracmioWallpaperBlur(val){
+  var px = Number(val) || 8;
+  document.documentElement.style.setProperty('--ft-wallpaper-blur', px + 'px');
+  var layer = document.getElementById('customBgLayer');
+  if(layer) layer.style.filter = 'blur(' + px + 'px)';
+  var valEl = document.getElementById('wallpaperBlurValue');
+  if(valEl) valEl.textContent = px + 'px';
+  try{ localStorage.setItem('tracmio_wallpaper_blur', String(px)); }catch(e){}
+}
+function setTracmioGlowIntensity(val){
+  var pct = Number(val) || 75;
+  document.documentElement.style.setProperty('--ft-ambient-glow-opacity', String(pct / 100));
+  var valEl = document.getElementById('ambientGlowValue');
+  if(valEl) valEl.textContent = pct + '%';
+  try{ localStorage.setItem('tracmio_ambient_glow', String(pct)); }catch(e){}
+}
+window.setTracmioWallpaperBlur = setTracmioWallpaperBlur;
+window.setTracmioGlowIntensity = setTracmioGlowIntensity;
+
+function toast(msg, type){
+  showToast(msg, type || 'success');
+}
+
 function initTracmioBackground(){
-  var dataUrl=null,visibility=45,iconSize=100,wpId=null;
+  var dataUrl=null,visibility=45,iconSize=100,wpId=null,blurVal=8,glowVal=75;
   try{
     dataUrl=localStorage.getItem('tracmio_custom_background');
     wpId=localStorage.getItem('tracmio_wallpaper_preset');
     visibility=Number(localStorage.getItem('tracmio_background_visibility')||45);
     iconSize=Number(localStorage.getItem('tracmio_icon_size')||100);
+    blurVal=Number(localStorage.getItem('tracmio_wallpaper_blur')||8);
+    glowVal=Number(localStorage.getItem('tracmio_ambient_glow')||75);
   }catch(e){}
   if(!dataUrl && wpId && TRACMIO_WALLPAPERS[wpId]){
     dataUrl = TRACMIO_WALLPAPERS[wpId].dataUrl;
@@ -2393,6 +2512,53 @@ function initTracmioBackground(){
   applyTracmioBackground(dataUrl);
   setTracmioBackgroundVisibility(visibility);
   setTracmioIconSize(iconSize);
+  setTracmioWallpaperBlur(blurVal);
+  setTracmioGlowIntensity(glowVal);
+  var blurSlider = document.getElementById('wallpaperBlurSlider');
+  if(blurSlider) blurSlider.value = blurVal;
+  var glowSlider = document.getElementById('ambientGlowSlider');
+  if(glowSlider) glowSlider.value = glowVal;
+}
+
+var _liquidTargetX = 0, _liquidTargetY = 0, _liquidCurrX = 0, _liquidCurrY = 0;
+function initLiquidFlowParallax(){
+  window.addEventListener('deviceorientation', function(e){
+    if(e.gamma !== null && e.beta !== null){
+      _liquidTargetX = (e.gamma / 45) * 18;
+      _liquidTargetY = ((e.beta - 45) / 45) * 18;
+    }
+  }, {passive:true});
+
+  window.addEventListener('mousemove', function(e){
+    var cx = window.innerWidth / 2;
+    var cy = window.innerHeight / 2;
+    _liquidTargetX = ((e.clientX - cx) / cx) * 14;
+    _liquidTargetY = ((e.clientY - cy) / cy) * 14;
+  }, {passive:true});
+
+  window.addEventListener('touchmove', function(e){
+    if(e.touches && e.touches[0]){
+      var cx = window.innerWidth / 2;
+      var cy = window.innerHeight / 2;
+      _liquidTargetX = ((e.touches[0].clientX - cx) / cx) * 16;
+      _liquidTargetY = ((e.touches[0].clientY - cy) / cy) * 16;
+    }
+  }, {passive:true});
+
+  function tickLiquidFlow(){
+    _liquidCurrX += (_liquidTargetX - _liquidCurrX) * 0.08;
+    _liquidCurrY += (_liquidTargetY - _liquidCurrY) * 0.08;
+    var layer = document.getElementById('customBgLayer');
+    var aurora = document.querySelector('.aurora-shell-bg');
+    if(layer){
+      layer.style.transform = 'translate(' + _liquidCurrX.toFixed(2) + 'px, ' + _liquidCurrY.toFixed(2) + 'px) scale(1.06)';
+    }
+    if(aurora){
+      aurora.style.transform = 'translate(' + (-_liquidCurrX * 0.7).toFixed(2) + 'px, ' + (-_liquidCurrY * 0.7).toFixed(2) + 'px) scale(1.04)';
+    }
+    requestAnimationFrame(tickLiquidFlow);
+  }
+  requestAnimationFrame(tickLiquidFlow);
 }
 
 function initState(){
@@ -2404,6 +2570,7 @@ function initState(){
     if(!Array.isArray(state.goals)) state.goals = [];
     if(!Array.isArray(state.loans)) state.loans = [];
     if(!Array.isArray(state.trackers)) state.trackers = [];
+    if(!Array.isArray(state.subscriptions)) state.subscriptions = [];
   } else {
     state = buildSeedState();
     if(stateLoadWarning){
@@ -2438,7 +2605,9 @@ var PAGE_META = {
   reminders:{title:'Multi-Reminders', sub:'Monthly backup & custom alarms', action:{label:'+ Reminder', show:true}},
   timemachine:{title:'Time Machine', sub:'Reconstruct past balance & activity', action:{label:'', show:false}},
   datacenter:{title:'Data & Export Center', sub:'Encrypted backups, Excel, CSV & JSON', action:{label:'', show:false}},
-  permissions:{title:'Privacy & Permissions', sub:'100% Offline verification & audit', action:{label:'', show:false}}
+  permissions:{title:'Privacy & Permissions', sub:'100% Offline verification & audit', action:{label:'', show:false}},
+  guide:{title:'App Guide & Manual', sub:'Complete user manual & saved money tracking', action:{label:'', show:false}},
+  subscriptions:{title:'Subscriptions Autopilot', sub:'Recurring bills, renewals & bill splitting', action:{label:'+ Sub', show:true}}
 };
 
 function greeting(){
@@ -2453,7 +2622,7 @@ function showPage(id){
   document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
   var pageEl = document.getElementById('page-'+id);
   if(pageEl) pageEl.classList.add('active');
-  var navTarget = (['budgets','goals','loans','persons','reports','settings','themes','trackers','xray','story','globalsearch','spendingdna','calendar','reminders','timemachine','datacenter','permissions'].indexOf(id)>=0) ? 'more' : id;
+  var navTarget = (['budgets','goals','loans','persons','reports','settings','themes','trackers','xray','story','globalsearch','spendingdna','calendar','reminders','timemachine','datacenter','permissions','guide','subscriptions'].indexOf(id)>=0) ? 'more' : id;
   document.querySelectorAll('.nav-item').forEach(function(n){
     n.classList.toggle('active', n.getAttribute('data-page')===navTarget);
   });
@@ -2483,6 +2652,7 @@ function fabAction(){
   else if(currentPage==='trackers'){ if(window.onTopbarTrackersAction) window.onTopbarTrackersAction(); }
   else if(currentPage==='calendar') openCalendarEventModal();
   else if(currentPage==='reminders') openReminderModal();
+  else if(currentPage==='subscriptions') openSubscriptionModal();
   else openModal('txn');
 }
 
@@ -2494,6 +2664,7 @@ function renderCurrentPage(){
   else if(currentPage==='budgets') renderBudgets();
   else if(currentPage==='goals') renderGoals();
   else if(currentPage==='loans') renderLoans();
+  else if(currentPage==='subscriptions') renderSubscriptions();
   else if(currentPage==='more') renderMore();
   else if(currentPage==='reports') renderReports();
   else if(currentPage==='trackers'){ if(window.renderCustomTrackersPage) window.renderCustomTrackersPage(); }
@@ -3994,14 +4165,21 @@ function populateAccountSelects(selectedFromId, selectedToId){
   var selFrom=document.getElementById('txnAccount');
   var selTo=document.getElementById('txnToAccount');
   var selAction=document.getElementById('accActionToAccount');
-  // Rebuilding option lists resets native <select> values. Preserve current choices
-  // unless the caller explicitly supplies a replacement (such as a newly added wallet).
   var previousFrom=selFrom?selFrom.value:'';
   var previousTo=selTo?selTo.value:'';
-  var opts=state.accounts.map(function(a){
+  var opts = state.accounts.map(function(a){
     return '<option value="'+escHtml(a.id)+'">'+(a.type==='wallet'?'👛 ':'🏦 ')+escHtml(a.name)+' ('+fmt(a.balance)+')</option>';
   }).join('');
-  var fullOpts=opts+'<option value="__ADD_WALLET__" style="color:var(--primary);font-weight:bold;">➕ + Add New Wallet...</option>';
+  
+  var fullOpts = '';
+  if(state.accounts.length === 0){
+    fullOpts = '<option value="" disabled selected>No accounts created yet</option>' +
+               '<option value="__ADD_WALLET__" style="color:var(--primary);font-weight:bold;">👛 + Add Wallet / Account...</option>';
+  } else {
+    fullOpts = opts + '<option value="__ADD_WALLET__" style="color:var(--primary);font-weight:bold;">➕ + Add New Wallet...</option>' +
+               '<option value="__ADD_ACCOUNT__" style="color:var(--primary);font-weight:bold;">🏦 + Add New Bank Account...</option>';
+  }
+
   function hasAccount(id){
     return id!==undefined&&id!==null&&state.accounts.some(function(a){return String(a.id)===String(id);});
   }
@@ -4024,6 +4202,8 @@ function populateAccountSelects(selectedFromId, selectedToId){
 function handleAccountSelect(selectEl, target){
   if(selectEl.value === '__ADD_WALLET__'){
     openQuickWallet(target);
+  } else if(selectEl.value === '__ADD_ACCOUNT__'){
+    openModal('account');
   }
 }
 
@@ -6656,6 +6836,184 @@ window.requestTracmioNotificationPermission = requestTracmioNotificationPermissi
 window.requestTracmioMediaPermission = requestTracmioMediaPermission;
 window.toggleGlobalPrivacy = toggleGlobalPrivacy;
 window.isPrivacyMasked = isPrivacyMasked;
+
+window.renderSubscriptions = renderSubscriptions;
+window.openSubscriptionModal = openSubscriptionModal;
+window.closeSubscriptionModal = closeSubscriptionModal;
+window.saveSubscription = saveSubscription;
+window.deleteSubscription = deleteSubscription;
+window.paySubscriptionNow = paySubscriptionNow;
+
+function renderSubscriptions(){
+  state.subscriptions = state.subscriptions || [];
+  var wrap = document.getElementById('subscriptionsList');
+  var totalMoEl = document.getElementById('subTotalMonthly');
+  var hintEl = document.getElementById('subAiHealthHint');
+  if(!wrap) return;
+
+  var totalMonthly = 0;
+  state.subscriptions.forEach(function(s){
+    var amt = Number(s.amount) || 0;
+    if(s.frequency === 'yearly') totalMonthly += (amt / 12);
+    else if(s.frequency === 'weekly') totalMonthly += (amt * 4.33);
+    else totalMonthly += amt;
+  });
+
+  if(totalMoEl) totalMoEl.textContent = fmt(Math.round(totalMonthly)) + ' / mo';
+  if(hintEl){
+    var totalInc = (state.transactions||[]).filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+Number(t.amount);},0) || 1;
+    var subRatio = Math.round((totalMonthly / totalInc) * 100);
+    hintEl.innerHTML = 'Recurring commitments make up <b>' + subRatio + '%</b> of your income. ' + (subRatio <= 15 ? 'Healthy subscription footprint! 🌿' : 'High recurring drain. Consider auditing unused streaming or utility bills.');
+  }
+
+  if(state.subscriptions.length === 0){
+    wrap.innerHTML = '<div class="empty-state"><div class="icn">💳</div><div class="ti">No Subscriptions Added</div><div class="su">Track Netflix, Spotify, Wi-Fi, Cloud storage, rent, and loan EMIs with automated renewal countdowns.</div><button class="btn btn-primary" style="margin-top:14px;" onclick="openSubscriptionModal()">+ Add First Subscription</button></div>';
+    return;
+  }
+
+  wrap.innerHTML = state.subscriptions.map(function(s){
+    var nextDate = s.nextDate || today();
+    var daysLeft = Math.ceil((new Date(nextDate) - new Date()) / (1000 * 60 * 60 * 24));
+    var statusBadge = daysLeft < 0 ? '<span style="color:#f87171;font-weight:800;">Overdue by ' + Math.abs(daysLeft) + 'd</span>' : (daysLeft === 0 ? '<span style="color:#fbbf24;font-weight:800;">Due Today!</span>' : '<span style="color:#22f59b;font-weight:800;">Renews in ' + daysLeft + 'd</span>');
+    return '<div class="card" style="margin-bottom:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(56,189,248,0.25);">' +
+      '<div>' +
+        '<div style="font-size:15px;font-weight:900;color:#fff;">' + escHtml(s.name) + '</div>' +
+        '<div style="font-size:11.5px;color:var(--text2);margin-top:2px;">' + s.frequency.toUpperCase() + ' · ' + statusBadge + ' (Next: ' + fmtDate(nextDate) + ')</div>' +
+      '</div>' +
+      '<div style="text-align:right;display:flex;align-items:center;gap:12px;">' +
+        '<div><div style="font-size:15px;font-weight:900;color:#38bdf8;">' + fmt(s.amount) + '</div><div style="font-size:10px;color:var(--text2)">' + s.frequency + '</div></div>' +
+        '<button type="button" class="btn btn-primary" style="padding:6px 12px;height:auto;font-size:11px;" onclick="paySubscriptionNow(\'' + s.id + '\')">Pay &amp; Log</button>' +
+        '<button type="button" class="btn" style="padding:6px 10px;height:auto;font-size:11px;background:rgba(255,255,255,0.08);color:#fff;" onclick="openSubscriptionModal(\'' + s.id + '\')">Edit</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function openSubscriptionModal(subId){
+  state.subscriptions = state.subscriptions || [];
+  var modal = document.getElementById('overlay-subscription');
+  var delBtn = document.getElementById('subDeleteBtn');
+  var titleEl = document.getElementById('subModalTitle');
+  if(!modal) return;
+
+  var accSel = document.getElementById('subAccount');
+  if(accSel){
+    accSel.innerHTML = state.accounts.map(function(a){ return '<option value="'+a.id+'">'+a.name+' ('+fmt(a.balance)+')</option>'; }).join('') || '<option value="">No accounts</option>';
+  }
+
+  if(subId){
+    var s = state.subscriptions.find(function(x){ return x.id === subId; });
+    if(s){
+      document.getElementById('editingSubId').value = s.id;
+      document.getElementById('subName').value = s.name;
+      document.getElementById('subAmount').value = s.amount;
+      document.getElementById('subFrequency').value = s.frequency || 'monthly';
+      document.getElementById('subNextDate').value = s.nextDate || today();
+      if(s.accountId && accSel) accSel.value = s.accountId;
+      if(titleEl) titleEl.textContent = 'Edit Subscription';
+      if(delBtn) delBtn.style.display = 'block';
+    }
+  } else {
+    document.getElementById('editingSubId').value = '';
+    document.getElementById('subName').value = '';
+    document.getElementById('subAmount').value = '';
+    document.getElementById('subFrequency').value = 'monthly';
+    document.getElementById('subNextDate').value = today();
+    if(titleEl) titleEl.textContent = 'Add Subscription';
+    if(delBtn) delBtn.style.display = 'none';
+  }
+  modal.classList.add('show');
+}
+
+function closeSubscriptionModal(){
+  var modal = document.getElementById('overlay-subscription');
+  if(modal) modal.classList.remove('show');
+}
+
+function saveSubscription(){
+  state.subscriptions = state.subscriptions || [];
+  var id = document.getElementById('editingSubId').value;
+  var name = document.getElementById('subName').value.trim();
+  var amount = parseFloat(document.getElementById('subAmount').value) || 0;
+  var frequency = document.getElementById('subFrequency').value;
+  var nextDate = document.getElementById('subNextDate').value || today();
+  var accountId = document.getElementById('subAccount').value;
+
+  if(!name){ showToast('Enter subscription name', 'error'); return; }
+  if(!amount || amount <= 0){ showToast('Enter valid amount', 'error'); return; }
+
+  if(id){
+    var existing = state.subscriptions.find(function(x){ return x.id === id; });
+    if(existing){
+      existing.name = name;
+      existing.amount = amount;
+      existing.frequency = frequency;
+      existing.nextDate = nextDate;
+      existing.accountId = accountId;
+      showToast('Subscription updated successfully', 'success');
+    }
+  } else {
+    var newSub = {
+      id: uid(),
+      name: name,
+      amount: amount,
+      frequency: frequency,
+      nextDate: nextDate,
+      accountId: accountId,
+      createdAt: new Date().toISOString()
+    };
+    state.subscriptions.push(newSub);
+    showToast('Subscription added successfully', 'success');
+  }
+  save();
+  closeSubscriptionModal();
+  renderSubscriptions();
+}
+
+function deleteSubscription(){
+  var id = document.getElementById('editingSubId').value;
+  if(!id) return;
+  state.subscriptions = state.subscriptions.filter(function(x){ return x.id !== id; });
+  save();
+  closeSubscriptionModal();
+  renderSubscriptions();
+  showToast('Subscription deleted', 'success');
+}
+
+function paySubscriptionNow(subId){
+  state.subscriptions = state.subscriptions || [];
+  var s = state.subscriptions.find(function(x){ return x.id === subId; });
+  if(!s) return;
+
+  var acc = state.accounts.find(function(a){ return a.id === s.accountId; }) || state.accounts[0];
+  if(!acc){ showToast('Please create an account first', 'error'); return; }
+
+  var txn = {
+    id: uid(),
+    type: 'expense',
+    amount: s.amount,
+    accountId: acc.id,
+    category: 'bills',
+    notes: 'Recurring payment for ' + s.name,
+    date: today(),
+    time: new Date().toTimeString().slice(0,5),
+    paymentMethod: 'Auto',
+    createdAt: new Date().toISOString()
+  };
+  state.transactions.push(txn);
+  applyTxnEffect(txn, 1);
+
+  var d = new Date(s.nextDate || today());
+  if(s.frequency === 'yearly') d.setFullYear(d.getFullYear() + 1);
+  else if(s.frequency === 'weekly') d.setDate(d.getDate() + 7);
+  else d.setMonth(d.getMonth() + 1);
+  s.nextDate = d.toISOString().slice(0,10);
+
+  save();
+  renderSubscriptions();
+  if(currentPage==='dashboard'||currentPage==='transactions') renderCurrentPage();
+  showToast('Paid & logged ₹' + s.amount + ' for ' + s.name, 'success');
+}
 
 })();
 </script>
