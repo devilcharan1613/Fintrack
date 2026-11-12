@@ -48,9 +48,10 @@ object TracmioSecurityEngine {
         var plaintextBytes: ByteArray? = null
         val keySpec = PBEKeySpec(password, salt, ITERATIONS, KEY_LENGTH_BITS)
         try {
-            derivedKey = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM)
+            val keyBytes = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM)
                 .generateSecret(keySpec).encoded
-            val secretKey = SecretKeySpec(derivedKey, "AES")
+            derivedKey = keyBytes
+            val secretKey = SecretKeySpec(keyBytes, "AES")
             val cipher = Cipher.getInstance(AES_GCM_ALGORITHM)
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv))
             plaintextBytes = plaintextJson.toByteArray(StandardCharsets.UTF_8)
@@ -114,8 +115,9 @@ object TracmioSecurityEngine {
 
             val keySpec = PBEKeySpec(password, salt, iterations, KEY_LENGTH_BITS)
             try {
-                derivedKey = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM)
+                val keyBytes = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM)
                     .generateSecret(keySpec).encoded
+                derivedKey = keyBytes
             } finally {
                 keySpec.clearPassword()
             }
@@ -123,7 +125,7 @@ object TracmioSecurityEngine {
             val cipher = Cipher.getInstance(AES_GCM_ALGORITHM)
             cipher.init(
                 Cipher.DECRYPT_MODE,
-                SecretKeySpec(derivedKey, "AES"),
+                SecretKeySpec(derivedKey ?: throw IllegalStateException("Backup key derivation failed"), "AES"),
                 GCMParameterSpec(GCM_TAG_LENGTH_BITS, decodedIv)
             )
             decryptedBytes = try {
