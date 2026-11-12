@@ -63,7 +63,7 @@ object MigrationBundleValidator {
             "Migration payload checksum is missing or malformed"
         }
         val actualDigest = MessageDigest.getInstance("SHA-256")
-            .digest(payload.toString().toByteArray(Charsets.UTF_8))
+            .digest(MigrationJsonCanonicalizer.canonicalize(payload).toByteArray(Charsets.UTF_8))
         val expectedDigest = hexToBytes(expectedHex)
         require(MessageDigest.isEqual(expectedDigest, actualDigest)) {
             "Migration payload checksum mismatch. The recovery file may be corrupted or modified."
