@@ -54,7 +54,7 @@ object LegacyMigrationBundleExporter {
             put("roomDatabase", roomSnapshot)
         }
 
-        val canonicalPayload = payload.toString()
+        val canonicalPayload = MigrationJsonCanonicalizer.canonicalize(payload)
         val digest = MessageDigest.getInstance("SHA-256")
             .digest(canonicalPayload.toByteArray(Charsets.UTF_8))
         val bundle = JSONObject().apply {
