@@ -1956,6 +1956,9 @@ html[data-theme] .page.active{animation:ftPageIn .24s ease both}
           <input type="password" id="encPasswordConfirm" placeholder="Re-enter password to confirm">
         </div>
         <button class="btn btn-primary" onclick="handleEncryptedBackupAction('export')">Generate &amp; Save Encrypted Backup</button>
+        <div style="height:10px"></div>
+        <button class="btn btn-secondary" onclick="exportMigrationRecoveryBundle()">Export Full Migration Recovery Bundle</button>
+        <div style="font-size:11px;color:var(--text-sub);margin-top:8px;line-height:1.5">Creates a password-encrypted recovery file containing this app's legacy browser storage and a read-only snapshot of its Room database. Keep the old app installed until the new app verifies the import.</div>
       </div>
       <div id="encImportFields" class="hidden">
         <div class="field">
@@ -6670,6 +6673,79 @@ function checkEncStrength(pwd){
   } else {
     strText.textContent = 'Strength: Medium (Add numbers & special symbols)';
     strText.style.color = '#fbbf24';
+  }
+}
+
+async function exportMigrationRecoveryBundle(){
+  var bridge = window.TracmioBridge || window.FinTrackBridge;
+  var p1 = document.getElementById('encPassword')?.value || '';
+  var p2 = document.getElementById('encPasswordConfirm')?.value || '';
+  if(p1.length < 8){ toast('Migration password must be at least 8 characters'); return; }
+  if(p1 !== p2){ toast('Passwords do not match'); return; }
+  if(!bridge || typeof bridge.exportMigrationBundle !== 'function'){
+    toast('Migration exporter is unavailable in this installed build'); return;
+  }
+
+  try {
+    var localStorageSnapshot = {};
+    for(var i=0;i<localStorage.length;i++){
+      var key=localStorage.key(i);
+      if(key!==null) localStorageSnapshot[key]=localStorage.getItem(key);
+    }
+
+    var indexedDbSnapshot = {supported:false, databases:[]};
+    if(window.indexedDB && typeof indexedDB.databases === 'function'){
+      indexedDbSnapshot.supported=true;
+      var dbInfos=await indexedDB.databases();
+      for(var d=0;d<dbInfos.length;d++){
+        var dbName=dbInfos[d] && dbInfos[d].name;
+        if(!dbName) continue;
+        var db=await new Promise(function(resolve,reject){
+          var req=indexedDB.open(dbName);
+          req.onsuccess=function(){resolve(req.result);};
+          req.onerror=function(){reject(req.error||new Error('Could not open IndexedDB database'));};
+          req.onblocked=function(){reject(new Error('IndexedDB database is blocked'));};
+        }).catch(function(){return null;});
+        if(!db) { indexedDbSnapshot.databases.push({name:dbName,error:'open_failed'}); continue; }
+        var dbRecord={name:dbName,version:db.version,stores:{}};
+        var storeNames=Array.from(db.objectStoreNames);
+        for(var s=0;s<storeNames.length;s++){
+          var storeName=storeNames[s];
+          try{
+            dbRecord.stores[storeName]=await new Promise(function(resolve,reject){
+              var tx=db.transaction(storeName,'readonly');
+              var req=tx.objectStore(storeName).getAll();
+              req.onsuccess=function(){resolve(req.result||[]);};
+              req.onerror=function(){reject(req.error||new Error('IndexedDB read failed'));};
+            });
+          }catch(storeError){
+            dbRecord.stores[storeName]={exportError:String(storeError)};
+          }
+        }
+        db.close();
+        indexedDbSnapshot.databases.push(dbRecord);
+      }
+    }
+
+    var payload={
+      captureVersion:1,
+      capturedAt:new Date().toISOString(),
+      appState:(typeof state!=='undefined' && state)?JSON.parse(JSON.stringify(state)):null,
+      localStorage:localStorageSnapshot,
+      indexedDB:indexedDbSnapshot,
+      storageNotes:[
+        'WebView localStorage values are captured as raw strings.',
+        'IndexedDB is captured when WebView exposes indexedDB.databases().',
+        'Room tables are captured separately by the Android host.',
+        'External files referenced by attachment paths may require separate file transfer.'
+      ]
+    };
+    var serialized=JSON.stringify(payload);
+    if(serialized.length>20000000){toast('Legacy browser data is too large for this recovery export');return;}
+    bridge.exportMigrationBundle(serialized,p1);
+    toast('Preparing encrypted migration recovery file');
+  }catch(error){
+    toast('Migration export failed: '+(error && error.message ? error.message : error));
   }
 }
 
