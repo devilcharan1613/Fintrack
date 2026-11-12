@@ -138,7 +138,8 @@ object LegacyMigrationBundleExporter {
                 val row = rows.optJSONObject(rowIndex) ?: continue
                 val rawPath = row.optString("localPath", "")
                 if (rawPath.isBlank()) {
-                    warn(row, "EMPTY_LOCAL_PATH")
+                    val contentUri = row.optString("contentUri", "")
+                    warn(row, if (contentUri.isNotBlank()) "CONTENT_URI_NOT_EMBEDDED" else "EMPTY_LOCAL_PATH")
                     continue
                 }
 
@@ -184,6 +185,8 @@ object LegacyMigrationBundleExporter {
                     put("fileName", row.optString("fileName", candidate.name))
                     put("storedFileName", candidate.name)
                     put("mimeType", row.optString("mimeType", "application/octet-stream"))
+                    put("sourceContentUri", row.optString("contentUri", ""))
+                    put("recordedSizeBytes", row.optLong("fileSizeBytes", 0L))
                     put("sizeBytes", bytes.size)
                     put("sha256", digest.joinToString("") { "%02x".format(it) })
                     put("contentBase64", Base64.encodeToString(bytes, Base64.NO_WRAP))
