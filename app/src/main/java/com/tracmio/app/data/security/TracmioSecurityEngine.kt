@@ -86,8 +86,11 @@ object TracmioSecurityEngine {
         require(password.isNotEmpty()) { "Password cannot be empty" }
         var derivedKey: ByteArray? = null
         var decryptedBytes: ByteArray? = null
-        val root = JSONObject(encryptedEnvelopeJson)
+        var salt: ByteArray? = null
+        var iv: ByteArray? = null
+        var cipherBytes: ByteArray? = null
         try {
+            val root = JSONObject(encryptedEnvelopeJson)
             val format = root.optString("format", "")
             require(format == BACKUP_ENCRYPTION_FORMAT) {
                 "Unsupported backup format: $format. Expected $BACKUP_ENCRYPTION_FORMAT"
@@ -99,9 +102,9 @@ object TracmioSecurityEngine {
             require(iterations in MIN_ACCEPTED_ITERATIONS..MAX_ACCEPTED_ITERATIONS) {
                 "Backup encryption work factor is outside the supported safe range"
             }
-            val salt = decodeBase64(root.getString("salt"))
-            val iv = decodeBase64(root.getString("iv"))
-            val cipherBytes = decodeBase64(root.getString("cipherText"))
+            salt = decodeBase64(root.getString("salt"))
+            iv = decodeBase64(root.getString("iv"))
+            cipherBytes = decodeBase64(root.getString("cipherText"))
             require(salt.size == SALT_LENGTH_BYTES) { "Invalid backup salt length" }
             require(iv.size == IV_LENGTH_BYTES) { "Invalid backup IV length" }
             require(cipherBytes.size >= GCM_TAG_LENGTH_BITS / 8) { "Encrypted backup is truncated" }
@@ -130,6 +133,9 @@ object TracmioSecurityEngine {
             password.fill('\u0000')
             derivedKey?.fill(0)
             decryptedBytes?.fill(0)
+            salt?.fill(0)
+            iv?.fill(0)
+            cipherBytes?.fill(0)
         }
     }
 
