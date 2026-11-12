@@ -36,7 +36,7 @@ interface CustomTrackerDao {
     suspend fun deleteTrackerByUid(trackerUid: String)
 
     // Many-to-many Tracker <-> Transaction links
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun linkTransactionToTracker(crossRef: TrackerTransactionCrossRefEntity): Long
 
     @Query("DELETE FROM tracker_transactions WHERE trackerUid = :trackerUid AND transactionUid = :transactionUid")
@@ -47,6 +47,9 @@ interface CustomTrackerDao {
 
     @Query("SELECT * FROM tracker_transactions")
     suspend fun getAllTrackerLinks(): List<TrackerTransactionCrossRefEntity>
+
+    @Query("SELECT * FROM tracker_transactions ORDER BY linkedAt DESC")
+    fun observeAllTrackerLinks(): Flow<List<TrackerTransactionCrossRefEntity>>
 
     // Budgets
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -59,14 +62,23 @@ interface CustomTrackerDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertTrackerPerson(person: TrackerPersonEntity)
 
+    @Query("DELETE FROM tracker_people WHERE personUid = :personUid")
+    suspend fun deleteTrackerPerson(personUid: String)
+
     @Query("SELECT * FROM tracker_people WHERE trackerUid = :trackerUid")
     suspend fun getTrackerPeople(trackerUid: String): List<TrackerPersonEntity>
+
+    @Query("SELECT * FROM tracker_people")
+    fun observeAllTrackerPeople(): Flow<List<TrackerPersonEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertTrackerSettlement(settlement: TrackerSettlementEntity)
 
     @Query("SELECT * FROM tracker_settlements WHERE trackerUid = :trackerUid ORDER BY timestamp DESC")
     suspend fun getTrackerSettlements(trackerUid: String): List<TrackerSettlementEntity>
+
+    @Query("SELECT * FROM tracker_settlements ORDER BY timestamp DESC")
+    fun observeAllTrackerSettlements(): Flow<List<TrackerSettlementEntity>>
 
     // Attachments
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -77,6 +89,9 @@ interface CustomTrackerDao {
 
     @Query("SELECT * FROM tracker_attachments WHERE trackerUid = :trackerUid ORDER BY addedAt DESC")
     suspend fun getTrackerAttachments(trackerUid: String): List<TrackerAttachmentEntity>
+
+    @Query("SELECT * FROM tracker_attachments ORDER BY addedAt DESC")
+    fun observeAllTrackerAttachments(): Flow<List<TrackerAttachmentEntity>>
 
     // Custom Fields & Values
     @Insert(onConflict = OnConflictStrategy.REPLACE)

@@ -1,6 +1,6 @@
 {
   "name": "Tracmio",
-  "description": "Tracmio — Offline-First Personal Finance, Budget, Goals, Loans & Expenses Tracker (v2.5.2)",
+  "description": "Tracmio — Finance & Expenses Tracker",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

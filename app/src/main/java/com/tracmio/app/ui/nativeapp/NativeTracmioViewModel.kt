@@ -1,14 +1,21 @@
 package com.tracmio.app.ui.nativeapp
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.tracmio.app.data.CustomTrackerCalculator
+import com.tracmio.app.data.LiquidGlassSettings
 import com.tracmio.app.data.MoneyPaise
 import com.tracmio.app.data.NativeLedgerCalculator
 import com.tracmio.app.data.PersonLedgerSummary
+import com.tracmio.app.data.PreferencesAndThemeStore
+import com.tracmio.app.data.SubscriptionItem
 import com.tracmio.app.data.local.AccountEntity
 import com.tracmio.app.data.local.BudgetEntity
 import com.tracmio.app.data.local.CategoryEntity
+import com.tracmio.app.data.local.CustomTrackerEntity
 import com.tracmio.app.data.local.GoalContributionEntity
 import com.tracmio.app.data.local.GoalEntity
 import com.tracmio.app.data.local.LoanEntity
@@ -19,6 +26,7 @@ import com.tracmio.app.data.repository.FinanceRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -33,10 +41,16 @@ data class NativeTracmioUiState(
     val loanPayments: List<LoanPaymentEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
     val persons: List<PersonEntity> = emptyList(),
-    val statusMessage: String? = null
+    val customTrackers: List<CustomTrackerEntity> = emptyList(),
+    val subscriptions: List<SubscriptionItem> = emptyList(),
+    val statusMessage: String? = null,
+    val recentlyDeletedTransaction: TransactionEntity? = null
 ) {
     val totalBalance: Double
         get() = NativeLedgerCalculator.totalBalance(accounts, transactions)
+
+    val totalBalancePaise: Long
+        get() = NativeLedgerCalculator.totalBalancePaise(accounts, transactions)
 
     val totalIncome: Double
         get() = NativeLedgerCalculator.totalIncome(transactions)
@@ -49,24 +63,30 @@ data class NativeTracmioUiState(
 }
 
 class NativeTracmioViewModel(
+    application: Application,
     private val repository: FinanceRepository
-) : ViewModel() {
+) : AndroidViewModel(application) {
+
+    private val prefsStore = PreferencesAndThemeStore.getInstance(application)
+    val settingsFlow: StateFlow<LiquidGlassSettings> = prefsStore.settings
+    val subscriptionsFlow: StateFlow<List<SubscriptionItem>> = prefsStore.subscriptions
 
     private val statusMessage = MutableStateFlow<String?>(null)
+    private val recentlyDeleted = MutableStateFlow<TransactionEntity?>(null)
 
     private val primaryFlow = combine(
         repository.accountList,
         repository.transactions,
         repository.budgets,
         repository.goals,
-        repository.goalContributions
-    ) { accounts, transactions, budgets, goals, goalContribs ->
+        repository.activeTrackers
+    ) { accounts, transactions, budgets, goals, trackers ->
         NativeTracmioUiState(
             accounts = accounts,
             transactions = transactions,
             budgets = budgets,
             goals = goals,
-            goalContributions = goalContribs
+            customTrackers = trackers
         )
     }
 
@@ -75,24 +95,31 @@ class NativeTracmioViewModel(
         repository.loanPaymentsAll,
         repository.categories,
         repository.persons,
-        statusMessage
-    ) { loans, loanPayments, categories, persons, message ->
+        subscriptionsFlow
+    ) { loans, loanPayments, categories, persons, subs ->
         NativeTracmioUiState(
             loans = loans,
             loanPayments = loanPayments,
             categories = categories,
             persons = persons,
-            statusMessage = message
+            subscriptions = subs
         )
     }
 
-    val uiState: StateFlow<NativeTracmioUiState> = combine(primaryFlow, secondaryFlow) { p, s ->
+    val uiState: StateFlow<NativeTracmioUiState> = combine(
+        primaryFlow,
+        secondaryFlow,
+        statusMessage,
+        recentlyDeleted
+    ) { p, s, msg, deleted ->
         p.copy(
             loans = s.loans,
             loanPayments = s.loanPayments,
             categories = s.categories,
             persons = s.persons,
-            statusMessage = s.statusMessage
+            subscriptions = s.subscriptions,
+            statusMessage = msg,
+            recentlyDeletedTransaction = deleted
         )
     }.stateIn(
         viewModelScope,
@@ -103,25 +130,56 @@ class NativeTracmioViewModel(
     init {
         viewModelScope.launch {
             repository.seedDefaultCategories()
+            repository.ensureDefaultAccountIfEmpty()
         }
     }
 
-    fun addAccount(name: String, type: String, balance: Double, currency: String = "INR") {
+    fun updateSettings(transform: (LiquidGlassSettings) -> LiquidGlassSettings) {
+        prefsStore.updateSettings(transform)
+    }
+
+    fun updateCashDenominations(map: Map<Int, Int>) {
+        prefsStore.updateCashDenominations(map)
+    }
+
+    fun togglePrivacyMask() {
+        val current = settingsFlow.value.privacyMaskEnabled
+        prefsStore.updateSettings { it.copy(privacyMaskEnabled = !current) }
+    }
+
+    fun addAccount(
+        name: String,
+        type: String,
+        balance: Double,
+        currency: String = "INR",
+        institution: String = "",
+        accountNumber: String = "",
+        notes: String = ""
+    ) {
         viewModelScope.launch {
-            repository.addAccount(
-                AccountEntity(
-                    name = name.trim(),
-                    accountType = type.trim().ifBlank { "Bank" },
-                    balance = balance,
-                    balancePaise = MoneyPaise.toPaise(balance),
-                    currency = currency
+            runCatching {
+                repository.addAccount(
+                    AccountEntity(
+                        name = name.trim(),
+                        accountType = type.trim().ifBlank { "Bank" },
+                        balance = balance,
+                        balancePaise = MoneyPaise.toPaise(balance),
+                        currency = currency,
+                        institution = institution.trim(),
+                        accountNumber = accountNumber.trim(),
+                        notes = notes.trim()
+                    )
                 )
-            )
-            statusMessage.value = "Account saved"
+            }.onSuccess {
+                statusMessage.value = "Wallet saved successfully"
+            }.onFailure {
+                statusMessage.value = it.message ?: "Failed to save wallet"
+            }
         }
     }
 
-    fun addTransaction(
+    fun saveOrUpdateTransaction(
+        id: Long?,
         accountId: Long,
         type: String,
         amount: Double,
@@ -132,22 +190,119 @@ class NativeTracmioViewModel(
     ) {
         viewModelScope.launch {
             runCatching {
+                if (id != null && id > 0L) {
+                    val existing = uiState.value.transactions.firstOrNull { it.id == id }
+                    if (existing != null) {
+                        repository.updateTransaction(
+                            existing.copy(
+                                accountId = accountId,
+                                type = type.uppercase(),
+                                amount = amount,
+                                amountPaise = MoneyPaise.toPaise(amount),
+                                category = category,
+                                note = note,
+                                paymentMethod = paymentMethod,
+                                upiApp = upiApp
+                            )
+                        )
+                        statusMessage.value = "Transaction updated"
+                    }
+                } else {
+                    repository.saveTransaction(
+                        TransactionEntity(
+                            accountId = accountId,
+                            type = type.uppercase(),
+                            amount = amount,
+                            amountPaise = MoneyPaise.toPaise(amount),
+                            category = category,
+                            note = note,
+                            paymentMethod = paymentMethod,
+                            upiApp = upiApp
+                        )
+                    )
+                    statusMessage.value = "Transaction saved"
+                }
+            }.onFailure {
+                statusMessage.value = it.message ?: "Failed to save transaction"
+            }
+        }
+    }
+
+    fun deleteTransaction(transaction: TransactionEntity) {
+        viewModelScope.launch {
+            repository.deleteTransaction(transaction)
+            recentlyDeleted.value = transaction
+            statusMessage.value = "Transaction deleted"
+        }
+    }
+
+    fun undoDeleteTransaction() {
+        val tx = recentlyDeleted.value ?: return
+        viewModelScope.launch {
+            repository.saveTransaction(tx.copy(id = 0L))
+            recentlyDeleted.value = null
+            statusMessage.value = "Transaction restored"
+        }
+    }
+
+    fun transferFunds(fromAccountId: Long, toAccountId: Long, amount: Double) {
+        viewModelScope.launch {
+            runCatching {
                 repository.saveTransaction(
                     TransactionEntity(
-                        accountId = accountId,
-                        type = type.uppercase(),
+                        accountId = fromAccountId,
+                        type = "EXPENSE",
                         amount = amount,
                         amountPaise = MoneyPaise.toPaise(amount),
-                        category = category.trim().ifBlank { "General" },
-                        note = note.trim(),
-                        paymentMethod = paymentMethod,
-                        upiApp = upiApp
+                        category = "Transfer Out",
+                        note = "Transfer to account #$toAccountId",
+                        paymentMethod = "Transfer"
+                    )
+                )
+                repository.saveTransaction(
+                    TransactionEntity(
+                        accountId = toAccountId,
+                        type = "INCOME",
+                        amount = amount,
+                        amountPaise = MoneyPaise.toPaise(amount),
+                        category = "Transfer In",
+                        note = "Transfer from account #$fromAccountId",
+                        paymentMethod = "Transfer"
                     )
                 )
             }.onSuccess {
-                statusMessage.value = "Transaction saved"
+                statusMessage.value = "Transfer completed"
             }.onFailure {
-                statusMessage.value = it.message
+                statusMessage.value = it.message ?: "Transfer failed"
+            }
+        }
+    }
+
+    fun createCustomTracker(
+        name: String,
+        category: String,
+        budget: Double,
+        startDate: String,
+        endDate: String
+    ) {
+        viewModelScope.launch {
+            runCatching {
+                repository.upsertCustomTracker(
+                    CustomTrackerEntity(
+                        stableUid = java.util.UUID.randomUUID().toString(),
+                        name = name.trim(),
+                        trackerType = "CUSTOM",
+                        customTypeName = category.trim(),
+                        budgetAmount = budget,
+                        startDate = startDate,
+                        endDate = endDate,
+                        status = "ACTIVE"
+                    )
+                )
+            }.onSuccess {
+                statusMessage.value = "Custom tracker created"
+            }.onFailure {
+                statusMessage.value = it.message ?: "Failed to create tracker"
             }
         }
     }
@@ -157,11 +312,14 @@ class NativeTracmioViewModel(
     }
 
     companion object {
-        fun factory(repository: FinanceRepository): ViewModelProvider.Factory =
+        fun factory(
+            application: Application,
+            repository: FinanceRepository
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return NativeTracmioViewModel(repository) as T
+                    return NativeTracmioViewModel(application, repository) as T
                 }
             }
     }

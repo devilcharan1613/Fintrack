@@ -6,12 +6,16 @@ import com.tracmio.app.data.TransactionDateTime
 import com.tracmio.app.data.local.AccountEntity
 import com.tracmio.app.data.local.BudgetEntity
 import com.tracmio.app.data.local.CategoryEntity
+import com.tracmio.app.data.local.CustomTrackerEntity
 import com.tracmio.app.data.local.GoalContributionEntity
 import com.tracmio.app.data.local.GoalEntity
 import com.tracmio.app.data.local.LoanEntity
 import com.tracmio.app.data.local.LoanPaymentEntity
 import com.tracmio.app.data.local.PersonEntity
 import com.tracmio.app.data.local.TracmioDatabase
+import com.tracmio.app.data.local.TrackerPersonEntity
+import com.tracmio.app.data.local.TrackerSettlementEntity
+import com.tracmio.app.data.local.TrackerTransactionCrossRefEntity
 import com.tracmio.app.data.local.TransactionEntity
 import kotlinx.coroutines.flow.first
 import org.json.JSONArray
@@ -21,6 +25,7 @@ import java.util.UUID
 class NativeBackupService(private val database: TracmioDatabase) {
     private val accounts = database.accountDao()
     private val finance = database.financeDao()
+    private val trackersDao = database.customTrackerDao()
 
     suspend fun exportJson(): String {
         val accountRows = accounts.getAllAccountsIncludingArchived().first()
@@ -32,10 +37,13 @@ class NativeBackupService(private val database: TracmioDatabase) {
         val loanPaymentRows = finance.allLoanPayments().first()
         val categoryRows = finance.categories().first()
         val personRows = finance.persons().first()
+        val trackerRows = trackersDao.getAllTrackersSync()
+        val allLinks = trackersDao.getAllTrackerLinks()
 
         val root = JSONObject()
         root.put("app", "Tracmio")
-        root.put("version", 3)
+        root.put("version", 4)
+        root.put("exportedAt", System.currentTimeMillis())
 
         root.put("accounts", JSONArray().apply {
             accountRows.forEach { acc ->
@@ -70,6 +78,8 @@ class NativeBackupService(private val database: TracmioDatabase) {
                     put("subcategory", tx.subcategory)
                     put("note", tx.note)
                     put("timestamp", tx.timestamp)
+                    put("date", TransactionDateTime.formatDateInput(tx.timestamp))
+                    put("time", TransactionDateTime.formatTimeInput(tx.timestamp))
                     put("personId", tx.personId ?: JSONObject.NULL)
                     put("transferAccountId", tx.transferAccountId ?: JSONObject.NULL)
                     put("transferId", tx.transferId ?: JSONObject.NULL)
@@ -179,6 +189,64 @@ class NativeBackupService(private val database: TracmioDatabase) {
                     put("name", p.name)
                     put("phone", p.phone)
                     put("notes", p.notes)
+                })
+            }
+        })
+
+        root.put("customTrackers", JSONArray().apply {
+            for (t in trackerRows) {
+                val tLinks = allLinks.filter { it.trackerUid == t.stableUid }
+                val tPeople = trackersDao.getTrackerPeople(t.stableUid)
+                val tSettlements = trackersDao.getTrackerSettlements(t.stableUid)
+                put(JSONObject().apply {
+                    put("stableUid", t.stableUid)
+                    put("name", t.name)
+                    put("trackerType", t.trackerType)
+                    put("customTypeName", t.customTypeName)
+                    put("description", t.description)
+                    put("icon", t.icon)
+                    put("themeColor", t.themeColor)
+                    put("startDate", t.startDate)
+                    put("endDate", t.endDate)
+                    put("budgetAmount", t.budgetAmount)
+                    put("budgetMode", t.budgetMode)
+                    put("currency", t.currency)
+                    put("notes", t.notes)
+                    put("status", t.status)
+                    put("isArchived", t.isArchived)
+                    put("transactionLinks", JSONArray().apply {
+                        tLinks.forEach { lk ->
+                            put(JSONObject().apply {
+                                put("transactionUid", lk.transactionUid)
+                                put("isRefund", lk.isRefund)
+                                put("paidByPersonUid", lk.paidByPersonUid)
+                                put("splitMode", lk.splitMode)
+                            })
+                        }
+                    })
+                    put("people", JSONArray().apply {
+                        tPeople.forEach { p ->
+                            put(JSONObject().apply {
+                                put("personUid", p.personUid)
+                                put("name", p.name)
+                                put("phone", p.phone)
+                                put("notes", p.notes)
+                            })
+                        }
+                    })
+                    put("settlements", JSONArray().apply {
+                        tSettlements.forEach { s ->
+                            put(JSONObject().apply {
+                                put("settlementUid", s.settlementUid)
+                                put("fromPersonUid", s.fromPersonUid)
+                                put("toPersonUid", s.toPersonUid)
+                                put("amount", s.amount)
+                                put("isFullSettlement", s.isFullSettlement)
+                                put("date", s.date)
+                                put("note", s.note)
+                            })
+                        }
+                    })
                 })
             }
         })
@@ -457,6 +525,78 @@ class NativeBackupService(private val database: TracmioDatabase) {
                         isSystem = obj.optBoolean("system", obj.optBoolean("isSystem", false))
                     )
                 )
+            }
+
+            val trackersArr = root.optJSONArray("customTrackers") ?: root.optJSONArray("trackers") ?: JSONArray()
+            for (i in 0 until trackersArr.length()) {
+                val t = trackersArr.optJSONObject(i) ?: continue
+                val tUid = t.optString("stableUid", t.optString("id", "")).ifBlank { UUID.randomUUID().toString() }
+                trackersDao.upsertTracker(
+                    CustomTrackerEntity(
+                        stableUid = tUid,
+                        name = t.optString("name", "Tracker"),
+                        trackerType = t.optString("trackerType", t.optString("type", "Custom")),
+                        customTypeName = t.optString("customTypeName", ""),
+                        description = t.optString("description", ""),
+                        icon = t.optString("icon", "🎯"),
+                        themeColor = t.optString("themeColor", "#00D6A3"),
+                        startDate = t.optString("startDate", ""),
+                        endDate = t.optString("endDate", ""),
+                        budgetAmount = t.optDouble("budgetAmount", t.optDouble("budget", 0.0)),
+                        budgetMode = t.optString("budgetMode", "FIXED"),
+                        currency = t.optString("currency", "₹"),
+                        notes = t.optString("notes", ""),
+                        status = t.optString("status", "ACTIVE"),
+                        isArchived = t.optBoolean("isArchived", false)
+                    )
+                )
+                val linksArr = t.optJSONArray("transactionLinks") ?: JSONArray()
+                for (j in 0 until linksArr.length()) {
+                    val lk = linksArr.optJSONObject(j) ?: continue
+                    val txUid = lk.optString("transactionUid", lk.optString("transactionId", ""))
+                    if (txUid.isNotBlank()) {
+                        trackersDao.linkTransactionToTracker(
+                            TrackerTransactionCrossRefEntity(
+                                trackerUid = tUid,
+                                transactionUid = txUid,
+                                isRefund = lk.optBoolean("isRefund", false),
+                                paidByPersonUid = lk.optString("paidByPersonUid", ""),
+                                splitMode = lk.optString("splitMode", "EQUAL")
+                            )
+                        )
+                    }
+                }
+                val peopleArr = t.optJSONArray("people") ?: JSONArray()
+                for (j in 0 until peopleArr.length()) {
+                    val p = peopleArr.optJSONObject(j) ?: continue
+                    val pUid = p.optString("personUid", p.optString("id", "")).ifBlank { "$tUid-p-$j" }
+                    trackersDao.upsertTrackerPerson(
+                        TrackerPersonEntity(
+                            personUid = pUid,
+                            trackerUid = tUid,
+                            name = p.optString("name", "Member"),
+                            phone = p.optString("phone", ""),
+                            notes = p.optString("notes", "")
+                        )
+                    )
+                }
+                val settlementsArr = t.optJSONArray("settlements") ?: JSONArray()
+                for (j in 0 until settlementsArr.length()) {
+                    val s = settlementsArr.optJSONObject(j) ?: continue
+                    val sUid = s.optString("settlementUid", s.optString("id", "")).ifBlank { "$tUid-s-$j" }
+                    trackersDao.upsertTrackerSettlement(
+                        TrackerSettlementEntity(
+                            settlementUid = sUid,
+                            trackerUid = tUid,
+                            fromPersonUid = s.optString("fromPersonUid", ""),
+                            toPersonUid = s.optString("toPersonUid", ""),
+                            amount = s.optDouble("amount", 0.0),
+                            isFullSettlement = s.optBoolean("isFullSettlement", false),
+                            date = s.optString("date", ""),
+                            note = s.optString("note", "")
+                        )
+                    )
+                }
             }
         }
     }

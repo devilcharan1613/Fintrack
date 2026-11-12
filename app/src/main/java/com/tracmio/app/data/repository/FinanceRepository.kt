@@ -5,22 +5,30 @@ import com.tracmio.app.data.MoneyPaise
 import com.tracmio.app.data.local.AccountEntity
 import com.tracmio.app.data.local.BudgetEntity
 import com.tracmio.app.data.local.CategoryEntity
+import com.tracmio.app.data.local.CustomTrackerEntity
 import com.tracmio.app.data.local.GoalContributionEntity
 import com.tracmio.app.data.local.GoalEntity
 import com.tracmio.app.data.local.LoanEntity
 import com.tracmio.app.data.local.LoanPaymentEntity
 import com.tracmio.app.data.local.PersonEntity
 import com.tracmio.app.data.local.TracmioDatabase
+import com.tracmio.app.data.local.TrackerActivityLogEntity
+import com.tracmio.app.data.local.TrackerAttachmentEntity
+import com.tracmio.app.data.local.TrackerPersonEntity
+import com.tracmio.app.data.local.TrackerSettlementEntity
+import com.tracmio.app.data.local.TrackerTransactionCrossRefEntity
 import com.tracmio.app.data.local.TransactionEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.util.UUID
 
-class FinanceRepository(private val database: TracmioDatabase) {
+class FinanceRepository(val database: TracmioDatabase) {
     private val accounts = database.accountDao()
     private val finance = database.financeDao()
+    private val customTrackerDao = database.customTrackerDao()
 
     val accountList: Flow<List<AccountEntity>> = accounts.getAllAccounts()
+    val allAccountsIncludingArchived: Flow<List<AccountEntity>> = accounts.getAllAccountsIncludingArchived()
     val transactions: Flow<List<TransactionEntity>> = finance.transactions()
     val budgets: Flow<List<BudgetEntity>> = finance.budgets()
     val goals: Flow<List<GoalEntity>> = finance.goals()
@@ -30,20 +38,48 @@ class FinanceRepository(private val database: TracmioDatabase) {
     val categories: Flow<List<CategoryEntity>> = finance.categories()
     val persons: Flow<List<PersonEntity>> = finance.persons()
 
+    val activeTrackers: Flow<List<CustomTrackerEntity>> = customTrackerDao.getActiveTrackers()
+    val archivedTrackers: Flow<List<CustomTrackerEntity>> = customTrackerDao.getArchivedTrackers()
+    val trackerLinks: Flow<List<TrackerTransactionCrossRefEntity>> = customTrackerDao.observeAllTrackerLinks()
+    val trackerPeople: Flow<List<TrackerPersonEntity>> = customTrackerDao.observeAllTrackerPeople()
+    val trackerSettlements: Flow<List<TrackerSettlementEntity>> = customTrackerDao.observeAllTrackerSettlements()
+    val trackerAttachments: Flow<List<TrackerAttachmentEntity>> = customTrackerDao.observeAllTrackerAttachments()
+
     suspend fun seedDefaultCategories() {
-        if (categories.first().isNotEmpty()) return
+        val current = categories.first()
+        if (current.isNotEmpty()) return
         listOf(
-            "Food & Dining" to "EXPENSE",
-            "Transport" to "EXPENSE",
-            "Shopping" to "EXPENSE",
-            "Bills & Utilities" to "EXPENSE",
-            "Health" to "EXPENSE",
-            "Entertainment" to "EXPENSE",
-            "Salary" to "INCOME",
-            "Business" to "INCOME",
-            "Other income" to "INCOME"
-        ).forEach { (name, type) ->
-            finance.insertCategory(CategoryEntity(name = name, type = type, isSystem = true))
+            Triple("Food & Dining", "EXPENSE", "🍔"),
+            Triple("Groceries", "EXPENSE", "🛒"),
+            Triple("Transport", "EXPENSE", "🚕"),
+            Triple("Shopping", "EXPENSE", "🛍️"),
+            Triple("Bills & Utilities", "EXPENSE", "⚡"),
+            Triple("Rent & Housing", "EXPENSE", "🏠"),
+            Triple("Health", "EXPENSE", "💊"),
+            Triple("Entertainment", "EXPENSE", "🎬"),
+            Triple("Education", "EXPENSE", "🎓"),
+            Triple("Travel", "EXPENSE", "✈️"),
+            Triple("Salary", "INCOME", "💼"),
+            Triple("Business", "INCOME", "📈"),
+            Triple("Freelance", "INCOME", "💻"),
+            Triple("Other Income", "INCOME", "💰")
+        ).forEach { (name, type, icon) ->
+            finance.insertCategory(CategoryEntity(name = name, type = type, icon = icon, isSystem = true))
+        }
+    }
+
+    suspend fun ensureDefaultAccountIfEmpty() {
+        val current = accounts.getAllAccountsIncludingArchived().first()
+        if (current.isEmpty()) {
+            accounts.insertAccount(
+                AccountEntity(
+                    name = "Primary Cash Wallet",
+                    accountType = "Cash",
+                    balance = 0.0,
+                    balancePaise = 0L,
+                    currency = "INR"
+                )
+            )
         }
     }
 
@@ -51,12 +87,33 @@ class FinanceRepository(private val database: TracmioDatabase) {
     val income: Flow<Double> = finance.totalIncome()
     val expense: Flow<Double> = finance.totalExpense()
 
-    suspend fun addAccount(account: AccountEntity) = accounts.insertAccount(
-        account.copy(balancePaise = MoneyPaise.toPaise(account.balance))
-    )
+    /**
+     * Adds a new account while preventing duplicate accounts with the same name & type.
+     */
+    suspend fun addAccount(account: AccountEntity): Long {
+        val cleanName = account.name.trim()
+        require(cleanName.isNotEmpty()) { "Account name cannot be empty" }
+        val cleanType = account.accountType.trim().ifBlank { "Bank" }
+        val existing = accounts.getAllAccountsIncludingArchived().first().firstOrNull {
+            !it.isArchived &&
+                it.name.equals(cleanName, ignoreCase = true) &&
+                it.accountType.equals(cleanType, ignoreCase = true)
+        }
+        require(existing == null) { "An account named '$cleanName' ($cleanType) already exists" }
+
+        return accounts.insertAccount(
+            account.copy(
+                name = cleanName,
+                accountType = cleanType,
+                balancePaise = MoneyPaise.toPaise(account.balance)
+            )
+        )
+    }
 
     suspend fun updateAccount(account: AccountEntity) = accounts.updateAccount(
         account.copy(
+            name = account.name.trim().ifBlank { "Account" },
+            accountType = account.accountType.trim().ifBlank { "Bank" },
             balancePaise = MoneyPaise.toPaise(account.balance),
             updatedAt = System.currentTimeMillis()
         )
@@ -67,19 +124,37 @@ class FinanceRepository(private val database: TracmioDatabase) {
     suspend fun saveTransaction(transaction: TransactionEntity): Long {
         require(transaction.amount > 0) { "Transaction amount must be positive" }
         require(transaction.category.isNotBlank()) { "Transaction category is required" }
-        require(accounts.getAccountById(transaction.accountId) != null) { "Account does not exist" }
+        require(accounts.getAccountById(transaction.accountId) != null) { "Selected account does not exist" }
         return finance.insertTransaction(
-            transaction.copy(amountPaise = MoneyPaise.toPaise(transaction.amount))
+            transaction.copy(
+                amountPaise = MoneyPaise.toPaise(transaction.amount)
+            )
         )
     }
 
+    /**
+     * Updates the existing transaction in-place by primary ID and stableUid without creating duplicates.
+     */
     suspend fun updateTransaction(transaction: TransactionEntity) {
+        require(transaction.id > 0L) { "Cannot update transaction without a valid ID" }
         require(transaction.amount > 0) { "Transaction amount must be positive" }
+        require(transaction.category.isNotBlank()) { "Transaction category is required" }
+        require(accounts.getAccountById(transaction.accountId) != null) { "Selected account does not exist" }
+
+        val updatedEntity = transaction.copy(
+            amountPaise = MoneyPaise.toPaise(transaction.amount)
+        )
         database.withTransaction {
-            if (transaction.transferId != null) finance.deleteTransfer(transaction.transferId)
-            finance.insertTransaction(
-                transaction.copy(amountPaise = MoneyPaise.toPaise(transaction.amount))
-            )
+            val existing = finance.getTransactionById(transaction.id)
+            if (existing != null) {
+                finance.updateTransaction(
+                    updatedEntity.copy(
+                        stableUid = existing.stableUid.ifBlank { transaction.stableUid }
+                    )
+                )
+            } else {
+                finance.insertTransaction(updatedEntity)
+            }
         }
     }
 
@@ -296,12 +371,115 @@ class FinanceRepository(private val database: TracmioDatabase) {
 
     fun loanPayments(loanId: Long): Flow<List<LoanPaymentEntity>> = finance.loanPayments(loanId)
 
-    suspend fun addCategory(category: CategoryEntity) = finance.insertCategory(category)
+    suspend fun addCategory(category: CategoryEntity): Long {
+        val cleanName = category.name.trim()
+        require(cleanName.isNotEmpty()) { "Category name is required" }
+        val existing = categories.first().firstOrNull {
+            it.name.equals(cleanName, ignoreCase = true) && it.type.equals(category.type, ignoreCase = true)
+        }
+        if (existing != null) {
+            finance.updateCategory(existing.copy(icon = category.icon.ifBlank { existing.icon }))
+            return existing.id
+        }
+        return finance.insertCategory(category.copy(name = cleanName))
+    }
+
     suspend fun updateCategory(category: CategoryEntity) = finance.updateCategory(category)
+
+    /**
+     * Protects categories that are currently referenced by transactions or budgets.
+     */
+    suspend fun deleteCategorySafely(category: CategoryEntity): Result<String> {
+        val txCount = transactions.first().count { it.category.equals(category.name, ignoreCase = true) }
+        val budgetCount = budgets.first().count { it.category.equals(category.name, ignoreCase = true) }
+        if (txCount > 0 || budgetCount > 0) {
+            return Result.failure(
+                IllegalStateException(
+                    "Category '${category.name}' is protected because it is used by $txCount transaction(s) and $budgetCount budget(s)."
+                )
+            )
+        }
+        finance.deleteCategory(category)
+        return Result.success("Category '${category.name}' deleted.")
+    }
+
     suspend fun deleteCategory(category: CategoryEntity) = finance.deleteCategory(category)
-    suspend fun addPerson(person: PersonEntity) = finance.insertPerson(person)
+
+    suspend fun addPerson(person: PersonEntity): Long {
+        val cleanName = person.name.trim()
+        require(cleanName.isNotEmpty()) { "Person name is required" }
+        return finance.insertPerson(person.copy(name = cleanName))
+    }
+
     suspend fun updatePerson(person: PersonEntity) = finance.updatePerson(person)
     suspend fun deletePerson(person: PersonEntity) = finance.deletePerson(person)
+
+    // Custom Trackers Operations
+    suspend fun upsertCustomTracker(tracker: CustomTrackerEntity): Long {
+        val now = System.currentTimeMillis()
+        val id = customTrackerDao.upsertTracker(tracker.copy(updatedAt = now))
+        customTrackerDao.insertActivityLog(
+            TrackerActivityLogEntity(
+                logUid = UUID.randomUUID().toString(),
+                trackerUid = tracker.stableUid,
+                actionType = "UPSERT",
+                description = "Saved tracker '${tracker.name}'",
+                timestamp = now
+            )
+        )
+        return id
+    }
+
+    suspend fun archiveCustomTracker(trackerUid: String, archived: Boolean) {
+        val status = if (archived) "ARCHIVED" else "ACTIVE"
+        customTrackerDao.setTrackerArchived(trackerUid, archived, status)
+    }
+
+    suspend fun deleteCustomTracker(trackerUid: String) {
+        customTrackerDao.deleteTrackerByUid(trackerUid)
+    }
+
+    suspend fun linkTransactionToTracker(
+        trackerUid: String,
+        transactionUid: String,
+        isRefund: Boolean = false,
+        paidByPersonUid: String = "",
+        splitMode: String = "EQUAL"
+    ) {
+        customTrackerDao.linkTransactionToTracker(
+            TrackerTransactionCrossRefEntity(
+                trackerUid = trackerUid,
+                transactionUid = transactionUid,
+                isRefund = isRefund,
+                paidByPersonUid = paidByPersonUid,
+                splitMode = splitMode
+            )
+        )
+    }
+
+    suspend fun unlinkTransactionFromTracker(trackerUid: String, transactionUid: String) {
+        customTrackerDao.unlinkTransactionFromTracker(trackerUid, transactionUid)
+    }
+
+    suspend fun upsertTrackerPerson(person: TrackerPersonEntity) {
+        customTrackerDao.upsertTrackerPerson(person)
+    }
+
+    suspend fun deleteTrackerPerson(personUid: String) {
+        customTrackerDao.deleteTrackerPerson(personUid)
+    }
+
+    suspend fun addTrackerSettlement(settlement: TrackerSettlementEntity) {
+        customTrackerDao.upsertTrackerSettlement(settlement)
+    }
+
+    suspend fun addTrackerAttachment(attachment: TrackerAttachmentEntity) {
+        customTrackerDao.upsertTrackerAttachment(attachment)
+    }
+
+    suspend fun deleteTrackerAttachment(attachmentUid: String) {
+        customTrackerDao.deleteTrackerAttachment(attachmentUid)
+    }
 
     suspend fun exportJson(): String = NativeBackupService(database).exportJson()
 

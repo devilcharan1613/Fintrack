@@ -16,7 +16,7 @@ class NativeTracmioActivity : ComponentActivity() {
         val repository = FinanceRepository(database)
         val viewModel = ViewModelProvider(
             this,
-            NativeTracmioViewModel.factory(repository)
+            NativeTracmioViewModel.factory(application, repository)
         )[NativeTracmioViewModel::class.java]
 
         setContent {

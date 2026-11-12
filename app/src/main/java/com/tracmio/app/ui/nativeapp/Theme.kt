@@ -7,9 +7,9 @@ import androidx.compose.ui.graphics.Color
 
 private val TracmioDarkColorScheme = darkColorScheme(
     primary = Color(0xFF00D6A3),
-    onPrimary = Color(0xFF042119),
-    primaryContainer = Color(0xFF073B31),
-    onPrimaryContainer = Color(0xFF8FFFE0),
+    onPrimary = Color(0xFF041F18),
+    primaryContainer = Color(0xFF09392E),
+    onPrimaryContainer = Color(0xFFD8FFF3),
     secondary = Color(0xFF00A9C7),
     onSecondary = Color(0xFF041E24),
     tertiary = Color(0xFFF5A623),
@@ -18,12 +18,14 @@ private val TracmioDarkColorScheme = darkColorScheme(
     surface = Color(0xFF101724),
     onSurface = Color(0xFFF5F7FA),
     surfaceVariant = Color(0xFF182235),
-    onSurfaceVariant = Color(0xFF929BAA),
+    onSurfaceVariant = Color(0xFF98A3B5),
     error = Color(0xFFEF4444)
 )
 
 @Composable
-fun TracmioNativeTheme(content: @Composable () -> Unit) {
+fun TracmioNativeTheme(
+    content: @Composable () -> Unit
+) {
     MaterialTheme(
         colorScheme = TracmioDarkColorScheme,
         content = content

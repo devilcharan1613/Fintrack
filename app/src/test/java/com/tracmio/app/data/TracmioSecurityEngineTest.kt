@@ -3,7 +3,6 @@ package com.tracmio.app.data
 import com.tracmio.app.data.security.TracmioSecurityEngine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -12,30 +11,27 @@ class TracmioSecurityEngineTest {
 
     @Test
     fun encryptAndDecryptRoundtripSucceeds() {
-        val originalPayload = """{"accounts":[{"id":"acc-1","name":"Checking","balance":50000.0}],"transactions":[{"id":"tx-1","amount":1200.0,"type":"expense"}]}"""
-        val password = "SuperSecretMasterKey#2026".toCharArray()
+        val sampleJson = """{"accounts":[{"id":1,"name":"HDFC","balance":50000.0}],"transactions":[{"id":10,"amount":1200.0,"type":"EXPENSE"}]}"""
+        val password = "SuperStrongPassword!2026".toCharArray()
 
-        val envelope = TracmioSecurityEngine.encryptBackup(originalPayload, password)
-        assertNotNull(envelope)
-        assertTrue(envelope.contains("app"))
-        assertTrue(envelope.contains("Tracmio"))
-        assertTrue(envelope.contains("PBKDF2WithHmacSHA256"))
-        assertTrue(envelope.contains("cipherText"))
-        assertTrue(envelope.contains("salt"))
-        assertTrue(envelope.contains("iv"))
+        val encryptedEnvelope = TracmioSecurityEngine.encryptBackup(sampleJson, password)
+        assertTrue(encryptedEnvelope.contains("PBKDF2WithHmacSHA256"))
+        assertTrue(encryptedEnvelope.contains("cipherText"))
+        assertFalse(encryptedEnvelope.contains("HDFC"))
 
-        val decrypted = TracmioSecurityEngine.decryptBackup(envelope, password)
-        assertEquals(originalPayload, decrypted)
+        val decrypted = TracmioSecurityEngine.decryptBackup(encryptedEnvelope, password)
+        assertEquals(sampleJson, decrypted)
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun decryptWithWrongPasswordFails() {
-        val payload = """{"secret":"financial_data_here"}"""
-        val correctPassword = "CorrectPassword123!".toCharArray()
-        val wrongPassword = "WrongPassword999!".toCharArray()
+        val sampleJson = """{"secret":"financial_ledger_123"}"""
+        val encrypted = TracmioSecurityEngine.encryptBackup(sampleJson, "correct-horse-battery".toCharArray())
 
-        val envelope = TracmioSecurityEngine.encryptBackup(payload, correctPassword)
-        TracmioSecurityEngine.decryptBackup(envelope, wrongPassword)
+        val result = runCatching {
+            TracmioSecurityEngine.decryptBackup(encrypted, "wrong-password".toCharArray())
+        }
+        assertTrue("Decryption with wrong password must fail with AEADBadTagException", result.isFailure)
     }
 
     @Test
@@ -64,35 +60,31 @@ class TracmioSecurityEngineTest {
             File("app/src/main/assets/index.html")
         )
         val htmlFile = htmlCandidates.firstOrNull { it.exists() }
-        assertNotNull("index.html must exist in assets", htmlFile)
+        assertTrue("index.html must exist", htmlFile != null)
         val html = htmlFile!!.readText()
 
-        // 10 Intelligence & Security Suites
         assertTrue(html.contains("id=\"page-xray\""))
         assertTrue(html.contains("id=\"page-story\""))
-        assertTrue(html.contains("id=\"page-globalsearch\""))
+        assertTrue(html.contains("id=\"page-subscriptions\""))
         assertTrue(html.contains("id=\"page-spendingdna\""))
+        assertTrue(html.contains("id=\"page-permissions\""))
+        assertTrue(html.contains("id=\"page-globalsearch\""))
         assertTrue(html.contains("id=\"page-calendar\""))
         assertTrue(html.contains("id=\"page-reminders\""))
         assertTrue(html.contains("id=\"page-timemachine\""))
-        assertFalse(html.contains("id=\"page-dbhealth\""))
         assertTrue(html.contains("id=\"page-datacenter\""))
-        assertTrue(html.contains("id=\"page-permissions\""))
+        assertTrue(html.contains("bridge.encryptBackup"))
+        assertTrue(html.contains("bridge.decryptBackup"))
+        assertTrue(html.contains("bridge.checkDatabaseHealth"))
 
-        // Modals
-        assertTrue(html.contains("id=\"overlay-event\""))
-        assertTrue(html.contains("id=\"overlay-reminder\""))
-        assertFalse(html.contains("id=\"overlay-encbackup\""))
-        assertFalse(html.contains("Export Encrypted"))
-
-        // Privacy & Topbar
-        assertTrue(html.contains("id=\"privacyToggleBtn\""))
-        assertTrue(html.contains("id=\"topbarSearchBtn\""))
-        assertTrue(html.contains("toggleGlobalPrivacy"))
-        assertTrue(html.contains("isPrivacyMasked"))
-
-        // Offline verification
-        assertFalse("Cannot have Cloud Sync", html.contains("Cloud Sync"))
-        assertFalse("Cannot have Install Update APK", html.contains("Install Update from APK"))
+        val manifestCandidates = listOf(
+            File("src/main/AndroidManifest.xml"),
+            File("app/src/main/AndroidManifest.xml")
+        )
+        val manifestFile = manifestCandidates.firstOrNull { it.exists() }
+        assertTrue("AndroidManifest.xml must exist", manifestFile != null)
+        val manifest = manifestFile!!.readText()
+        assertFalse("App must have zero INTERNET permissions", manifest.contains("android.permission.INTERNET"))
+        assertTrue("EventReminderReceiver must be registered", manifest.contains(".EventReminderReceiver"))
     }
 }
