@@ -610,7 +610,8 @@ class MainActivity : ComponentActivity() {
                     val bundle = LegacyMigrationBundleExporter.create(
                         database = database,
                         legacyPayloadJson = legacyPayloadJson,
-                        sourcePackage = packageName
+                        sourcePackage = packageName,
+                        appFilesDir = filesDir
                     )
                     TracmioSecurityEngine.encryptBackup(bundle, password.toCharArray())
                 }
