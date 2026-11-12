@@ -2,6 +2,7 @@ package com.tracmio.app
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -9,15 +10,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.print.PrintAttributes
-import android.print.PrintManager
 import android.provider.OpenableColumns
 import android.util.Base64
+import android.print.PrintAttributes
+import android.print.PrintManager
 import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -39,7 +39,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.tracmio.app.data.XlsxExporter
 import com.tracmio.app.data.local.CustomTrackerEntity
-import com.tracmio.app.data.local.TracmioDatabase
 import com.tracmio.app.data.local.TrackerActivityLogEntity
 import com.tracmio.app.data.local.TrackerAttachmentEntity
 import com.tracmio.app.data.local.TrackerCustomFieldEntity
@@ -47,13 +46,12 @@ import com.tracmio.app.data.local.TrackerCustomValueEntity
 import com.tracmio.app.data.local.TrackerPersonEntity
 import com.tracmio.app.data.local.TrackerSettlementEntity
 import com.tracmio.app.data.local.TrackerTransactionCrossRefEntity
+import com.tracmio.app.data.local.TracmioDatabase
 import com.tracmio.app.data.security.TracmioSecurityEngine
-import android.app.AlarmManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.charset.StandardCharsets
 
@@ -337,6 +335,29 @@ class MainActivity : ComponentActivity() {
         maybeRequestInitialPermissions()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (::webView.isInitialized) {
+            webView.onResume()
+            webView.resumeTimers()
+            if (pageLoaded) {
+                webView.post {
+                    webView.evaluateJavascript(
+                        "window.requestAnimationFrame && window.requestAnimationFrame(function(){ if(window.renderCurrentPage) window.renderCurrentPage(); });",
+                        null
+                    )
+                }
+            }
+        }
+    }
+
+    override fun onPause() {
+        if (::webView.isInitialized) {
+            webView.onPause()
+        }
+        super.onPause()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -351,232 +372,134 @@ class MainActivity : ComponentActivity() {
         val action = pendingQuickAction ?: return
         if (!pageLoaded || !::webView.isInitialized) return
         pendingQuickAction = null
-        val quoted = JSONObject.quote(action)
         webView.post {
-            webView.evaluateJavascript(
-                "window.tracmioHandleNotificationAction && window.tracmioHandleNotificationAction($quoted);",
-                null
-            )
+            webView.evaluateJavascript("window.tracmioQuickAction && window.tracmioQuickAction('${action.replace("'", "\\'")}');", null)
         }
     }
 
     private fun maybeRequestInitialPermissions() {
-        val prefs = getSharedPreferences("tracmio_permissions", Context.MODE_PRIVATE)
-        if (prefs.getBoolean("initial_prompt_shown", false)) return
-        prefs.edit().putBoolean("initial_prompt_shown", true).apply()
-        requestRuntimePermissions(includeNotifications = true, includeMedia = true)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasNotif = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            if (!hasNotif) {
+                requestPermissionsLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
+            }
+        }
     }
 
     private fun requestRuntimePermissions(includeNotifications: Boolean, includeMedia: Boolean) {
-        val needed = mutableListOf<String>()
+        val permissions = mutableListOf<String>()
         if (includeNotifications && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                needed += Manifest.permission.POST_NOTIFICATIONS
-            }
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
         if (includeMedia) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
-                    needed += Manifest.permission.READ_MEDIA_IMAGES
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
-                    ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) != PackageManager.PERMISSION_GRANTED
-                ) {
-                    needed += Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
-                }
+                permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
             } else {
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    needed += Manifest.permission.READ_EXTERNAL_STORAGE
-                }
+                permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
         }
-        if (needed.isNotEmpty()) {
-            requestPermissionsLauncher.launch(needed.toTypedArray())
+        if (permissions.isNotEmpty()) {
+            requestPermissionsLauncher.launch(permissions.toTypedArray())
         }
     }
 
     private fun handleSelectedBackgroundImage(uri: Uri) {
         runCatching {
-            val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return
-            val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOpts)
-            val maxDim = 960
-            var sampleSize = 1
-            while ((boundsOpts.outWidth / sampleSize) > maxDim || (boundsOpts.outHeight / sampleSize) > maxDim) {
-                sampleSize *= 2
-            }
-            val decodeOpts = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-            val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOpts) ?: return
-            val scale = minOf(
-                maxDim.toFloat() / decoded.width.coerceAtLeast(1),
-                maxDim.toFloat() / decoded.height.coerceAtLeast(1),
-                1f
-            )
-            val scaled = if (scale < 1f) {
-                Bitmap.createScaledBitmap(
-                    decoded,
-                    (decoded.width * scale).toInt().coerceAtLeast(1),
-                    (decoded.height * scale).toInt().coerceAtLeast(1),
-                    true
-                )
-            } else {
-                decoded
-            }
-
-            val out = ByteArrayOutputStream()
-            scaled.compress(Bitmap.CompressFormat.JPEG, 60, out)
-            val jpegBytes = out.toByteArray()
-            File(filesDir, "tracmio_custom_bg.jpg").writeBytes(jpegBytes)
-            val base64 = Base64.encodeToString(jpegBytes, Base64.NO_WRAP)
-            val dataUrl = "data:image/jpeg;base64,$base64"
-            val quoted = JSONObject.quote(dataUrl)
-            webView.post {
-                webView.evaluateJavascript("window.setTracmioBackgroundFromNative($quoted);", null)
+            contentResolver.openInputStream(uri)?.use { stream ->
+                val bytes = stream.readBytes()
+                val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                val dataUri = "data:image/jpeg;base64,$base64"
+                val quoted = JSONObject.quote(dataUri)
+                webView.post {
+                    webView.evaluateJavascript("window.__setTracmioBackgroundDataUri && window.__setTracmioBackgroundDataUri($quoted);", null)
+                }
+                Toast.makeText(this, "Background wallpaper applied", Toast.LENGTH_SHORT).show()
             }
         }.onFailure {
-            Toast.makeText(this, "Could not load photo: ${it.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun handleCapturedTrackerCameraPhoto(bitmap: Bitmap) {
-        runCatching {
-            val dir = File(filesDir, "tracker_attachments").apply { mkdirs() }
-            val ts = System.currentTimeMillis()
-            val fileName = "receipt_camera_$ts.jpg"
-            val outFile = File(dir, fileName)
-            val out = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 82, out)
-            val bytes = out.toByteArray()
-            outFile.writeBytes(bytes)
-            val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-            val payload = JSONObject().apply {
-                put("id", "att-$ts")
-                put("fileName", fileName)
-                put("mimeType", "image/jpeg")
-                put("localPath", outFile.absolutePath)
-                put("fileSizeBytes", bytes.size)
-                put("dataUrl", "data:image/jpeg;base64,$base64")
-                put("addedAt", ts)
-            }
-            val quoted = JSONObject.quote(payload.toString())
-            webView.post {
-                webView.evaluateJavascript("window.onTrackerAttachmentPicked && window.onTrackerAttachmentPicked($quoted);", null)
-            }
-        }.onFailure {
-            Toast.makeText(this, "Camera capture failed: ${it.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Failed to load image: ${it.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun handleCapturedBackgroundImage(bitmap: Bitmap) {
         runCatching {
-            val maxDim = 960
-            val scale = minOf(
-                maxDim.toFloat() / bitmap.width.coerceAtLeast(1),
-                maxDim.toFloat() / bitmap.height.coerceAtLeast(1),
-                1f
-            )
-            val scaled = if (scale < 1f) {
-                Bitmap.createScaledBitmap(
-                    bitmap,
-                    (bitmap.width * scale).toInt().coerceAtLeast(1),
-                    (bitmap.height * scale).toInt().coerceAtLeast(1),
-                    true
-                )
-            } else bitmap
-            val out = ByteArrayOutputStream()
-            scaled.compress(Bitmap.CompressFormat.JPEG, 60, out)
-            val bytes = out.toByteArray()
-            File(filesDir, "tracmio_custom_bg.jpg").writeBytes(bytes)
+            val stream = java.io.ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+            val bytes = stream.toByteArray()
             val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-            val dataUrl = "data:image/jpeg;base64,$base64"
-            val quoted = JSONObject.quote(dataUrl)
+            val dataUri = "data:image/jpeg;base64,$base64"
+            val quoted = JSONObject.quote(dataUri)
             webView.post {
-                webView.evaluateJavascript("window.setTracmioBackgroundFromNative && window.setTracmioBackgroundFromNative($quoted);", null)
+                webView.evaluateJavascript("window.__setTracmioBackgroundDataUri && window.__setTracmioBackgroundDataUri($quoted);", null)
             }
+            Toast.makeText(this, "Camera background applied", Toast.LENGTH_SHORT).show()
         }.onFailure {
-            Toast.makeText(this, "Camera photo failed: ${it.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Failed to capture photo: ${it.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun handlePickedTrackerAttachmentUri(uri: Uri) {
         runCatching {
-            val mimeType = contentResolver.getType(uri) ?: "application/octet-stream"
-            var displayName = "attachment_${System.currentTimeMillis()}"
-            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (nameIndex >= 0 && cursor.moveToFirst()) {
-                    displayName = cursor.getString(nameIndex) ?: displayName
+            val cursor = contentResolver.query(uri, null, null, null, null)
+            var displayName = "receipt.jpg"
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val nameIdx = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (nameIdx >= 0) {
+                        displayName = it.getString(nameIdx) ?: "receipt.jpg"
+                    }
                 }
             }
-            val rawBytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return
-            val dir = File(filesDir, "tracker_attachments").apply { mkdirs() }
-            val ts = System.currentTimeMillis()
-            val safeFileName = displayName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
-            val storedFile = File(dir, "${ts}_$safeFileName")
-
-            var dataUrl = ""
-            var finalBytes = rawBytes
-            if (mimeType.startsWith("image/")) {
-                val decoded = BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size)
-                if (decoded != null) {
-                    val maxDim = 960
-                    val scale = minOf(
-                        maxDim.toFloat() / decoded.width.coerceAtLeast(1),
-                        maxDim.toFloat() / decoded.height.coerceAtLeast(1),
-                        1f
-                    )
-                    val scaled = if (scale < 1f) {
-                        Bitmap.createScaledBitmap(
-                            decoded,
-                            (decoded.width * scale).toInt().coerceAtLeast(1),
-                            (decoded.height * scale).toInt().coerceAtLeast(1),
-                            true
-                        )
-                    } else decoded
-                    val out = ByteArrayOutputStream()
-                    scaled.compress(Bitmap.CompressFormat.JPEG, 75, out)
-                    finalBytes = out.toByteArray()
-                    dataUrl = "data:image/jpeg;base64," + Base64.encodeToString(finalBytes, Base64.NO_WRAP)
+            contentResolver.openInputStream(uri)?.use { stream ->
+                val bytes = stream.readBytes()
+                val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                val mimeType = contentResolver.getType(uri) ?: "image/jpeg"
+                val json = JSONObject().apply {
+                    put("name", displayName)
+                    put("mimeType", mimeType)
+                    put("data", base64)
+                    put("size", bytes.size)
+                }.toString()
+                val quoted = JSONObject.quote(json)
+                webView.post {
+                    webView.evaluateJavascript("window.__importTrackerAttachmentData && window.__importTrackerAttachmentData($quoted);", null)
                 }
-            }
-            storedFile.writeBytes(finalBytes)
-
-            val payload = JSONObject().apply {
-                put("id", "att-$ts")
-                put("fileName", displayName)
-                put("mimeType", mimeType)
-                put("localPath", storedFile.absolutePath)
-                put("contentUri", uri.toString())
-                put("fileSizeBytes", finalBytes.size)
-                put("dataUrl", dataUrl)
-                put("addedAt", ts)
-            }
-            val quoted = JSONObject.quote(payload.toString())
-            webView.post {
-                webView.evaluateJavascript("window.onTrackerAttachmentPicked && window.onTrackerAttachmentPicked($quoted);", null)
+                Toast.makeText(this, "Attachment added successfully", Toast.LENGTH_SHORT).show()
             }
         }.onFailure {
-            Toast.makeText(this, "Could not attach file: ${it.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Failed to attach file: ${it.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun handleCapturedTrackerCameraPhoto(bitmap: Bitmap) {
+        runCatching {
+            val stream = java.io.ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+            val bytes = stream.toByteArray()
+            val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+            val json = JSONObject().apply {
+                put("name", "camera_capture_${System.currentTimeMillis()}.jpg")
+                put("mimeType", "image/jpeg")
+                put("data", base64)
+                put("size", bytes.size)
+            }.toString()
+            val quoted = JSONObject.quote(json)
+            webView.post {
+                webView.evaluateJavascript("window.__importTrackerAttachmentData && window.__importTrackerAttachmentData($quoted);", null)
+            }
+            Toast.makeText(this, "Camera photo attached", Toast.LENGTH_SHORT).show()
+        }.onFailure {
+            Toast.makeText(this, "Failed to process camera photo: ${it.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun shareFileViaProvider(file: File, mimeType: String, title: String) {
-        runCatching {
-            val contentUri = FileProvider.getUriForFile(
-                this,
-                "${applicationContext.packageName}.fileprovider",
-                file
-            )
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = mimeType
-                putExtra(Intent.EXTRA_STREAM, contentUri)
-                putExtra(Intent.EXTRA_SUBJECT, title)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            startActivity(Intent.createChooser(shareIntent, title))
-        }.onFailure {
-            Toast.makeText(this, "Unable to open Share sheet: ${it.message}", Toast.LENGTH_SHORT).show()
+        val uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = mimeType
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
+        startActivity(Intent.createChooser(intent, title))
     }
 
     inner class TracmioBridge {

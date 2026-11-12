@@ -82,7 +82,8 @@ class TracmioSecurityEngineTest {
         // Modals
         assertTrue(html.contains("id=\"overlay-event\""))
         assertTrue(html.contains("id=\"overlay-reminder\""))
-        assertTrue(html.contains("id=\"overlay-encbackup\""))
+        assertFalse(html.contains("id=\"overlay-encbackup\""))
+        assertFalse(html.contains("Export Encrypted"))
 
         // Privacy & Topbar
         assertTrue(html.contains("id=\"privacyToggleBtn\""))
