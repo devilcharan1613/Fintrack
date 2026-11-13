@@ -123,9 +123,12 @@ class MainActivity : ComponentActivity() {
                         val dataUrl = "data:$mimeType;base64,$b64"
                         val fileName = uri.lastPathSegment?.substringAfterLast('/') ?: "attachment_${System.currentTimeMillis()}"
                         val payload = JSONObject().apply {
+                            put("id", "att-${System.currentTimeMillis()}")
                             put("name", fileName)
+                            put("fileName", fileName)
                             put("mimeType", mimeType)
                             put("size", rawBytes.size)
+                            put("fileSizeBytes", rawBytes.size)
                             put("dataUrl", dataUrl)
                         }.toString()
                         withContext(Dispatchers.Main) {
@@ -241,6 +244,12 @@ class MainActivity : ComponentActivity() {
                     view: WebView?,
                     detail: android.webkit.RenderProcessGoneDetail?
                 ): Boolean {
+                    pageReady = false
+                    view?.post {
+                        runCatching {
+                            view.loadUrl("file:///android_asset/index.html")
+                        }
+                    }
                     return true
                 }
             }
@@ -297,6 +306,26 @@ class MainActivity : ComponentActivity() {
         })
 
         webView.loadUrl("file:///android_asset/index.html")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::webView.isInitialized) {
+            webView.onResume()
+            if (pageReady) {
+                webView.evaluateJavascript("if (window.tracmioOnResume) window.tracmioOnResume();", null)
+            }
+        }
+    }
+
+    override fun onPause() {
+        if (::webView.isInitialized) {
+            if (pageReady) {
+                webView.evaluateJavascript("if (window.tracmioOnPause) window.tracmioOnPause();", null)
+            }
+            webView.onPause()
+        }
+        super.onPause()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -381,7 +410,7 @@ class MainActivity : ComponentActivity() {
                     withContext(Dispatchers.Main) {
                         val quoted = JSONObject.quote(dataUrl)
                         webView.evaluateJavascript(
-                            "if (!localStorage.getItem('tracmio_custom_bg_v1') && window.setTracmioBackgroundFromNative) window.setTracmioBackgroundFromNative($quoted);",
+                            "if (!localStorage.getItem('tracmio_custom_background') && !localStorage.getItem('tracmio_custom_bg_v1') && window.setTracmioBackgroundFromNative) window.setTracmioBackgroundFromNative($quoted);",
                             null
                         )
                     }
@@ -500,19 +529,52 @@ class MainActivity : ComponentActivity() {
         }
 
         @JavascriptInterface
+        fun setReminderUserContext(userName: String?) {
+            TracmioReminderScheduler.setUserName(context, userName ?: "")
+        }
+
+        @JavascriptInterface
         fun scheduleDailyReminder(enabled: Boolean, hour: Int, minute: Int, memeMode: Boolean) {
             TracmioReminderScheduler.update(
                 context = context,
                 enabled = enabled,
                 hour = hour,
                 minute = minute,
-                memeMode = memeMode
+                memeMode = true,
+                alertCategory = "ALL"
             )
+            runOnUiThread {
+                if (!enabled) {
+                    if (::webView.isInitialized && pageReady) {
+                        webView.evaluateJavascript(
+                            "if (window.tracmioReminderPermissionResult) window.tracmioReminderPermissionResult(true, false);",
+                            null
+                        )
+                    }
+                    return@runOnUiThread
+                }
+                val needsRuntimePerm = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.POST_NOTIFICATIONS
+                    ) != PackageManager.PERMISSION_GRANTED
+                if (needsRuntimePerm) {
+                    requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    DailyReminderReceiver.showReminderNotification(context, true)
+                    if (::webView.isInitialized && pageReady) {
+                        webView.evaluateJavascript(
+                            "if (window.tracmioReminderPermissionResult) window.tracmioReminderPermissionResult(true, true);",
+                            null
+                        )
+                    }
+                }
+            }
         }
 
         @JavascriptInterface
         fun scheduleReminder(enabled: Boolean, hour: Int, minute: Int, memeMode: Boolean) {
-            scheduleDailyReminder(enabled, hour, minute, memeMode)
+            scheduleDailyReminder(enabled, hour, minute, true)
         }
 
         @JavascriptInterface
@@ -523,6 +585,16 @@ class MainActivity : ComponentActivity() {
             eventId: String
         ) {
             if (triggerAtMillis <= System.currentTimeMillis()) return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                runOnUiThread {
+                    requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
             val intent = Intent(context, EventReminderReceiver::class.java).apply {
                 putExtra(EventReminderReceiver.EXTRA_TYPE, EventReminderReceiver.TYPE_CALENDAR_EVENT)
@@ -552,6 +624,9 @@ class MainActivity : ComponentActivity() {
             hour: Int,
             minute: Int
         ) {
+            val safeDay = dayOfMonth.coerceIn(1, 28)
+            val safeHour = hour.coerceIn(0, 23)
+            val safeMin = minute.coerceIn(0, 59)
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
             val intent = Intent(context, EventReminderReceiver::class.java).apply {
                 putExtra(EventReminderReceiver.EXTRA_TYPE, EventReminderReceiver.TYPE_MONTHLY_BACKUP)
@@ -570,13 +645,21 @@ class MainActivity : ComponentActivity() {
             )
             if (!enabled) {
                 alarmManager.cancel(pendingIntent)
+                runOnUiThread {
+                    if (::webView.isInitialized && pageReady) {
+                        webView.evaluateJavascript(
+                            "if (window.tracmioScheduleSavedCallback) window.tracmioScheduleSavedCallback(false, $safeDay, $safeHour, $safeMin);",
+                            null
+                        )
+                    }
+                }
                 return
             }
             val now = Calendar.getInstance()
             val target = Calendar.getInstance().apply {
-                set(Calendar.DAY_OF_MONTH, dayOfMonth.coerceIn(1, 28))
-                set(Calendar.HOUR_OF_DAY, hour.coerceIn(0, 23))
-                set(Calendar.MINUTE, minute.coerceIn(0, 59))
+                set(Calendar.DAY_OF_MONTH, safeDay)
+                set(Calendar.HOUR_OF_DAY, safeHour)
+                set(Calendar.MINUTE, safeMin)
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
                 if (!after(now)) {
@@ -585,6 +668,34 @@ class MainActivity : ComponentActivity() {
             }
             runCatching {
                 alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target.timeInMillis, pendingIntent)
+            }
+            val needsPerm = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            runOnUiThread {
+                if (needsPerm) {
+                    requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    val formattedTime = String.format("%02d:%02d", safeHour, safeMin)
+                    val confirmIntent = Intent(context, EventReminderReceiver::class.java).apply {
+                        putExtra(EventReminderReceiver.EXTRA_TYPE, EventReminderReceiver.TYPE_MONTHLY_BACKUP)
+                        putExtra(EventReminderReceiver.EXTRA_TITLE, "Monthly Backup Schedule Active")
+                        putExtra(
+                            EventReminderReceiver.EXTRA_MESSAGE,
+                            "Tracmio will remind you on Day $safeDay at $formattedTime each month to protect your offline data."
+                        )
+                        putExtra(EventReminderReceiver.EXTRA_EVENT_ID, "monthly_backup_confirm")
+                    }
+                    EventReminderReceiver().onReceive(context, confirmIntent)
+                }
+                if (::webView.isInitialized && pageReady) {
+                    webView.evaluateJavascript(
+                        "if (window.tracmioScheduleSavedCallback) window.tracmioScheduleSavedCallback(true, $safeDay, $safeHour, $safeMin);",
+                        null
+                    )
+                }
             }
         }
 
@@ -655,6 +766,7 @@ class MainActivity : ComponentActivity() {
                 JSONObject().apply {
                     put("isHealthy", true)
                     put("pragmaIntegrity", "ok")
+                    put("sqliteIntegrity", "ok")
                     put("foreignKeyErrors", 0)
                     put("accountCount", 0)
                     put("transactionCount", 0)

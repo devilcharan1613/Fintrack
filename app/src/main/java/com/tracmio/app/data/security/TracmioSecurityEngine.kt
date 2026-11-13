@@ -34,6 +34,7 @@ object TracmioSecurityEngine {
         fun toJsonString(): String = JSONObject().apply {
             put("isHealthy", isHealthy)
             put("pragmaIntegrity", pragmaIntegrity)
+            put("sqliteIntegrity", pragmaIntegrity)
             put("foreignKeyErrors", foreignKeyErrors)
             put("accountCount", accountCount)
             put("transactionCount", transactionCount)

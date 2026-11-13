@@ -26,13 +26,7 @@ data class NotificationItem(
 class DailyReminderReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent?) {
-        val prefs = TracmioReminderScheduler.getPrefs(context)
-        val memeMode = intent?.getBooleanExtra(
-            TracmioReminderScheduler.KEY_MEME,
-            prefs.getBoolean(TracmioReminderScheduler.KEY_MEME, true)
-        ) ?: prefs.getBoolean(TracmioReminderScheduler.KEY_MEME, true)
-
-        showReminderNotification(context, memeMode)
+        showReminderNotification(context, true)
         TracmioReminderScheduler.rescheduleFromPrefs(context)
     }
 
@@ -103,7 +97,7 @@ class DailyReminderReceiver : BroadcastReceiver() {
             val prefs = TracmioReminderScheduler.getPrefs(context)
             val categoryPref = prefs.getString(
                 TracmioReminderScheduler.KEY_ALERT_CATEGORY,
-                if (memeMode) "ALL" else "HYGIENE"
+                "ALL"
             ) ?: "ALL"
             val allItems = loadNotificationListFromAssets(context)
             val filtered = when (categoryPref.uppercase()) {
@@ -144,9 +138,20 @@ class DailyReminderReceiver : BroadcastReceiver() {
                 return
             }
 
-            val item = getNextNotification(context, memeMode)
-            val title = if (item.icon.isNotBlank()) "${item.icon} ${item.title}" else item.title
-            val message = item.body.ifBlank { nextMessage(context, memeMode) }
+            val item = getNextNotification(context, true)
+            val userName = TracmioReminderScheduler.getUserName(context)
+            val baseTitle = if (item.icon.isNotBlank()) "${item.icon} ${item.title}" else item.title
+            val title = if (userName.isNotBlank() && !baseTitle.contains(userName, ignoreCase = true)) {
+                "Hey $userName · $baseTitle"
+            } else {
+                baseTitle
+            }
+            val rawMessage = item.body.ifBlank { nextMessage(context, true) }
+            val message = if (userName.isNotBlank() && !rawMessage.contains(userName, ignoreCase = true)) {
+                "$userName, $rawMessage"
+            } else {
+                rawMessage
+            }
             val immutableFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
             val flags = PendingIntent.FLAG_UPDATE_CURRENT or immutableFlag
 

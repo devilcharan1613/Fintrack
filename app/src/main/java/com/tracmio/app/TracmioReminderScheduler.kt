@@ -15,9 +15,18 @@ object TracmioReminderScheduler {
     const val KEY_MEME = "meme_mode"
     const val KEY_ALERT_CATEGORY = "alert_category"
     const val KEY_LAST_NOTIFICATION_INDEX = "last_notification_index"
+    const val KEY_USER_NAME = "user_name"
     private const val REQUEST_CODE = 4102
 
     fun getPrefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    fun setUserName(context: Context, userName: String) {
+        getPrefs(context).edit().putString(KEY_USER_NAME, userName.trim()).apply()
+    }
+
+    fun getUserName(context: Context): String {
+        return getPrefs(context).getString(KEY_USER_NAME, "")?.trim().orEmpty()
+    }
 
     fun update(
         context: Context,
@@ -29,16 +38,17 @@ object TracmioReminderScheduler {
     ) {
         val safeHour = hour.coerceIn(0, 23)
         val safeMinute = minute.coerceIn(0, 59)
+        val internalMemeMode = true
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_ENABLED, enabled)
             .putInt(KEY_HOUR, safeHour)
             .putInt(KEY_MINUTE, safeMinute)
-            .putBoolean(KEY_MEME, memeMode)
+            .putBoolean(KEY_MEME, internalMemeMode)
             .putString(KEY_ALERT_CATEGORY, alertCategory)
             .apply()
         if (enabled) {
-            scheduleNext(context, safeHour, safeMinute, memeMode)
+            scheduleNext(context, safeHour, safeMinute, internalMemeMode)
         } else {
             cancel(context)
         }
@@ -49,7 +59,7 @@ object TracmioReminderScheduler {
         val enabled = prefs.getBoolean(KEY_ENABLED, true)
         val hour = prefs.getInt(KEY_HOUR, 20)
         val minute = prefs.getInt(KEY_MINUTE, 0)
-        val memeMode = prefs.getBoolean(KEY_MEME, true)
+        val memeMode = true
         if (enabled) {
             scheduleNext(context, hour, minute, memeMode)
         }
