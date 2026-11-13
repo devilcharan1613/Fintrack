@@ -84,11 +84,11 @@ import kotlin.math.abs
 
 fun displayAmount(amount: Double, settings: LiquidGlassSettings, decoySeed: Double = 12450.0): String {
     if (settings.stealthModeActive) {
-        val decoy = if (amount == 0.0) 0.0 else (abs(amount) % 1850.0) + decoySeed * 0.1 + 120.0
+        val decoy = if (amount == 0.0) 0.0 else 25.0 + ((abs(amount.toLong()) * 31L + decoySeed.toLong()) % 156L).toDouble()
         val signed = if (amount < 0) -decoy else decoy
-        return MoneyPaise.formatCurrency(signed, masked = false)
+        return MoneyPaise.formatCurrency(signed, masked = false, symbol = settings.currencySymbol)
     }
-    return MoneyPaise.formatCurrency(amount, masked = settings.privacyMaskEnabled)
+    return MoneyPaise.formatCurrency(amount, masked = settings.privacyMaskEnabled, symbol = settings.currencySymbol)
 }
 
 fun evalSimpleMath(expr: String): Double? {

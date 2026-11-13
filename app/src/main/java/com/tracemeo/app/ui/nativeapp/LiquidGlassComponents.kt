@@ -283,7 +283,7 @@ fun GlassCard(
     shape: RoundedCornerShape? = null,
     backgroundColor: Color? = null,
     borderColor: Color? = null,
-    borderWidth: Dp = 1.2.dp,
+    borderWidth: Dp = 1.4.dp,
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
@@ -390,14 +390,7 @@ fun TracmioTopBar(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        palette.surfaceElevated.copy(alpha = 0.86f),
-                        palette.surface.copy(alpha = 0.82f)
-                    )
-                )
-            )
+            .background(palette.surface.copy(alpha = 0.84f))
     ) {
         Row(
             modifier = Modifier
@@ -510,7 +503,7 @@ fun TracmioTopBar(
                             detectTapGestures(
                                 onTap = {
                                     val now = System.currentTimeMillis()
-                                    if (now - lastTapMs <= 800L) {
+                                    if (now - lastTapMs <= 750L) {
                                         tapCount += 1
                                     } else {
                                         tapCount = 1

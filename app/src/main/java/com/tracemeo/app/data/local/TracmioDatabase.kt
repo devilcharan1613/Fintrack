@@ -78,7 +78,7 @@ abstract class TracmioDatabase : RoomDatabase() {
                     MIGRATION_6_7,
                     MIGRATION_7_8,
                     MIGRATION_8_9
-                ).fallbackToDestructiveMigration()
+                ).fallbackToDestructiveMigrationOnDowngrade()
 
                 val sqlCipherLoaded = runCatching {
                     System.loadLibrary("sqlcipher")

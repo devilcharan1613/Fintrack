@@ -104,11 +104,20 @@ fun TransactionsListScreen(
     val filtered = remember(state.transactions, search, typeFilter, filterAccountId, quickRange, fromDate, toDate) {
         val nowCal = Calendar.getInstance()
         val todayStart = (nowCal.clone() as Calendar).apply {
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val yesterdayStart = todayStart - 86_400_000L
+        val weekStart = (nowCal.clone() as Calendar).apply {
+            set(Calendar.DAY_OF_WEEK, firstDayOfWeek)
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0)
         }.timeInMillis
-        val weekStart = todayStart - 6L * 86_400_000L
-        val monthStart = (nowCal.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1); set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0) }.timeInMillis
-        val days30Start = todayStart - 29L * 86_400_000L
+        val last7DaysStart = todayStart - 6L * 86_400_000L
+        val monthStart = (nowCal.clone() as Calendar).apply {
+            set(Calendar.DAY_OF_MONTH, 1); set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0)
+        }.timeInMillis
+        val lastMonthStart = (nowCal.clone() as Calendar).apply {
+            add(Calendar.MONTH, -1); set(Calendar.DAY_OF_MONTH, 1); set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0)
+        }.timeInMillis
         val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
         val fromMs = runCatching { if (fromDate.length == 10) dateFmt.parse(fromDate)?.time else null }.getOrNull()
@@ -124,9 +133,11 @@ fun TransactionsListScreen(
             val matchAcc = filterAccountId == null || tx.accountId == filterAccountId
             val matchRange = when (quickRange) {
                 "TODAY" -> tx.timestamp >= todayStart
-                "WEEK" -> tx.timestamp >= weekStart
+                "YESTERDAY" -> tx.timestamp in yesterdayStart until todayStart
+                "THIS_WEEK" -> tx.timestamp >= weekStart
+                "LAST_7D" -> tx.timestamp >= last7DaysStart
                 "MONTH" -> tx.timestamp >= monthStart
-                "30D" -> tx.timestamp >= days30Start
+                "LAST_MONTH" -> tx.timestamp in lastMonthStart until monthStart
                 else -> true
             }
             val matchCustomDate = (fromMs == null || tx.timestamp >= fromMs) && (toMs == null || tx.timestamp <= toMs)
@@ -205,17 +216,26 @@ fun TransactionsListScreen(
                         }
                         Text("Quick Date Range", style = MaterialTheme.typography.labelMedium, color = palette.primary)
                         Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            listOf("ALL" to "All", "TODAY" to "Today", "WEEK" to "7 Days", "MONTH" to "This Month", "30D" to "30 Days").forEach { (k, lbl) ->
+                            listOf(
+                                "ALL" to "All dates",
+                                "TODAY" to "Today",
+                                "YESTERDAY" to "Yesterday",
+                                "THIS_WEEK" to "This week",
+                                "LAST_7D" to "Last 7 days",
+                                "MONTH" to "This month",
+                                "LAST_MONTH" to "Last month",
+                                "CUSTOM" to "Custom date range"
+                            ).forEach { (k, lbl) ->
                                 FilterChip(selected = quickRange == k, onClick = { quickRange = k }, label = { Text(lbl) })
                             }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(value = fromDate, onValueChange = { fromDate = it }, label = { Text("From YYYY-MM-DD") }, modifier = Modifier.weight(1f))
-                            OutlinedTextField(value = toDate, onValueChange = { toDate = it }, label = { Text("To YYYY-MM-DD") }, modifier = Modifier.weight(1f))
+                            OutlinedTextField(value = fromDate, onValueChange = { fromDate = it; if (it.isNotBlank()) quickRange = "CUSTOM" }, label = { Text("From date (YYYY-MM-DD)") }, modifier = Modifier.weight(1f))
+                            OutlinedTextField(value = toDate, onValueChange = { toDate = it; if (it.isNotBlank()) quickRange = "CUSTOM" }, label = { Text("To date (YYYY-MM-DD)") }, modifier = Modifier.weight(1f))
                         }
                         TextButton(onClick = {
                             filterAccountId = null; quickRange = "ALL"; fromDate = ""; toDate = ""; typeFilter = "ALL"; search = ""
-                        }) { Text("Clear filters", color = Color(0xFFEF4444)) }
+                        }) { Text("Clear filters", color = ThemePresets.AURORA_EXPENSE_ROSE) }
                     }
                 }
             }
@@ -308,18 +328,9 @@ fun TransactionsListScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                            if (tx.type.equals("EXPENSE", true)) {
-                                IconButton(
-                                    onClick = { viewModel.deleteTransaction(tx) },
-                                    modifier = Modifier.size(36.dp).testTag("list_red_delete_${tx.id}")
-                                ) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete expense", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
-                                }
-                                Spacer(Modifier.width(4.dp))
-                            }
                             GlassBadge3D(
                                 emoji = if (isExpense) "💸" else "💰",
-                                accent = if (isExpense) Color(0xFFF43F5E) else palette.primary,
+                                accent = if (isExpense) ThemePresets.AURORA_EXPENSE_ROSE else palette.primary,
                                 sizeDp = 38.dp
                             )
                             Spacer(Modifier.width(10.dp))
@@ -419,13 +430,11 @@ fun VisualReceiptDialog(
         containerColor = palette.surface,
         title = {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                if (transaction.type.equals("EXPENSE", true)) {
-                    IconButton(
-                        onClick = { onDelete(transaction); onDismiss() },
-                        modifier = Modifier.size(36.dp).testTag("receipt_red_delete_btn")
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete receipt", tint = Color(0xFFEF4444))
-                    }
+                IconButton(
+                    onClick = { onDelete(transaction); onDismiss() },
+                    modifier = Modifier.size(36.dp).testTag("receipt_red_delete_btn")
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete receipt", tint = ThemePresets.AURORA_EXPENSE_ROSE)
                 }
                 Text("🧾 Tracmio Receipt", color = palette.textPrimary, fontWeight = FontWeight.Bold)
                 IconButton(onClick = { onEdit(transaction); onDismiss() }, modifier = Modifier.size(36.dp)) {
@@ -439,7 +448,7 @@ fun VisualReceiptDialog(
                     (if (isExpense) "-" else "+") + displayAmount(transaction.amount, settings),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color = if (isExpense) Color(0xFFF43F5E) else palette.primary
+                    color = if (isExpense) ThemePresets.AURORA_EXPENSE_ROSE else palette.primary
                 )
                 Text("Type: ${transaction.type}", color = palette.textSecondary)
                 Text("Category: ${transaction.category}" + if (transaction.subcategory.isNotBlank()) " / ${transaction.subcategory}" else "", color = palette.textPrimary)
@@ -473,7 +482,7 @@ fun VisualReceiptDialog(
                 ) {
                     Icon(Icons.Default.Repeat, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("↻ Repeat")
+                    Text("↻ Repeat This Transaction")
                 }
             }
         },
@@ -553,11 +562,30 @@ fun AddEditTransactionSheet(
         val topLevel = state.categories
             .filter { it.type.equals(catType, true) && it.parentId == null }
             .map { it.name }
-            .distinct()
-        topLevel.ifEmpty {
-            if (catType == "INCOME") listOf("Family & Income", "Salary", "Freelance", "Other")
-            else listOf("Food & Chai", "Khata & Kirana", "Transport & Fuel", "SIM, WiFi & Bills", "College & Exams", "Shopping & Personal", "Other")
+        val defaultExpanded = if (catType == "INCOME") {
+            listOf("Family & Income", "Salary", "Freelance", "Business & Studio", "Investment", "Gifts & Celebrations", "Other")
+        } else {
+            listOf(
+                "Food & Chai",
+                "Khata & Kirana",
+                "Transport & Travel",
+                "SIM, WiFi & Bills",
+                "College & Exams",
+                "Family & Income",
+                "Shopping & Personal",
+                "Health & Medical",
+                "Entertainment",
+                "Investment",
+                "Fuel & Commute",
+                "Rent & Housing",
+                "Recharge & WiFi",
+                "Gifts & Celebrations",
+                "Business & Studio",
+                "Pets & Care",
+                "Other"
+            )
         }
+        (defaultExpanded + topLevel).distinct()
     }
     val availableSubcats = remember(category, state.categories) {
         NativeLedgerCalculator.subcategoriesFor(category, state.categories)
@@ -689,21 +717,52 @@ fun AddEditTransactionSheet(
                 }
             }
 
-            // Account Dropdown + "+ Add Wallet"
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.weight(1f)) {
-                    val selectedAccName = selectedAcc?.name ?: "Select Account"
+            // Account / Wallet Field with both "+ Add Wallet" and "+ Add Account" buttons & dropdown items
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Account / Wallet", style = MaterialTheme.typography.labelMedium, color = palette.primary)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { showAddWalletDialog = true },
+                            modifier = Modifier.height(34.dp).testTag("tx_add_wallet_btn"),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                        ) {
+                            Text("+ Add Wallet", style = MaterialTheme.typography.labelSmall)
+                        }
+                        OutlinedButton(
+                            onClick = { showAddWalletDialog = true },
+                            modifier = Modifier.height(34.dp).testTag("tx_add_account_btn"),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                        ) {
+                            Text("+ Add Account", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    val selectedAccName = selectedAcc?.name ?: "Select Account / Wallet"
                     OutlinedButton(onClick = { showAccountMenu = true }, modifier = Modifier.fillMaxWidth()) {
                         Text(if (type == "TRANSFER") "From: $selectedAccName" else "Account: $selectedAccName", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     DropdownMenu(expanded = showAccountMenu, onDismissRequest = { showAccountMenu = false }) {
                         activeAccounts.forEach { acc ->
-                            DropdownMenuItem(text = { Text("${acc.name} (${acc.accountType})") }, onClick = { accountId = acc.id; allocationId = ""; showAccountMenu = false })
+                            DropdownMenuItem(
+                                text = { Text("${acc.name} (${acc.accountType})") },
+                                onClick = { accountId = acc.id; allocationId = ""; showAccountMenu = false }
+                            )
                         }
+                        DropdownMenuItem(
+                            text = { Text("➕ + Add New Wallet...", color = palette.primary, fontWeight = FontWeight.SemiBold) },
+                            onClick = { showAccountMenu = false; showAddWalletDialog = true }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🏦 + Add New Bank / Account...", color = palette.secondary, fontWeight = FontWeight.SemiBold) },
+                            onClick = { showAccountMenu = false; showAddWalletDialog = true }
+                        )
                     }
-                }
-                OutlinedButton(onClick = { showAddWalletDialog = true }, modifier = Modifier.testTag("tx_add_wallet_btn")) {
-                    Text("+ Wallet")
                 }
             }
 

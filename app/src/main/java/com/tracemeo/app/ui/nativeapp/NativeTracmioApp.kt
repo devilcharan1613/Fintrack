@@ -29,11 +29,12 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -499,13 +500,21 @@ private fun FloatingGlassBottomNav(
     onSelectTab: (String) -> Unit,
     onQuickAdd: () -> Unit
 ) {
+    val navTabs = listOf(
+        Triple("dashboard", "Dashboard", Icons.Default.Dashboard),
+        Triple("accounts", "Accounts", Icons.Default.AccountBalanceWallet),
+        Triple("transactions", "Transactions", Icons.AutoMirrored.Filled.ReceiptLong),
+        Triple("reports", "Reports", Icons.Default.PieChart),
+        Triple("more", "More", Icons.Default.GridView)
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(28.dp))
             .background(palette.surface.copy(alpha = 0.84f))
             .border(
-                width = 1.2.dp,
+                width = 1.4.dp,
                 brush = Brush.verticalGradient(
                     colors = listOf(
                         ThemePresets.AURORA_SPECULAR_TOP,
@@ -514,67 +523,34 @@ private fun FloatingGlassBottomNav(
                 ),
                 shape = RoundedCornerShape(28.dp)
             )
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val leftTabs = listOf(
-            Triple("dashboard", "Home", Icons.Default.Dashboard),
-            Triple("accounts", "Accounts", Icons.Default.AccountBalanceWallet)
-        )
-        val rightTabs = listOf(
-            Triple("transactions", "Ledger", Icons.Default.ReceiptLong),
-            Triple("more", "More", Icons.Default.GridView)
-        )
-
-        leftTabs.forEach { (route, label, icon) ->
-            val selected = currentRoute == route
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(if (selected) palette.primary.copy(alpha = 0.16f) else Color.Transparent)
-                    .clickable { onSelectTab(route) }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                    .testTag("nav_$route")
-            ) {
-                Icon(icon, contentDescription = label, tint = if (selected) palette.primary else palette.textSecondary, modifier = Modifier.size(22.dp))
-                Text(
-                    label,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
-                    color = if (selected) palette.primary else palette.textSecondary
-                )
-            }
-        }
-
-        FloatingActionButton(
-            onClick = onQuickAdd,
-            containerColor = palette.primary,
-            contentColor = Color(0xFF031923),
-            shape = CircleShape,
-            modifier = Modifier.size(50.dp).testTag("fab_add_tx")
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Add Transaction")
-        }
-
-        rightTabs.forEach { (route, label, icon) ->
+        navTabs.forEach { (route, label, icon) ->
             val selected = currentRoute == route || (route == "more" && currentRoute == "tools_hub")
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
+                    .weight(1f)
                     .clip(RoundedCornerShape(14.dp))
                     .background(if (selected) palette.primary.copy(alpha = 0.16f) else Color.Transparent)
                     .clickable { onSelectTab(route) }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .padding(horizontal = 4.dp, vertical = 6.dp)
                     .testTag("nav_$route")
             ) {
-                Icon(icon, contentDescription = label, tint = if (selected) palette.primary else palette.textSecondary, modifier = Modifier.size(22.dp))
+                Icon(
+                    icon,
+                    contentDescription = label,
+                    tint = if (selected) palette.primary else palette.textSecondary,
+                    modifier = Modifier.size(21.dp)
+                )
                 Text(
                     label,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
-                    color = if (selected) palette.primary else palette.textSecondary
+                    color = if (selected) palette.primary else palette.textSecondary,
+                    maxLines = 1
                 )
             }
         }
