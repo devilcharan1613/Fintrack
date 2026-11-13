@@ -192,5 +192,31 @@ class NativeFinanceAccuracyTest {
             assertTrue("Missing route on ${item.title}", item.route.isNotBlank())
         }
     }
+
+    @Test
+    fun auroraTealLiquidGlassV250PaletteMatchesExactSpecification() {
+        val defaultSettings = LiquidGlassSettings()
+        assertEquals("dark", defaultSettings.themePreset)
+        assertEquals("ui1", defaultSettings.glassUiStyle)
+
+        val palette = com.tracemeo.app.ui.nativeapp.ThemePresets.getPalette(defaultSettings.themePreset)
+        val profile = com.tracemeo.app.ui.nativeapp.ThemePresets.getGlassProfile(defaultSettings.glassUiStyle)
+
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF031923), palette.background)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF092B3C), palette.surface)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF0F3A4E), palette.surfaceElevated)
+        assertEquals(androidx.compose.ui.graphics.Color(0x3D7DF5FF), palette.surfaceBorder)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF00D6A3), palette.primary)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF38BDF8), palette.secondary)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFFFBBF24), palette.tertiary)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFFFFFFFF), palette.textPrimary)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFFC0D4DF), palette.textSecondary)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF00D6A3), palette.meshGlow1)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF695FDC), palette.meshGlow2)
+
+        assertEquals(20, profile.cornerDp)
+        assertEquals(0.72f, profile.surfaceAlpha, 0.001f)
+        assertEquals(0.24f, profile.borderAlpha, 0.001f)
+    }
 }
 

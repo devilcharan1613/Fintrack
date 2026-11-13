@@ -84,8 +84,22 @@ object ThemePresets {
         "custom" to "Custom Neon"
     )
 
+    val AURORA_BASE_TOP = Color(0xFF031923)
+    val AURORA_BASE_BOTTOM = Color(0xFF04131A)
+    val AURORA_GLASS_SURFACE = Color(0xFF092B3C) // rgba(9, 43, 60, 0.72) when alpha=0.72f
+    val AURORA_GLASS_ELEVATED = Color(0xFF0F3A4E) // rgba(15, 58, 78, 0.78) when alpha=0.78f
+    val AURORA_GLASS_BORDER = Color(0x3D7DF5FF) // rgba(125, 245, 255, 0.24)
+    val AURORA_SPECULAR_TOP = Color(0x29FFFFFF) // rgba(255, 255, 255, 0.16)
+    val AURORA_NEON_TEAL = Color(0xFF00D6A3)
+    val AURORA_NEON_AQUA = Color(0xFF18F2D0)
+    val AURORA_NEON_CYAN = Color(0xFF00F5D4)
+    val AURORA_VIOLET_GLOW = Color(0xFF695FDC)
+    val AURORA_EXPENSE_ROSE = Color(0xFFFB7185)
+    val AURORA_TRANSFER_SKY = Color(0xFF38BDF8)
+    val AURORA_WARNING_AMBER = Color(0xFFFBBF24)
+
     val GLASS_UI_PROFILES = listOf(
-        GlassUiProfile("ui1", "Crystal Aurora", 0.72f, 0.36f, 22, 1.0f),
+        GlassUiProfile("ui1", "Crystal Aurora", 0.72f, 0.24f, 20, 1.0f),
         GlassUiProfile("ui2", "Prism Frost", 0.80f, 0.45f, 26, 1.2f),
         GlassUiProfile("ui3", "Liquid Pill", 0.68f, 0.30f, 28, 0.9f),
         GlassUiProfile("ui4", "Obsidian Velvet", 0.88f, 0.25f, 18, 0.8f),
@@ -115,7 +129,7 @@ object ThemePresets {
     fun getPalette(
         preset: String,
         customPrimaryHex: String = "#00D6A3",
-        customSecondaryHex: String = "#00A9C7"
+        customSecondaryHex: String = "#18F2D0"
     ): ThemePalette {
         return when (preset) {
             "tracmio" -> ThemePalette(
@@ -263,40 +277,40 @@ object ThemePresets {
                 meshGlow2 = Color(0x550077B6)
             )
             "custom" -> {
-                val p = parseHexColor(customPrimaryHex, Color(0xFF00D6A3))
-                val s = parseHexColor(customSecondaryHex, Color(0xFF00A9C7))
+                val p = parseHexColor(customPrimaryHex, AURORA_NEON_TEAL)
+                val s = parseHexColor(customSecondaryHex, AURORA_NEON_AQUA)
                 ThemePalette(
                     id = "custom",
                     displayName = "Custom Neon",
                     isLight = false,
                     primary = p,
                     secondary = s,
-                    tertiary = Color(0xFFF5A623),
-                    background = Color(0xFF060911),
-                    surface = Color(0xFF0F1726),
-                    surfaceElevated = Color(0xFF172338),
-                    surfaceBorder = p.copy(alpha = 0.45f),
-                    textPrimary = Color(0xFFF8FAFC),
-                    textSecondary = Color(0xFF94A3B8),
-                    meshGlow1 = p.copy(alpha = 0.4f),
-                    meshGlow2 = s.copy(alpha = 0.35f)
+                    tertiary = AURORA_WARNING_AMBER,
+                    background = AURORA_BASE_TOP,
+                    surface = AURORA_GLASS_SURFACE,
+                    surfaceElevated = AURORA_GLASS_ELEVATED,
+                    surfaceBorder = p.copy(alpha = 0.36f),
+                    textPrimary = Color(0xFFFFFFFF),
+                    textSecondary = Color(0xFFC0D4DF),
+                    meshGlow1 = p,
+                    meshGlow2 = s
                 )
             }
             else -> ThemePalette(
                 id = "dark",
                 displayName = "Aurora Teal",
                 isLight = false,
-                primary = Color(0xFF00D6A3),
-                secondary = Color(0xFF00A9C7),
-                tertiary = Color(0xFFF5A623),
-                background = Color(0xFF050A12),
-                surface = Color(0xFF0B1928),
-                surfaceElevated = Color(0xFF11263B),
-                surfaceBorder = Color(0x5200E5C3),
-                textPrimary = Color(0xFFF5F7FA),
-                textSecondary = Color(0xFF98A7B9),
-                meshGlow1 = Color(0x5500D6A3),
-                meshGlow2 = Color(0x5500A9C7)
+                primary = AURORA_NEON_TEAL,
+                secondary = AURORA_TRANSFER_SKY,
+                tertiary = AURORA_WARNING_AMBER,
+                background = AURORA_BASE_TOP,
+                surface = AURORA_GLASS_SURFACE,
+                surfaceElevated = AURORA_GLASS_ELEVATED,
+                surfaceBorder = AURORA_GLASS_BORDER,
+                textPrimary = Color(0xFFFFFFFF),
+                textSecondary = Color(0xFFC0D4DF),
+                meshGlow1 = AURORA_NEON_TEAL,
+                meshGlow2 = AURORA_VIOLET_GLOW
             )
         }
     }
@@ -316,29 +330,57 @@ fun TracmioNativeTheme(
         lightColorScheme(
             primary = palette.primary,
             onPrimary = Color.White,
+            primaryContainer = palette.primary.copy(alpha = 0.16f),
+            onPrimaryContainer = palette.textPrimary,
             secondary = palette.secondary,
+            onSecondary = Color.White,
+            secondaryContainer = palette.secondary.copy(alpha = 0.16f),
+            onSecondaryContainer = palette.textPrimary,
             tertiary = palette.tertiary,
+            onTertiary = Color.White,
             background = palette.background,
             onBackground = palette.textPrimary,
             surface = palette.surface,
             onSurface = palette.textPrimary,
             surfaceVariant = palette.surfaceElevated,
             onSurfaceVariant = palette.textSecondary,
-            error = Color(0xFFEF4444)
+            surfaceContainerLowest = palette.background,
+            surfaceContainerLow = palette.surface,
+            surfaceContainer = palette.surface,
+            surfaceContainerHigh = palette.surfaceElevated,
+            surfaceContainerHighest = palette.surfaceElevated,
+            outline = palette.surfaceBorder,
+            outlineVariant = palette.surfaceBorder,
+            error = ThemePresets.AURORA_EXPENSE_ROSE,
+            onError = Color.White
         )
     } else {
         darkColorScheme(
             primary = palette.primary,
-            onPrimary = Color(0xFF041418),
+            onPrimary = Color(0xFF031923),
+            primaryContainer = palette.primary.copy(alpha = 0.22f),
+            onPrimaryContainer = Color(0xFFFFFFFF),
             secondary = palette.secondary,
+            onSecondary = Color(0xFF031923),
+            secondaryContainer = palette.secondary.copy(alpha = 0.22f),
+            onSecondaryContainer = Color(0xFFFFFFFF),
             tertiary = palette.tertiary,
+            onTertiary = Color(0xFF031923),
             background = palette.background,
             onBackground = palette.textPrimary,
             surface = palette.surface,
             onSurface = palette.textPrimary,
             surfaceVariant = palette.surfaceElevated,
             onSurfaceVariant = palette.textSecondary,
-            error = Color(0xFFEF4444)
+            surfaceContainerLowest = palette.background,
+            surfaceContainerLow = palette.surface,
+            surfaceContainer = palette.surface,
+            surfaceContainerHigh = palette.surfaceElevated,
+            surfaceContainerHighest = palette.surfaceElevated,
+            outline = palette.surfaceBorder,
+            outlineVariant = palette.surfaceBorder,
+            error = ThemePresets.AURORA_EXPENSE_ROSE,
+            onError = Color(0xFF031923)
         )
     }
 

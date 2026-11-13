@@ -9,7 +9,7 @@ android {
     namespace = "com.tracemeo.app"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.tracemeo.app"
+        applicationId = "com.tracemio.app"
         minSdk = 26
         targetSdk = 35
         versionCode = 30

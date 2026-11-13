@@ -133,7 +133,7 @@ class TracmioSecurityEngineTest {
         val gradleFile = listOf(File("build.gradle.kts"), File("app/build.gradle.kts")).firstOrNull { it.exists() }
         assertTrue("app/build.gradle.kts must exist", gradleFile != null)
         val gradleSrc = gradleFile!!.readText()
-        assertTrue("applicationId must be com.tracemeo.app", gradleSrc.contains("""applicationId = "com.tracemeo.app""""))
+        assertTrue("applicationId must be com.tracemio.app", gradleSrc.contains("""applicationId = "com.tracemio.app""""))
         assertTrue("versionName must be 16.13", gradleSrc.contains("""versionName = "16.13""""))
 
         val uiDir = listOf(

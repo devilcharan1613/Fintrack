@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -502,8 +503,17 @@ private fun FloatingGlassBottomNav(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(28.dp))
-            .background(palette.surface.copy(alpha = 0.88f))
-            .border(1.dp, palette.surfaceBorder, RoundedCornerShape(28.dp))
+            .background(palette.surface.copy(alpha = 0.84f))
+            .border(
+                width = 1.2.dp,
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        ThemePresets.AURORA_SPECULAR_TOP,
+                        palette.surfaceBorder
+                    )
+                ),
+                shape = RoundedCornerShape(28.dp)
+            )
             .padding(horizontal = 10.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -523,19 +533,25 @@ private fun FloatingGlassBottomNav(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .clip(RoundedCornerShape(14.dp))
+                    .background(if (selected) palette.primary.copy(alpha = 0.16f) else Color.Transparent)
                     .clickable { onSelectTab(route) }
                     .padding(horizontal = 12.dp, vertical = 6.dp)
                     .testTag("nav_$route")
             ) {
                 Icon(icon, contentDescription = label, tint = if (selected) palette.primary else palette.textSecondary, modifier = Modifier.size(22.dp))
-                Text(label, style = MaterialTheme.typography.labelSmall, color = if (selected) palette.primary else palette.textSecondary)
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                    color = if (selected) palette.primary else palette.textSecondary
+                )
             }
         }
 
         FloatingActionButton(
             onClick = onQuickAdd,
             containerColor = palette.primary,
-            contentColor = Color(0xFF041418),
+            contentColor = Color(0xFF031923),
             shape = CircleShape,
             modifier = Modifier.size(50.dp).testTag("fab_add_tx")
         ) {
@@ -548,12 +564,18 @@ private fun FloatingGlassBottomNav(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .clip(RoundedCornerShape(14.dp))
+                    .background(if (selected) palette.primary.copy(alpha = 0.16f) else Color.Transparent)
                     .clickable { onSelectTab(route) }
                     .padding(horizontal = 12.dp, vertical = 6.dp)
                     .testTag("nav_$route")
             ) {
                 Icon(icon, contentDescription = label, tint = if (selected) palette.primary else palette.textSecondary, modifier = Modifier.size(22.dp))
-                Text(label, style = MaterialTheme.typography.labelSmall, color = if (selected) palette.primary else palette.textSecondary)
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                    color = if (selected) palette.primary else palette.textSecondary
+                )
             }
         }
     }

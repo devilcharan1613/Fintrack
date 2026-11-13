@@ -144,7 +144,25 @@ fun LiquidMeshBackground(
         } else null
     }
 
-    Box(modifier = modifier.fillMaxSize().background(palette.background)) {
+    val baseBackgroundBrush = if (palette.id == "dark" || palette.id == "custom") {
+        Brush.verticalGradient(
+            colors = listOf(
+                ThemePresets.AURORA_BASE_TOP,
+                Color(0xFF052230),
+                ThemePresets.AURORA_BASE_BOTTOM
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(
+                palette.background,
+                palette.surface.copy(alpha = 0.55f),
+                palette.background
+            )
+        )
+    }
+
+    Box(modifier = modifier.fillMaxSize().background(brush = baseBackgroundBrush)) {
         if (customBitmap != null) {
             Image(
                 bitmap = customBitmap,
@@ -208,38 +226,45 @@ private fun DrawScope.drawWallpaperPreset(
         "wp8" -> Triple(Color(0xFFC084FC), Color(0xFF9333EA), Color(0xFFF472B6))
         "wp9" -> Triple(Color(0xFF64748B), Color(0xFF38BDF8), Color(0xFF334155))
         "wp10" -> Triple(Color(0xFFBAE6FD), Color(0xFF38BDF8), Color(0xFF0284C7))
-        else -> Triple(palette.meshGlow1.copy(alpha = 1f), palette.meshGlow2.copy(alpha = 1f), palette.primary)
+        else -> Triple(
+            palette.meshGlow1.copy(alpha = 1f),
+            palette.meshGlow2.copy(alpha = 1f),
+            if (palette.id == "dark") ThemePresets.AURORA_NEON_AQUA else palette.primary
+        )
     }
 
     val dx = (cos(phase) * 55f + tiltX * 70f)
     val dy = (sin(phase) * 65f + tiltY * 70f)
 
+    // Primary soft cyan/teal radial aurora glow (#00D6A3)
     drawCircle(
         brush = Brush.radialGradient(
-            colors = listOf(c1.copy(alpha = 0.62f * glow), c1.copy(alpha = 0.22f * glow), Color.Transparent),
-            center = Offset(w * 0.28f + dx, h * 0.22f + dy),
-            radius = w * 0.78f
+            colors = listOf(c1.copy(alpha = 0.42f * glow), c1.copy(alpha = 0.16f * glow), Color.Transparent),
+            center = Offset(w * 0.24f + dx, h * 0.18f + dy),
+            radius = w * 0.82f
         ),
-        center = Offset(w * 0.28f + dx, h * 0.22f + dy),
-        radius = w * 0.78f
+        center = Offset(w * 0.24f + dx, h * 0.18f + dy),
+        radius = w * 0.82f
     )
+    // Secondary subtle violet radial aurora glow (#695FDC)
     drawCircle(
         brush = Brush.radialGradient(
-            colors = listOf(c2.copy(alpha = 0.56f * glow), c2.copy(alpha = 0.18f * glow), Color.Transparent),
-            center = Offset(w * 0.76f - dx * 0.7f, h * 0.74f - dy * 0.7f),
-            radius = w * 0.85f
+            colors = listOf(c2.copy(alpha = 0.34f * glow), c2.copy(alpha = 0.12f * glow), Color.Transparent),
+            center = Offset(w * 0.78f - dx * 0.7f, h * 0.76f - dy * 0.7f),
+            radius = w * 0.88f
         ),
-        center = Offset(w * 0.76f - dx * 0.7f, h * 0.74f - dy * 0.7f),
-        radius = w * 0.85f
+        center = Offset(w * 0.78f - dx * 0.7f, h * 0.76f - dy * 0.7f),
+        radius = w * 0.88f
     )
+    // Ambient neon aqua highlight (#18F2D0 / #00F5D4)
     drawCircle(
         brush = Brush.radialGradient(
-            colors = listOf(c3.copy(alpha = 0.26f * glow), Color.Transparent),
-            center = Offset(w * 0.5f + tiltX * 40f, h * 0.48f + tiltY * 40f),
-            radius = w * 0.58f
+            colors = listOf(c3.copy(alpha = 0.22f * glow), Color.Transparent),
+            center = Offset(w * 0.52f + tiltX * 40f, h * 0.46f + tiltY * 40f),
+            radius = w * 0.62f
         ),
-        center = Offset(w * 0.5f + tiltX * 40f, h * 0.48f + tiltY * 40f),
-        radius = w * 0.58f
+        center = Offset(w * 0.52f + tiltX * 40f, h * 0.46f + tiltY * 40f),
+        radius = w * 0.62f
     )
 
     if (presetId == "wp4") {
@@ -258,7 +283,7 @@ fun GlassCard(
     shape: RoundedCornerShape? = null,
     backgroundColor: Color? = null,
     borderColor: Color? = null,
-    borderWidth: Dp = 1.dp,
+    borderWidth: Dp = 1.2.dp,
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
@@ -269,8 +294,13 @@ fun GlassCard(
     )
     val profile = ThemePresets.getGlassProfile(settings.glassUiStyle)
     val resolvedShape = shape ?: RoundedCornerShape(profile.cornerDp.dp)
-    val bg = backgroundColor ?: palette.surface
-    val border = borderColor ?: palette.surfaceBorder
+    val bgTop = backgroundColor ?: palette.surfaceElevated // rgba(15, 58, 78, 0.78)
+    val bgBottom = backgroundColor ?: palette.surface // rgba(9, 43, 60, 0.72)
+    val border = borderColor ?: palette.surfaceBorder // rgba(125, 245, 255, 0.24)
+    val topAlpha = (profile.surfaceAlpha + 0.06f).coerceIn(0.42f, 0.94f)
+    val bottomAlpha = profile.surfaceAlpha.coerceIn(0.36f, 0.92f)
+    val effectiveBorderAlpha = profile.borderAlpha.coerceIn(0.20f, 0.85f)
+    val specularHighlight = if (palette.isLight) Color.White.copy(alpha = 0.72f) else ThemePresets.AURORA_SPECULAR_TOP
 
     Box(
         modifier = modifier
@@ -278,21 +308,19 @@ fun GlassCard(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        bg.copy(alpha = profile.surfaceAlpha),
-                        bg.copy(alpha = (profile.surfaceAlpha - 0.14f).coerceAtLeast(0.35f))
+                        bgTop.copy(alpha = topAlpha),
+                        bgBottom.copy(alpha = bottomAlpha)
                     )
                 )
             )
             .border(
                 width = borderWidth,
-                brush = Brush.linearGradient(
+                brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = if (palette.isLight) 0.7f else profile.borderAlpha * 0.55f),
-                        border.copy(alpha = profile.borderAlpha),
-                        border.copy(alpha = profile.borderAlpha * 0.35f)
-                    ),
-                    start = Offset(0f, 0f),
-                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                        specularHighlight,
+                        border.copy(alpha = effectiveBorderAlpha),
+                        border.copy(alpha = (effectiveBorderAlpha * 0.75f).coerceAtLeast(0.16f))
+                    )
                 ),
                 shape = resolvedShape
             )
@@ -321,12 +349,22 @@ fun GlassBadge3D(
             .background(
                 Brush.linearGradient(
                     colors = listOf(
-                        accent.copy(alpha = 0.28f),
-                        accent.copy(alpha = 0.08f)
+                        accent.copy(alpha = 0.32f),
+                        Color(0xFF092B3C).copy(alpha = 0.72f),
+                        accent.copy(alpha = 0.14f)
                     )
                 )
             )
-            .border(1.dp, accent.copy(alpha = 0.55f), RoundedCornerShape(14.dp)),
+            .border(
+                width = 1.2.dp,
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        ThemePresets.AURORA_SPECULAR_TOP,
+                        accent.copy(alpha = 0.58f)
+                    )
+                ),
+                shape = RoundedCornerShape(14.dp)
+            ),
         contentAlignment = Alignment.Center
     ) {
         Text(text = emoji, fontSize = (sizeDp.value * 0.48f).sp)
@@ -349,148 +387,166 @@ fun TracmioTopBar(
     var tapCount by remember { mutableIntStateOf(0) }
     var lastTapMs by remember { mutableLongStateOf(0L) }
 
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(palette.background.copy(alpha = 0.80f))
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        palette.surfaceElevated.copy(alpha = 0.86f),
+                        palette.surface.copy(alpha = 0.82f)
+                    )
+                )
+            )
     ) {
         Row(
-            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .clickable(onClick = onOpenOnboarding)
-                .padding(end = 6.dp)
-                .testTag("topbar_brand_left")
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.tracmio_launcher_foreground),
-                contentDescription = "Tracmio Logo — Profile & Currency",
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .border(1.dp, palette.primary.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Tracmio",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = palette.textPrimary
-                    )
-                    if (settings.stealthModeActive) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = palette.tertiary.copy(alpha = 0.22f)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(onClick = onOpenOnboarding)
+                    .padding(end = 6.dp)
+                    .testTag("topbar_brand_left")
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.tracmio_launcher_foreground),
+                    contentDescription = "Tracmio Logo — Profile & Currency",
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .border(1.2.dp, palette.primary.copy(alpha = 0.55f), RoundedCornerShape(10.dp))
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Tracmio",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = palette.textPrimary
+                        )
+                        if (settings.stealthModeActive) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = palette.tertiary.copy(alpha = 0.22f)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Shield,
-                                    contentDescription = "Stealth Active",
-                                    tint = palette.tertiary,
-                                    modifier = Modifier.size(11.dp)
-                                )
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Text(
-                                    text = "STEALTH",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = palette.tertiary,
-                                    fontSize = 9.sp
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Shield,
+                                        contentDescription = "Stealth Active",
+                                        tint = palette.tertiary,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = "STEALTH",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = palette.tertiary,
+                                        fontSize = 9.sp
+                                    )
+                                }
                             }
                         }
                     }
-                }
-                Text(
-                    text = if (settings.userName.isNotBlank()) "${settings.userName} · ${settings.currencySymbol} Vault" else "Offline Finance (${settings.currencySymbol})",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = palette.textSecondary
-                )
-            }
-        }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Neon "+ Add" Topbar Pill (no search icon in topbar!)
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = palette.primary.copy(alpha = 0.20f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, palette.primary.copy(alpha = 0.70f)),
-                modifier = Modifier
-                    .height(40.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .clickable(onClick = onQuickAdd)
-                    .testTag("topbar_neon_add_btn")
-            ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
                     Text(
-                        text = "+ Add",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = palette.primary,
-                        fontWeight = FontWeight.ExtraBold
+                        text = if (settings.userName.isNotBlank()) "${settings.userName} · ${settings.currencySymbol} Vault" else "Offline Finance (${settings.currencySymbol})",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = palette.textSecondary
                     )
                 }
             }
 
-            // Privacy Eye Button — 1x tap toggles Mask, 3x fast tap toggles Stealth Mode
-            Surface(
-                shape = CircleShape,
-                color = if (settings.privacyMaskEnabled || settings.stealthModeActive) {
-                    palette.primary.copy(alpha = 0.18f)
-                } else {
-                    palette.surfaceElevated.copy(alpha = 0.7f)
-                },
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    if (settings.stealthModeActive) palette.tertiary else palette.surfaceBorder
-                ),
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = {
-                                val now = System.currentTimeMillis()
-                                if (now - lastTapMs <= 800L) {
-                                    tapCount += 1
-                                } else {
-                                    tapCount = 1
-                                }
-                                lastTapMs = now
-                                if (tapCount >= 3) {
-                                    tapCount = 0
-                                    onTripleTapStealth()
-                                } else {
-                                    onSingleTapPrivacy()
-                                }
-                            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Neon "+ Add" Topbar Pill (no search icon in topbar!)
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = palette.primary.copy(alpha = 0.22f),
+                    border = androidx.compose.foundation.BorderStroke(1.2.dp, palette.primary.copy(alpha = 0.78f)),
+                    modifier = Modifier
+                        .height(40.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .clickable(onClick = onQuickAdd)
+                        .testTag("topbar_neon_add_btn")
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
+                        Text(
+                            text = "+ Add",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = palette.primary,
+                            fontWeight = FontWeight.ExtraBold
                         )
                     }
-                    .testTag("topbar_privacy_eye")
-            ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Icon(
-                        imageVector = if (settings.privacyMaskEnabled || settings.stealthModeActive) {
-                            Icons.Default.VisibilityOff
-                        } else {
-                            Icons.Default.Visibility
-                        },
-                        contentDescription = "Toggle Privacy Mask (Triple-tap for Stealth Mode)",
-                        tint = if (settings.stealthModeActive) palette.tertiary else if (settings.privacyMaskEnabled) palette.primary else palette.textPrimary
-                    )
+                }
+
+                // Privacy Eye Button — 1x tap toggles Mask, 3x fast tap toggles Stealth Mode
+                Surface(
+                    shape = CircleShape,
+                    color = if (settings.privacyMaskEnabled || settings.stealthModeActive) {
+                        palette.primary.copy(alpha = 0.22f)
+                    } else {
+                        palette.surfaceElevated.copy(alpha = 0.78f)
+                    },
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.2.dp,
+                        if (settings.stealthModeActive) palette.tertiary else palette.surfaceBorder
+                    ),
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = {
+                                    val now = System.currentTimeMillis()
+                                    if (now - lastTapMs <= 800L) {
+                                        tapCount += 1
+                                    } else {
+                                        tapCount = 1
+                                    }
+                                    lastTapMs = now
+                                    if (tapCount >= 3) {
+                                        tapCount = 0
+                                        onTripleTapStealth()
+                                    } else {
+                                        onSingleTapPrivacy()
+                                    }
+                                }
+                            )
+                        }
+                        .testTag("topbar_privacy_eye")
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Icon(
+                            imageVector = if (settings.privacyMaskEnabled || settings.stealthModeActive) {
+                                Icons.Default.VisibilityOff
+                            } else {
+                                Icons.Default.Visibility
+                            },
+                            contentDescription = "Toggle Privacy Mask (Triple-tap for Stealth Mode)",
+                            tint = if (settings.stealthModeActive) palette.tertiary else if (settings.privacyMaskEnabled) palette.primary else palette.textPrimary
+                        )
+                    }
                 }
             }
         }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(palette.surfaceBorder)
+        )
     }
 }
 
@@ -502,7 +558,7 @@ fun GlassSlider(
     title: String,
     valueLabel: String,
     modifier: Modifier = Modifier,
-    accentColor: Color = Color(0xFF00D6A3),
+    accentColor: Color = ThemePresets.AURORA_NEON_TEAL,
     textColor: Color = Color.White
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -515,7 +571,7 @@ fun GlassSlider(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
-                color = textColor.copy(alpha = 0.92f)
+                color = textColor.copy(alpha = 0.96f)
             )
             Text(
                 text = valueLabel,
@@ -532,8 +588,8 @@ fun GlassSlider(
                 .fillMaxWidth()
                 .height(38.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(Color(0x331E293B))
-                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(14.dp))
+                .background(ThemePresets.AURORA_GLASS_SURFACE.copy(alpha = 0.72f))
+                .border(1.2.dp, ThemePresets.AURORA_GLASS_BORDER, RoundedCornerShape(14.dp))
                 .pointerInput(valueRange) {
                     detectDragGestures { change, _ ->
                         change.consume()
@@ -561,8 +617,8 @@ fun GlassSlider(
                     .background(
                         brush = Brush.horizontalGradient(
                             colors = listOf(
-                                accentColor.copy(alpha = 0.45f),
-                                accentColor.copy(alpha = 0.90f)
+                                accentColor.copy(alpha = 0.52f),
+                                ThemePresets.AURORA_NEON_AQUA.copy(alpha = 0.92f)
                             )
                         )
                     )
@@ -647,7 +703,7 @@ fun LiveAppearancePreview(
                             )
                         )
                     )
-                    .border(1.dp, palette.primary.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
+                    .border(1.2.dp, palette.surfaceBorder, RoundedCornerShape(16.dp))
                     .padding(14.dp)
             ) {
                 Column {
@@ -673,7 +729,7 @@ fun LiveAppearancePreview(
                         Text(
                             "↓ Expenses ${MoneyPaise.formatCurrency(28450.0, false, settings.currencySymbol)}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFF43F5E),
+                            color = ThemePresets.AURORA_EXPENSE_ROSE,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
