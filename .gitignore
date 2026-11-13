@@ -1,7 +1,16 @@
 .gradle/
 .kotlin/
 **/build/
+.build-outputs/
+*.apk
+*.aab
+*.ap_
 local.properties
 .idea/
 *.iml
 .DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.keystore
+

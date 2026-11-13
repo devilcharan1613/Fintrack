@@ -6,14 +6,14 @@ plugins {
 }
 
 android {
-    namespace = "com.tracmio.app"
+    namespace = "com.tracemeo.app"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.aistudio.tracmio.tracmioxyz"
-        minSdk = 23
+        applicationId = "com.tracemeo.app"
+        minSdk = 26
         targetSdk = 35
-        versionCode = 29
-        versionName = "2.5.2"
+        versionCode = 30
+        versionName = "16.13"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
@@ -34,8 +34,19 @@ android {
                 signingConfig = signingConfigs.getByName("debugConfig")
             }
         }
+        getByName("release") {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
     }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -43,13 +54,14 @@ android {
     kotlinOptions { jvmTarget = "17" }
     testOptions {
         unitTests.isReturnDefaultValues = true
+        unitTests.isIncludeAndroidResources = true
     }
     applicationVariants.all {
         val variant = this
         variant.outputs
             .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
             .forEach { output ->
-                output.outputFileName = "Tracmio-${variant.versionName}-${variant.buildType.name}.apk"
+                output.outputFileName = "Tracmio-${variant.versionName}.apk"
             }
     }
 }
@@ -61,27 +73,10 @@ afterEvaluate {
             val apkFiles = debugDir.listFiles { _, name -> name.endsWith(".apk") }
             if (apkFiles != null && apkFiles.isNotEmpty()) {
                 val primaryApk = apkFiles.first()
-                val targetTracmio = File(debugDir, "Tracmio-2.5.2-debug.apk")
-                val targetLegacy = File(debugDir, "Tracmio-1.2-debug.apk")
-                val targetDefault = File(debugDir, "app-debug.apk")
-                
+                val targetTracmio = File(debugDir, "Tracmio-16.13.apk")
                 if (!targetTracmio.exists() || primaryApk != targetTracmio) {
                     primaryApk.copyTo(targetTracmio, overwrite = true)
                 }
-                if (!targetLegacy.exists()) {
-                    targetTracmio.copyTo(targetLegacy, overwrite = true)
-                }
-                if (!targetDefault.exists()) {
-                    targetTracmio.copyTo(targetDefault, overwrite = true)
-                }
-                
-                // Also copy to root directory
-                val rootTracmio = rootProject.file("Tracmio-2.5.2-debug.apk")
-                val rootLegacy = rootProject.file("Tracmio-1.2-debug.apk")
-                val rootDefault = rootProject.file("app-debug.apk")
-                targetTracmio.copyTo(rootTracmio, overwrite = true)
-                targetTracmio.copyTo(rootLegacy, overwrite = true)
-                targetTracmio.copyTo(rootDefault, overwrite = true)
             }
         }
     }
@@ -90,6 +85,7 @@ afterEvaluate {
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.activity:activity-compose:1.10.0")
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")
@@ -103,10 +99,16 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
+    implementation("net.zetetic:sqlcipher-android:4.6.1")
+    implementation("androidx.sqlite:sqlite-ktx:2.4.0")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("androidx.biometric:biometric:1.1.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation("org.json:json:20231013")
+    testImplementation("androidx.test:core:1.6.1")
+    testImplementation("org.robolectric:robolectric:4.14.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:core:1.6.1")
     androidTestImplementation("androidx.test:runner:1.6.2")

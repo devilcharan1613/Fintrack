@@ -1,55 +1,43 @@
 # Tracmio
 
-**Version 1.00**
+**Version 16.13 (`versionCode 30`)**
 
-Tracmio — Finance & Expenses Tracker is an offline-first Android personal finance & ledger manager.
+**Tracmio — Finance & Expenses Tracker** is a 100% offline-first native Kotlin + Jetpack Compose personal finance, ledger, and planning application.
 
-## 1.00 release
+## 16.13 Native Kotlin Release
 
-- Complete rebrand and upgrade to **Tracmio — Finance & Expenses Tracker** (`com.charan.tracmio`, version 1.00, versionCode 1).
-- Native WebView bridge (`TracmioBridge`) connecting the Single-Page Application to Android storage, print, and reminder services.
-- 3D Liquid Glass Tracmio brand identity, animated Welcome Overlay, 10 built-in Liquid Glass themes + Custom Neon Theme Studio, custom photo background & UI scale controls.
-- Custom UPI App creator inside the Add Transaction modal (`Income`, `Expense`, `Transfer`, `Borrow`, `Lend`).
-- 4-Style Chart Switcher (`3D Neon Bars`, `Area Wave`, `Capsules & Polar`, `Executive`) and 4 Color Theme Palettes on Reports.
-- Native `.xlsx` workbook export, PDF statement printing (`TRACMIO · OFFLINE FINANCE MANAGER`), and JSON backup/restore.
-- Offline daily reminder engine with rotating meme notifications and quick-action buttons (`Add income`, `Add expense`).
+- **Pure Native Kotlin & Jetpack Compose** (zero `WebView` or browser engines) styled with the **Aurora Teal Liquid Glass (v2.5.0)** UI system, 11 theme presets, 10 mesh wallpapers, UI scaling, and `SensorManager` liquid tilt parallax.
+- **Encrypted Local Storage**: All accounts, allocations, transactions, budgets, goals, loans, persons, custom trackers, and reminders live inside **Room + SQLCipher (AES-256)** and **EncryptedSharedPreferences** backed by **Android Keystore**.
+- **App Lock & Mandatory Recovery**: 4 or 6-digit PIN + Biometric (`BiometricPrompt`) unlock backed by salted SHA-256 + Keystore, verified PIN confirmation on disable, and offline Security Question / Recovery Key reset.
+- **100% Feature Suite**:
+  - **Dashboard & Onboarding**: Multi-currency display (`₹ / $ / € / £`), Monthly Expense Pace Meter, Quick Stats 2×2 Grid, Opt-In Paste SMS / UPI Quick-Log, Safe-to-Spend daily limit, Triple-Tap Stealth Mode, Quick Spend chips (`×` delete), and Warranty/Deadline cards.
+  - **Accounts & Wallets**: Account Allocations + Auto-Split income %, Balance Reconcile, 3-Step Cash Counter (Notes `₹500–₹10` & Coins `₹20–₹1`), Credit Card billing cycle & `>30%` utilization alert, Account Edit/Archive, and direct `+ Deposit` / `− Withdraw` / `⇄ Transfer` / `💵 Count`.
+  - **Transactions & Receipts**: 5-type modal (`EXPENSE`, `INCOME`, `BORROW`, `LEND`, `TRANSFER`), Allocation pocket sync, Tracker linking, Camera/Photo Picker receipt attachments, custom `+ UPI App` chips, Top-Left Filters, Date-Grouped ledger, `#Hashtag` totals, `↻ Repeat`, top-left red delete icon, and `.xlsx`/CSV/PDF export.
+  - **Planning, People & Trackers**: Budgets/Goals/Loans edit & top-ups, Wishlist `Buy Now`, Snowball vs. Avalanche debt payoff planner, Person Detail ledger + `1-Tap Settle Up`, Smart Split & WhatsApp Summary, Subscriptions (`Pay & Log`), and full Custom Tracker Folder workspaces.
+  - **Intelligence & Reporting**: Interactive Reports (Period filters, 4 visual styles, 4 color palettes, 6-month Cashflow Canvas, UPI & Weekend Radar), Financial X-Ray 0–100 score ring + 10 vitals, Money Story (`50/30/20`), Spending DNA (`Mon–Sun`), 3-Tab Time Machine (Past / Future Forecast / Compare Dates), and 7-Column Interactive Calendar + Streak milestones.
 
-## Features
+## Privacy & Zero-Network Security
 
-- Dashboard, accounts, wallets, and recent transactions.
-- Income, expense, transfer, borrowing, and lending records with custom UPI apps.
-- Categories and subcategories.
-- People and lending/borrowing history.
-- Budgets and savings goals with goal contributions.
-- Loans, EMI, and repayments.
-- Reports with period filters, breakdowns, 4 chart styles, and PDF/Excel statement exports.
-- Settings, appearance customization, privacy information, JSON backup, and validated restore.
-
-## Privacy and storage
-
-- No mandatory sign-in, cloud synchronization, ads, or analytics.
-- The Android manifest does not request the `INTERNET` or `ACCESS_NETWORK_STATE` permissions.
-- Financial records are stored 100% locally on the device.
-- Exported backup files are user-controlled. Store them safely.
+- Zero mandatory sign-in, cloud synchronization, ads, or analytics.
+- `AndroidManifest.xml` declares **zero `INTERNET` or `ACCESS_NETWORK_STATE` permissions** and **zero broad storage permissions** (`Photo Picker` + `SAF` only).
+- Full JSON and PBKDF2-HMAC-SHA256 + AES-256-GCM encrypted backups with strict schema sanitization.
 
 ## Build
 
-Use JDK 17 and Android SDK Platform 35.
+Use JDK 17 and Android SDK Platform 35:
 
 ```bash
-./gradlew --no-daemon testDebugUnitTest assembleDebug
+gradle :app:testDebugUnitTest assembleDebug
 ```
 
-APK output: `app/build/outputs/apk/debug/Tracmio-1.00-debug.apk`
+Single APK output: `app/build/outputs/apk/debug/Tracmio-16.13.apk`
 
-GitHub Actions uploads the build as `Tracmio-debug-apk`.
+## Application Identity
 
-## Application identity
-
-- App name: Tracmio
+- App name: **Tracmio**
 - Tagline: Finance & Expenses Tracker
-- Application ID: `com.charan.tracmio`
-- Version name: `1.00`
-- Version code: `1`
-- Minimum Android SDK: 23
-- Target Android SDK: 35
+- Application ID / Namespace: `com.tracemeo.app`
+- Version name: `16.13`
+- Version code: `30`
+- Minimum Android SDK: `26`
+- Target Android SDK: `35`
