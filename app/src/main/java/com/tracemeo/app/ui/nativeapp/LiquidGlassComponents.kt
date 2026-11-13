@@ -144,11 +144,19 @@ fun LiquidMeshBackground(
         } else null
     }
 
-    val baseBackgroundBrush = if (palette.id == "dark" || palette.id == "custom") {
+    val baseBackgroundBrush = if (palette.isLight) {
+        Brush.linearGradient(
+            colors = listOf(
+                Color(0xFFEEF8FB),
+                Color(0xFFE8F3FB),
+                Color(0xFFF1EFFF)
+            )
+        )
+    } else if (palette.id == "dark" || palette.id == "custom") {
         Brush.verticalGradient(
             colors = listOf(
                 ThemePresets.AURORA_BASE_TOP,
-                Color(0xFF052230),
+                ThemePresets.AURORA_BASE_MID,
                 ThemePresets.AURORA_BASE_BOTTOM
             )
         )
@@ -156,7 +164,7 @@ fun LiquidMeshBackground(
         Brush.verticalGradient(
             colors = listOf(
                 palette.background,
-                palette.surface.copy(alpha = 0.55f),
+                palette.surface.copy(alpha = 0.65f),
                 palette.background
             )
         )
@@ -216,6 +224,39 @@ private fun DrawScope.drawWallpaperPreset(
     val vis = visibility.coerceIn(0.15f, 1f)
     val glow = glowFactor.coerceIn(0.1f, 1f) * vis
 
+    if (palette.isLight) {
+        val dx = (cos(phase) * 35f + tiltX * 45f)
+        val dy = (sin(phase) * 40f + tiltY * 45f)
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(Color(0xFF00BFAE).copy(alpha = 0.18f * glow), Color.Transparent),
+                center = Offset(w * 0.82f + dx, h * 0.14f + dy),
+                radius = w * 0.75f
+            ),
+            center = Offset(w * 0.82f + dx, h * 0.14f + dy),
+            radius = w * 0.75f
+        )
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(Color(0xFF6EA5FF).copy(alpha = 0.16f * glow), Color.Transparent),
+                center = Offset(w * 0.16f - dx * 0.6f, h * 0.82f - dy * 0.6f),
+                radius = w * 0.80f
+            ),
+            center = Offset(w * 0.16f - dx * 0.6f, h * 0.82f - dy * 0.6f),
+            radius = w * 0.80f
+        )
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(Color(0xFFA855F7).copy(alpha = 0.10f * glow), Color.Transparent),
+                center = Offset(w * 0.88f, h * 0.85f),
+                radius = w * 0.65f
+            ),
+            center = Offset(w * 0.88f, h * 0.85f),
+            radius = w * 0.65f
+        )
+        return
+    }
+
     val (c1, c2, c3) = when (presetId) {
         "wp2" -> Triple(Color(0xFF34D399), Color(0xFF047857), Color(0xFF6EE7B7))
         "wp3" -> Triple(Color(0xFFF59E0B), Color(0xFFB45309), Color(0xFFFEF08A))
@@ -229,42 +270,42 @@ private fun DrawScope.drawWallpaperPreset(
         else -> Triple(
             palette.meshGlow1.copy(alpha = 1f),
             palette.meshGlow2.copy(alpha = 1f),
-            if (palette.id == "dark") ThemePresets.AURORA_NEON_AQUA else palette.primary
+            Color(0xFF009FDC)
         )
     }
 
     val dx = (cos(phase) * 55f + tiltX * 70f)
     val dy = (sin(phase) * 65f + tiltY * 70f)
 
-    // Primary soft cyan/teal radial aurora glow (#00D6A3)
+    // Top-right / upper luminous cyan-teal aurora glow (#00F5D4 / #18F2D0)
     drawCircle(
         brush = Brush.radialGradient(
-            colors = listOf(c1.copy(alpha = 0.42f * glow), c1.copy(alpha = 0.16f * glow), Color.Transparent),
-            center = Offset(w * 0.24f + dx, h * 0.18f + dy),
+            colors = listOf(c1.copy(alpha = 0.34f * glow), c1.copy(alpha = 0.14f * glow), Color.Transparent),
+            center = Offset(w * 0.80f + dx * 0.7f, h * 0.12f + dy * 0.7f),
+            radius = w * 0.85f
+        ),
+        center = Offset(w * 0.80f + dx * 0.7f, h * 0.12f + dy * 0.7f),
+        radius = w * 0.85f
+    )
+    // Bottom-left deep turquoise aurora glow (#009FDC)
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(c3.copy(alpha = 0.28f * glow), c3.copy(alpha = 0.10f * glow), Color.Transparent),
+            center = Offset(w * 0.15f + dx, h * 0.84f + dy),
             radius = w * 0.82f
         ),
-        center = Offset(w * 0.24f + dx, h * 0.18f + dy),
+        center = Offset(w * 0.15f + dx, h * 0.84f + dy),
         radius = w * 0.82f
     )
-    // Secondary subtle violet radial aurora glow (#695FDC)
+    // Bottom-right / mid-right amethyst violet aurora glow (#A855F7 / #8B5CF6)
     drawCircle(
         brush = Brush.radialGradient(
-            colors = listOf(c2.copy(alpha = 0.34f * glow), c2.copy(alpha = 0.12f * glow), Color.Transparent),
-            center = Offset(w * 0.78f - dx * 0.7f, h * 0.76f - dy * 0.7f),
-            radius = w * 0.88f
+            colors = listOf(c2.copy(alpha = 0.26f * glow), c2.copy(alpha = 0.09f * glow), Color.Transparent),
+            center = Offset(w * 0.88f - dx * 0.6f, h * 0.78f - dy * 0.6f),
+            radius = w * 0.85f
         ),
-        center = Offset(w * 0.78f - dx * 0.7f, h * 0.76f - dy * 0.7f),
-        radius = w * 0.88f
-    )
-    // Ambient neon aqua highlight (#18F2D0 / #00F5D4)
-    drawCircle(
-        brush = Brush.radialGradient(
-            colors = listOf(c3.copy(alpha = 0.22f * glow), Color.Transparent),
-            center = Offset(w * 0.52f + tiltX * 40f, h * 0.46f + tiltY * 40f),
-            radius = w * 0.62f
-        ),
-        center = Offset(w * 0.52f + tiltX * 40f, h * 0.46f + tiltY * 40f),
-        radius = w * 0.62f
+        center = Offset(w * 0.88f - dx * 0.6f, h * 0.78f - dy * 0.6f),
+        radius = w * 0.85f
     )
 
     if (presetId == "wp4") {
@@ -283,7 +324,7 @@ fun GlassCard(
     shape: RoundedCornerShape? = null,
     backgroundColor: Color? = null,
     borderColor: Color? = null,
-    borderWidth: Dp = 1.4.dp,
+    borderWidth: Dp = 1.5.dp,
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
@@ -294,34 +335,87 @@ fun GlassCard(
     )
     val profile = ThemePresets.getGlassProfile(settings.glassUiStyle)
     val resolvedShape = shape ?: RoundedCornerShape(profile.cornerDp.dp)
-    val bgTop = backgroundColor ?: palette.surfaceElevated // rgba(15, 58, 78, 0.78)
-    val bgBottom = backgroundColor ?: palette.surface // rgba(9, 43, 60, 0.72)
-    val border = borderColor ?: palette.surfaceBorder // rgba(125, 245, 255, 0.24)
-    val topAlpha = (profile.surfaceAlpha + 0.06f).coerceIn(0.42f, 0.94f)
-    val bottomAlpha = profile.surfaceAlpha.coerceIn(0.36f, 0.92f)
-    val effectiveBorderAlpha = profile.borderAlpha.coerceIn(0.20f, 0.85f)
-    val specularHighlight = if (palette.isLight) Color.White.copy(alpha = 0.72f) else ThemePresets.AURORA_SPECULAR_TOP
+    val topAlpha = (profile.surfaceAlpha + 0.04f).coerceIn(0.48f, 0.95f)
+    val bottomAlpha = (profile.surfaceAlpha + 0.06f).coerceIn(0.52f, 0.96f)
+    val effectiveBorderAlpha = profile.borderAlpha.coerceIn(0.24f, 0.88f)
+
+    val cardFillBrush = if (backgroundColor != null) {
+        Brush.verticalGradient(
+            colors = listOf(
+                backgroundColor.copy(alpha = topAlpha),
+                backgroundColor.copy(alpha = bottomAlpha)
+            )
+        )
+    } else if (palette.isLight) {
+        // Exact HTML Prototype Light Mode Card: linear-gradient(145deg, rgba(255,255,255,0.94), rgba(226,245,249,0.84) 58%, rgba(236,231,255,0.72))
+        Brush.linearGradient(
+            colors = listOf(
+                Color(0xFFFFFFFF).copy(alpha = 0.94f),
+                Color(0xFFE2F5F9).copy(alpha = 0.86f),
+                Color(0xFFECE7FF).copy(alpha = 0.76f)
+            )
+        )
+    } else if (palette.id == "dark" || palette.id == "custom") {
+        // Exact HTML Prototype Dark Mode Card: linear-gradient(145deg, rgba(16, 52, 68, 0.78), rgba(8, 27, 42, 0.82))
+        Brush.linearGradient(
+            colors = listOf(
+                Color(0xFF103444).copy(alpha = topAlpha),
+                Color(0xFF0A2434).copy(alpha = (topAlpha + bottomAlpha) * 0.5f),
+                Color(0xFF081B2A).copy(alpha = bottomAlpha)
+            )
+        )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(
+                palette.surfaceElevated.copy(alpha = topAlpha),
+                palette.surface.copy(alpha = bottomAlpha)
+            )
+        )
+    }
+
+    val borderBrush = if (borderColor != null) {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color.White.copy(alpha = if (palette.isLight) 0.9f else 0.42f),
+                borderColor.copy(alpha = effectiveBorderAlpha),
+                borderColor.copy(alpha = (effectiveBorderAlpha * 0.75f).coerceAtLeast(0.20f))
+            )
+        )
+    } else if (palette.isLight) {
+        Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.95f),
+                Color(0xFF4696AA).copy(alpha = 0.34f),
+                Color(0xFF6EA5FF).copy(alpha = 0.26f)
+            )
+        )
+    } else if (palette.id == "dark" || palette.id == "custom") {
+        // Prismatic cyan-to-amethyst glass border matching HTML .card::before
+        Brush.linearGradient(
+            colors = listOf(
+                Color(0xFFA5F3FC).copy(alpha = (effectiveBorderAlpha + 0.18f).coerceAtMost(0.75f)),
+                Color(0xFF00F5D4).copy(alpha = effectiveBorderAlpha),
+                Color(0xFF38BDF8).copy(alpha = (effectiveBorderAlpha * 0.82f).coerceAtLeast(0.22f)),
+                Color(0xFFA855F7).copy(alpha = (effectiveBorderAlpha * 0.76f).coerceAtLeast(0.20f))
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(
+                ThemePresets.AURORA_SPECULAR_TOP,
+                palette.surfaceBorder.copy(alpha = effectiveBorderAlpha),
+                palette.surfaceBorder.copy(alpha = (effectiveBorderAlpha * 0.72f).coerceAtLeast(0.18f))
+            )
+        )
+    }
 
     Box(
         modifier = modifier
             .clip(resolvedShape)
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        bgTop.copy(alpha = topAlpha),
-                        bgBottom.copy(alpha = bottomAlpha)
-                    )
-                )
-            )
+            .background(brush = cardFillBrush)
             .border(
                 width = borderWidth,
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        specularHighlight,
-                        border.copy(alpha = effectiveBorderAlpha),
-                        border.copy(alpha = (effectiveBorderAlpha * 0.75f).coerceAtLeast(0.16f))
-                    )
-                ),
+                brush = borderBrush,
                 shape = resolvedShape
             )
             .then(
@@ -333,37 +427,38 @@ fun GlassCard(
 }
 
 /**
- * Aurora Teal 3D Glass Icon Badge matching index.html (v2.5.0)
+ * 3D Liquid Glass Icon Badge matching HTML prototype (.acc-icon / .more-icon / .tx-icon)
  */
 @Composable
 fun GlassBadge3D(
     emoji: String,
     accent: Color,
-    sizeDp: Dp = 44.dp,
+    sizeDp: Dp = 46.dp,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
             .size(sizeDp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(
                 Brush.linearGradient(
                     colors = listOf(
-                        accent.copy(alpha = 0.32f),
-                        Color(0xFF092B3C).copy(alpha = 0.72f),
-                        accent.copy(alpha = 0.14f)
+                        accent.copy(alpha = 0.34f),
+                        Color(0xFF082230).copy(alpha = 0.82f),
+                        accent.copy(alpha = 0.18f)
                     )
                 )
             )
             .border(
-                width = 1.2.dp,
-                brush = Brush.verticalGradient(
+                width = 1.4.dp,
+                brush = Brush.linearGradient(
                     colors = listOf(
-                        ThemePresets.AURORA_SPECULAR_TOP,
-                        accent.copy(alpha = 0.58f)
+                        Color.White.copy(alpha = 0.48f),
+                        accent.copy(alpha = 0.65f),
+                        Color(0xFFA855F7).copy(alpha = 0.32f)
                     )
                 ),
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(16.dp)
             ),
         contentAlignment = Alignment.Center
     ) {
@@ -372,7 +467,7 @@ fun GlassBadge3D(
 }
 
 /**
- * Fixed Left-Aligned Topbar across ALL screens (no topbar search icon; Privacy Eye with Triple-Tap Stealth Mode).
+ * Fixed Left-Aligned Topbar across ALL screens matching HTML prototype .topbar
  */
 @Composable
 fun TracmioTopBar(
@@ -387,10 +482,26 @@ fun TracmioTopBar(
     var tapCount by remember { mutableIntStateOf(0) }
     var lastTapMs by remember { mutableLongStateOf(0L) }
 
+    val topbarBgBrush = if (palette.isLight) {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0xEBFFFFFF),
+                Color(0xD9EAF6FA)
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0xE0031018),
+                Color(0xB8031018)
+            )
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(palette.surface.copy(alpha = 0.84f))
+            .background(brush = topbarBgBrush)
     ) {
         Row(
             modifier = Modifier
@@ -402,27 +513,53 @@ fun TracmioTopBar(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(14.dp))
                     .clickable(onClick = onOpenOnboarding)
                     .padding(end = 6.dp)
                     .testTag("topbar_brand_left")
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.tracmio_launcher_foreground),
-                    contentDescription = "Tracmio Logo — Profile & Currency",
+                Box(
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .border(1.2.dp, palette.primary.copy(alpha = 0.55f), RoundedCornerShape(10.dp))
-                )
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(
+                            Brush.linearGradient(
+                                colors = if (palette.isLight) {
+                                    listOf(Color(0xFFFFFFFF), Color(0xFFDFF4F8))
+                                } else {
+                                    listOf(Color(0xFF0A2636), Color(0xFF05131E))
+                                }
+                            )
+                        )
+                        .border(
+                            width = 1.5.dp,
+                            color = if (palette.isLight) Color(0xFF009F91).copy(alpha = 0.55f) else Color(0xFF38F9D7).copy(alpha = 0.80f),
+                            shape = RoundedCornerShape(13.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.tracmio_launcher_foreground),
+                        contentDescription = "Tracmio Logo — Profile & Currency",
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                    )
+                }
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Tracmio",
+                            text = "Trac",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.ExtraBold,
                             color = palette.textPrimary
+                        )
+                        Text(
+                            text = "mio",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (palette.isLight) Color(0xFF009F91) else Color(0xFF22C55E)
                         )
                         if (settings.stealthModeActive) {
                             Spacer(modifier = Modifier.width(6.dp))
@@ -463,41 +600,22 @@ fun TracmioTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Neon "+ Add" Topbar Pill (no search icon in topbar!)
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = palette.primary.copy(alpha = 0.22f),
-                    border = androidx.compose.foundation.BorderStroke(1.2.dp, palette.primary.copy(alpha = 0.78f)),
-                    modifier = Modifier
-                        .height(40.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .clickable(onClick = onQuickAdd)
-                        .testTag("topbar_neon_add_btn")
-                ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
-                        Text(
-                            text = "+ Add",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = palette.primary,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                    }
-                }
-
                 // Privacy Eye Button — 1x tap toggles Mask, 3x fast tap toggles Stealth Mode
                 Surface(
                     shape = CircleShape,
                     color = if (settings.privacyMaskEnabled || settings.stealthModeActive) {
-                        palette.primary.copy(alpha = 0.22f)
+                        palette.primary.copy(alpha = 0.24f)
+                    } else if (palette.isLight) {
+                        Color.White.copy(alpha = 0.88f)
                     } else {
-                        palette.surfaceElevated.copy(alpha = 0.78f)
+                        Color(0xFF0E2B3A).copy(alpha = 0.78f)
                     },
                     border = androidx.compose.foundation.BorderStroke(
                         1.2.dp,
                         if (settings.stealthModeActive) palette.tertiary else palette.surfaceBorder
                     ),
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
                         .pointerInput(Unit) {
                             detectTapGestures(
@@ -528,9 +646,42 @@ fun TracmioTopBar(
                                 Icons.Default.Visibility
                             },
                             contentDescription = "Toggle Privacy Mask (Triple-tap for Stealth Mode)",
-                            tint = if (settings.stealthModeActive) palette.tertiary else if (settings.privacyMaskEnabled) palette.primary else palette.textPrimary
+                            tint = if (settings.stealthModeActive) palette.tertiary else if (settings.privacyMaskEnabled) palette.primary else palette.textPrimary,
+                            modifier = Modifier.size(19.dp)
                         )
                     }
+                }
+
+                // Glowing Neon "+ Add" Topbar Pill matching HTML .add-btn
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .height(38.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(
+                            Brush.linearGradient(
+                                colors = if (palette.isLight) {
+                                    listOf(Color(0xFF00BFA5), Color(0xFF009688))
+                                } else {
+                                    listOf(Color(0xFF00F5D4), Color(0xFF00B894))
+                                }
+                            )
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (palette.isLight) Color(0xFF80CBC4) else Color(0xFFA7F3D0).copy(alpha = 0.85f),
+                            shape = RoundedCornerShape(999.dp)
+                        )
+                        .clickable(onClick = onQuickAdd)
+                        .padding(horizontal = 14.dp)
+                        .testTag("topbar_neon_add_btn")
+                ) {
+                    Text(
+                        text = "+ Add",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (palette.isLight) Color.White else Color(0xFF03181C),
+                        fontWeight = FontWeight.ExtraBold
+                    )
                 }
             }
         }
@@ -538,7 +689,7 @@ fun TracmioTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(palette.surfaceBorder)
+                .background(palette.surfaceBorder.copy(alpha = 0.45f))
         )
     }
 }

@@ -84,31 +84,32 @@ object ThemePresets {
         "custom" to "Custom Neon"
     )
 
-    val AURORA_BASE_TOP = Color(0xFF031923)
-    val AURORA_BASE_BOTTOM = Color(0xFF04131A)
-    val AURORA_GLASS_SURFACE = Color(0xFF092B3C) // rgba(9, 43, 60, 0.72) when alpha=0.72f
-    val AURORA_GLASS_ELEVATED = Color(0xFF0F3A4E) // rgba(15, 58, 78, 0.78) when alpha=0.78f
-    val AURORA_GLASS_BORDER = Color(0x3D7DF5FF) // rgba(125, 245, 255, 0.24)
-    val AURORA_SPECULAR_TOP = Color(0x29FFFFFF) // rgba(255, 255, 255, 0.16)
-    val AURORA_NEON_TEAL = Color(0xFF00D6A3)
+    val AURORA_BASE_TOP = Color(0xFF031018)
+    val AURORA_BASE_MID = Color(0xFF071A27)
+    val AURORA_BASE_BOTTOM = Color(0xFF090F20)
+    val AURORA_GLASS_SURFACE = Color(0xFF082331) // rgba(8, 35, 49, 0.70)
+    val AURORA_GLASS_ELEVATED = Color(0xFF103444) // rgba(16, 52, 68, 0.78)
+    val AURORA_GLASS_BORDER = Color(0x6667E8F9) // rgba(103, 232, 249, 0.40)
+    val AURORA_SPECULAR_TOP = Color(0x59FFFFFF) // rgba(255, 255, 255, 0.35)
+    val AURORA_NEON_TEAL = Color(0xFF18F2D0)
     val AURORA_NEON_AQUA = Color(0xFF18F2D0)
     val AURORA_NEON_CYAN = Color(0xFF00F5D4)
-    val AURORA_VIOLET_GLOW = Color(0xFF695FDC)
+    val AURORA_VIOLET_GLOW = Color(0xFFA855F7)
     val AURORA_EXPENSE_ROSE = Color(0xFFFB7185)
     val AURORA_TRANSFER_SKY = Color(0xFF38BDF8)
-    val AURORA_WARNING_AMBER = Color(0xFFFBBF24)
+    val AURORA_WARNING_AMBER = Color(0xFFF5A623)
 
     val GLASS_UI_PROFILES = listOf(
-        GlassUiProfile("ui1", "Crystal Aurora", 0.72f, 0.24f, 20, 1.0f),
-        GlassUiProfile("ui2", "Prism Frost", 0.80f, 0.45f, 26, 1.2f),
-        GlassUiProfile("ui3", "Liquid Pill", 0.68f, 0.30f, 28, 0.9f),
-        GlassUiProfile("ui4", "Obsidian Velvet", 0.88f, 0.25f, 18, 0.8f),
-        GlassUiProfile("ui5", "Ultra Clear", 0.54f, 0.48f, 24, 1.1f),
-        GlassUiProfile("ui6", "Neon Edge", 0.76f, 0.75f, 20, 1.0f),
-        GlassUiProfile("ui7", "Soft Satin", 0.82f, 0.22f, 24, 1.0f),
-        GlassUiProfile("ui8", "Sharp Tech", 0.78f, 0.40f, 12, 0.85f),
-        GlassUiProfile("ui9", "Aero Capsule", 0.70f, 0.38f, 30, 1.15f),
-        GlassUiProfile("ui10", "Executive Matte", 0.92f, 0.20f, 16, 0.6f)
+        GlassUiProfile("ui1", "Crystal Aurora", 0.78f, 0.40f, 24, 1.0f),
+        GlassUiProfile("ui2", "Prism Frost", 0.82f, 0.48f, 26, 1.2f),
+        GlassUiProfile("ui3", "Liquid Pill", 0.72f, 0.36f, 28, 0.9f),
+        GlassUiProfile("ui4", "Obsidian Velvet", 0.88f, 0.28f, 22, 0.8f),
+        GlassUiProfile("ui5", "Ultra Clear", 0.60f, 0.50f, 24, 1.1f),
+        GlassUiProfile("ui6", "Neon Edge", 0.78f, 0.75f, 24, 1.0f),
+        GlassUiProfile("ui7", "Soft Satin", 0.84f, 0.28f, 24, 1.0f),
+        GlassUiProfile("ui8", "Sharp Tech", 0.80f, 0.42f, 16, 0.85f),
+        GlassUiProfile("ui9", "Aero Capsule", 0.74f, 0.42f, 30, 1.15f),
+        GlassUiProfile("ui10", "Executive Matte", 0.92f, 0.24f, 20, 0.6f)
     )
 
     fun getGlassProfile(id: String): GlassUiProfile =
@@ -184,17 +185,17 @@ object ThemePresets {
                 id = "light",
                 displayName = "Arctic Pearl",
                 isLight = true,
-                primary = Color(0xFF008D83),
+                primary = Color(0xFF009F91),
                 secondary = Color(0xFF0284C7),
                 tertiary = Color(0xFFD97706),
-                background = Color(0xFFEAF4F7),
-                surface = Color(0xFFF8FCFE),
+                background = Color(0xFFEDF5F8),
+                surface = Color(0xFFE5F1F6),
                 surfaceElevated = Color(0xFFFFFFFF),
-                surfaceBorder = Color(0x3D235A6E),
+                surfaceBorder = Color(0x473191A6),
                 textPrimary = Color(0xFF102B3B),
-                textSecondary = Color(0xFF456475),
-                meshGlow1 = Color(0x4400D2BE),
-                meshGlow2 = Color(0x446EA5FF)
+                textSecondary = Color(0xFF527080),
+                meshGlow1 = Color(0xFF00D2BE),
+                meshGlow2 = Color(0xFF6EA5FF)
             )
             "ruby" -> ThemePalette(
                 id = "ruby",
@@ -278,7 +279,7 @@ object ThemePresets {
             )
             "custom" -> {
                 val p = parseHexColor(customPrimaryHex, AURORA_NEON_TEAL)
-                val s = parseHexColor(customSecondaryHex, AURORA_NEON_AQUA)
+                val s = parseHexColor(customSecondaryHex, AURORA_VIOLET_GLOW)
                 ThemePalette(
                     id = "custom",
                     displayName = "Custom Neon",
@@ -289,9 +290,9 @@ object ThemePresets {
                     background = AURORA_BASE_TOP,
                     surface = AURORA_GLASS_SURFACE,
                     surfaceElevated = AURORA_GLASS_ELEVATED,
-                    surfaceBorder = p.copy(alpha = 0.36f),
-                    textPrimary = Color(0xFFFFFFFF),
-                    textSecondary = Color(0xFFC0D4DF),
+                    surfaceBorder = p.copy(alpha = 0.42f),
+                    textPrimary = Color(0xFFF4FBFF),
+                    textSecondary = Color(0xFFB1C7D5),
                     meshGlow1 = p,
                     meshGlow2 = s
                 )
@@ -301,15 +302,15 @@ object ThemePresets {
                 displayName = "Aurora Teal",
                 isLight = false,
                 primary = AURORA_NEON_TEAL,
-                secondary = AURORA_TRANSFER_SKY,
+                secondary = AURORA_VIOLET_GLOW,
                 tertiary = AURORA_WARNING_AMBER,
                 background = AURORA_BASE_TOP,
                 surface = AURORA_GLASS_SURFACE,
                 surfaceElevated = AURORA_GLASS_ELEVATED,
                 surfaceBorder = AURORA_GLASS_BORDER,
-                textPrimary = Color(0xFFFFFFFF),
-                textSecondary = Color(0xFFC0D4DF),
-                meshGlow1 = AURORA_NEON_TEAL,
+                textPrimary = Color(0xFFF4FBFF),
+                textSecondary = Color(0xFFB1C7D5),
+                meshGlow1 = AURORA_NEON_CYAN,
                 meshGlow2 = AURORA_VIOLET_GLOW
             )
         }

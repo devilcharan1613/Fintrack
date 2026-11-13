@@ -500,59 +500,189 @@ private fun FloatingGlassBottomNav(
     onSelectTab: (String) -> Unit,
     onQuickAdd: () -> Unit
 ) {
-    val navTabs = listOf(
-        Triple("dashboard", "Dashboard", Icons.Default.Dashboard),
-        Triple("accounts", "Accounts", Icons.Default.AccountBalanceWallet),
+    val leftTabs = listOf(
+        Triple("dashboard", "Home", Icons.Default.Dashboard),
+        Triple("accounts", "Accounts", Icons.Default.AccountBalanceWallet)
+    )
+    val rightTabs = listOf(
         Triple("transactions", "Transactions", Icons.AutoMirrored.Filled.ReceiptLong),
-        Triple("reports", "Reports", Icons.Default.PieChart),
         Triple("more", "More", Icons.Default.GridView)
     )
+
+    val navBarBg = if (palette.isLight) {
+        Brush.linearGradient(
+            colors = listOf(
+                Color(0xF0FFFFFF),
+                Color(0xEBE4F4F8)
+            )
+        )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(
+                Color(0xE60E3040),
+                Color(0xF5051824)
+            )
+        )
+    }
+
+    val navBarBorder = if (palette.isLight) {
+        Brush.linearGradient(
+            colors = listOf(
+                Color.White,
+                Color(0xFF4696AA).copy(alpha = 0.36f)
+            )
+        )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.45f),
+                Color(0xFF67E8F9).copy(alpha = 0.58f),
+                Color(0xFFA855F7).copy(alpha = 0.38f)
+            )
+        )
+    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
-            .background(palette.surface.copy(alpha = 0.84f))
+            .clip(RoundedCornerShape(30.dp))
+            .background(brush = navBarBg)
             .border(
-                width = 1.4.dp,
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        ThemePresets.AURORA_SPECULAR_TOP,
-                        palette.surfaceBorder
-                    )
-                ),
-                shape = RoundedCornerShape(28.dp)
+                width = 1.6.dp,
+                brush = navBarBorder,
+                shape = RoundedCornerShape(30.dp)
             )
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(horizontal = 8.dp, vertical = 7.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        navTabs.forEach { (route, label, icon) ->
-            val selected = currentRoute == route || (route == "more" && currentRoute == "tools_hub")
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(if (selected) palette.primary.copy(alpha = 0.16f) else Color.Transparent)
-                    .clickable { onSelectTab(route) }
-                    .padding(horizontal = 4.dp, vertical = 6.dp)
-                    .testTag("nav_$route")
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = label,
-                    tint = if (selected) palette.primary else palette.textSecondary,
-                    modifier = Modifier.size(21.dp)
-                )
-                Text(
-                    label,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
-                    color = if (selected) palette.primary else palette.textSecondary,
-                    maxLines = 1
-                )
-            }
+        leftTabs.forEach { (route, label, icon) ->
+            val selected = currentRoute == route
+            BottomNavTabItem(
+                route = route,
+                label = label,
+                icon = icon,
+                selected = selected,
+                palette = palette,
+                onClick = { onSelectTab(route) },
+                modifier = Modifier.weight(1f)
+            )
         }
+
+        // Center glowing + button (.nav-add) matching APK & HTML prototype
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .padding(horizontal = 6.dp)
+                .size(54.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.linearGradient(
+                        colors = if (palette.isLight) {
+                            listOf(Color(0xFF26D0B8), Color(0xFF009F91))
+                        } else {
+                            listOf(Color(0xFF72FACA), Color(0xFF00E5BE), Color(0xFF00B496))
+                        }
+                    )
+                )
+                .border(
+                    width = 2.dp,
+                    color = if (palette.isLight) Color.White else Color(0xFFCCFBF1).copy(alpha = 0.90f),
+                    shape = CircleShape
+                )
+                .clickable(onClick = onQuickAdd)
+                .testTag("nav_quick_add_fab")
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Quick Add Transaction",
+                tint = if (palette.isLight) Color.White else Color(0xFF03221C),
+                modifier = Modifier.size(28.dp)
+            )
+        }
+
+        rightTabs.forEach { (route, label, icon) ->
+            val selected = currentRoute == route || (route == "more" && currentRoute == "tools_hub")
+            BottomNavTabItem(
+                route = route,
+                label = label,
+                icon = icon,
+                selected = selected,
+                palette = palette,
+                onClick = { onSelectTab(route) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun BottomNavTabItem(
+    route: String,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    selected: Boolean,
+    palette: ThemePalette,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val activeBg = if (palette.isLight) {
+        Brush.linearGradient(
+            colors = listOf(
+                Color(0xFF009F91).copy(alpha = 0.16f),
+                Color(0xFF009F91).copy(alpha = 0.08f)
+            )
+        )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(
+                Color(0xFF00F5D4).copy(alpha = 0.22f),
+                Color(0xFF08444E).copy(alpha = 0.65f)
+            )
+        )
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .then(
+                if (selected) {
+                    Modifier
+                        .background(brush = activeBg)
+                        .border(
+                            width = 1.4.dp,
+                            color = if (palette.isLight) Color(0xFF009F91).copy(alpha = 0.50f) else Color(0xFF4AF7E4).copy(alpha = 0.72f),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                } else {
+                    Modifier
+                }
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 6.dp)
+            .testTag("nav_$route")
+    ) {
+        Icon(
+            icon,
+            contentDescription = label,
+            tint = if (selected) {
+                if (palette.isLight) palette.primary else Color(0xFF36FFEB)
+            } else {
+                palette.textSecondary
+            },
+            modifier = Modifier.size(22.dp)
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Bold,
+            color = if (selected) {
+                if (palette.isLight) palette.primary else Color(0xFF36FFEB)
+            } else {
+                palette.textSecondary
+            },
+            maxLines = 1
+        )
     }
 }

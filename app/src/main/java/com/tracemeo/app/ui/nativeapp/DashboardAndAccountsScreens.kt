@@ -266,38 +266,194 @@ fun DashboardScreen(
             }
         }
 
-        // Hero Net Liquidity Card
+        // Hero Net Liquidity Card (HTML Prototype .hero + .hero-wave + .hero-stats)
         item {
-            GlassCard(settings = settings, modifier = Modifier.fillMaxWidth().testTag("dashboard_hero_card")) {
+            GlassCard(
+                settings = settings,
+                shape = RoundedCornerShape(28.dp),
+                borderWidth = 1.8.dp,
+                modifier = Modifier.fillMaxWidth().testTag("dashboard_hero_card")
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
                             Brush.linearGradient(
-                                listOf(
-                                    palette.primary.copy(alpha = 0.22f * settings.glowIntensity),
-                                    palette.secondary.copy(alpha = 0.14f * settings.glowIntensity)
-                                )
+                                colors = if (palette.isLight) {
+                                    listOf(
+                                        Color(0xFFFFFFFF).copy(alpha = 0.96f),
+                                        Color(0xFFDCF3F8).copy(alpha = 0.90f),
+                                        Color(0xFFEAE5FF).copy(alpha = 0.82f)
+                                    )
+                                } else {
+                                    listOf(
+                                        Color(0xFF123C4E).copy(alpha = 0.86f),
+                                        Color(0xFF082030).copy(alpha = 0.90f),
+                                        Color(0xFF141834).copy(alpha = 0.88f)
+                                    )
+                                }
                             )
                         )
-                        .padding(18.dp)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("TOTAL LIQUID NET BALANCE", style = MaterialTheme.typography.labelSmall, color = palette.textSecondary)
+                    // Subtle Aurora Wave Backdrop matching HTML <svg class="hero-wave">
+                    androidx.compose.foundation.Canvas(
+                        modifier = Modifier.matchParentSize()
+                    ) {
+                        val w = size.width
+                        val h = size.height
+                        val waveAlpha = (0.32f * settings.glowIntensity).coerceIn(0.08f, 0.45f)
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color(0xFF00F5D4).copy(alpha = waveAlpha), Color.Transparent),
+                                center = androidx.compose.ui.geometry.Offset(w * 0.16f, h * 0.18f),
+                                radius = w * 0.65f
+                            ),
+                            center = androidx.compose.ui.geometry.Offset(w * 0.16f, h * 0.18f),
+                            radius = w * 0.65f
+                        )
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color(0xFFA855F7).copy(alpha = waveAlpha * 0.9f), Color.Transparent),
+                                center = androidx.compose.ui.geometry.Offset(w * 0.88f, h * 0.85f),
+                                radius = w * 0.65f
+                            ),
+                            center = androidx.compose.ui.geometry.Offset(w * 0.88f, h * 0.85f),
+                            radius = w * 0.65f
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            "TOTAL LIQUID NET BALANCE",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = palette.textSecondary,
+                            fontWeight = FontWeight.Bold
+                        )
                         Text(
                             displayAmount(state.totalBalance, settings, 45200.0),
                             style = MaterialTheme.typography.headlineLarge,
                             fontWeight = FontWeight.ExtraBold,
                             color = palette.textPrimary
                         )
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column {
-                                Text("↑ Income", style = MaterialTheme.typography.labelSmall, color = palette.textSecondary)
-                                Text(displayAmount(state.totalIncome, settings, 25000.0), color = palette.primary, fontWeight = FontWeight.Bold)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // Inner Income Glass Pill (.stat-inc)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = if (palette.isLight) {
+                                                listOf(Color(0xFFE6FAF6), Color(0xFFFFFFFF))
+                                            } else {
+                                                listOf(
+                                                    Color(0xFF00F5D4).copy(alpha = 0.16f),
+                                                    Color(0xFF064E4A).copy(alpha = 0.72f)
+                                                )
+                                            }
+                                        )
+                                    )
+                                    .border(
+                                        width = 1.2.dp,
+                                        color = if (palette.isLight) Color(0xFF009F91).copy(alpha = 0.35f) else Color(0xFF00F5D4).copy(alpha = 0.45f),
+                                        shape = RoundedCornerShape(18.dp)
+                                    )
+                                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                Brush.linearGradient(
+                                                    listOf(Color(0xFF34D399), Color(0xFF059669))
+                                                )
+                                            )
+                                    ) {
+                                        Text("↑", color = Color(0xFF022C22), fontWeight = FontWeight.ExtraBold)
+                                    }
+                                    Column {
+                                        Text(
+                                            "↑ Income",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = palette.textSecondary
+                                        )
+                                        Text(
+                                            displayAmount(state.totalIncome, settings, 25000.0),
+                                            color = palette.primary,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
                             }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text("↓ Expenses", style = MaterialTheme.typography.labelSmall, color = palette.textSecondary)
-                                Text(displayAmount(state.totalExpense, settings, 9400.0), color = Color(0xFFF43F5E), fontWeight = FontWeight.Bold)
+
+                            // Inner Expense Glass Pill (.stat-exp)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = if (palette.isLight) {
+                                                listOf(Color(0xFFFFF1F2), Color(0xFFFFFFFF))
+                                            } else {
+                                                listOf(
+                                                    Color(0xFF818CF8).copy(alpha = 0.18f),
+                                                    Color(0xFF24264E).copy(alpha = 0.76f)
+                                                )
+                                            }
+                                        )
+                                    )
+                                    .border(
+                                        width = 1.2.dp,
+                                        color = if (palette.isLight) Color(0xFFFB7185).copy(alpha = 0.35f) else Color(0xFFA855F7).copy(alpha = 0.48f),
+                                        shape = RoundedCornerShape(18.dp)
+                                    )
+                                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                Brush.linearGradient(
+                                                    listOf(Color(0xFFFB7185), Color(0xFFE11D48))
+                                                )
+                                            )
+                                    ) {
+                                        Text("↓", color = Color.White, fontWeight = FontWeight.ExtraBold)
+                                    }
+                                    Column {
+                                        Text(
+                                            "↓ Expenses",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = palette.textSecondary
+                                        )
+                                        Text(
+                                            displayAmount(state.totalExpense, settings, 9400.0),
+                                            color = Color(0xFFF43F5E),
+                                            fontWeight = FontWeight.ExtraBold,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
