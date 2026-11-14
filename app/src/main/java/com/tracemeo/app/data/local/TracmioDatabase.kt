@@ -1,4 +1,4 @@
-package com.tracemeo.app.data.local
+package com.tracmio.app.data.local
 
 import android.content.ContentValues
 import android.content.Context
@@ -9,7 +9,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.tracemeo.app.data.security.TracmioSecurityEngine
+import com.tracmio.app.data.security.TracmioSecurityEngine
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 @Database(
