@@ -1,4 +1,4 @@
-package com.tracemeo.app
+package com.tracmio.app
 
 import android.content.BroadcastReceiver
 import android.content.Context
