@@ -1,4 +1,4 @@
-package com.tracemeo.app.ui.nativeapp
+package com.tracmio.app.ui.nativeapp
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
@@ -11,8 +11,8 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.tracemeo.app.R
-import com.tracemeo.app.data.LiquidGlassSettings
+import com.tracmio.app.R
+import com.tracmio.app.data.LiquidGlassSettings
 
 val PlusJakartaSansFamily = FontFamily(
     Font(R.font.plus_jakarta_sans, FontWeight.Normal),
