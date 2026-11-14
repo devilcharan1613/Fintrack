@@ -1,4 +1,4 @@
-package com.tracemeo.app.data.local
+package com.tracmio.app.data.local
 
 import androidx.room.Dao
 import androidx.room.Delete
