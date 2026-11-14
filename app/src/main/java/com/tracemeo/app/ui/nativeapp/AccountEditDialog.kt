@@ -1,4 +1,4 @@
-package com.tracemeo.app.ui.nativeapp
+package com.tracmio.app.ui.nativeapp
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -26,8 +26,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.tracemeo.app.data.MoneyPaise
-import com.tracemeo.app.data.local.AccountEntity
+import com.tracmio.app.data.MoneyPaise
+import com.tracmio.app.data.local.AccountEntity
 
 @Composable
 fun EditAccountDialog(

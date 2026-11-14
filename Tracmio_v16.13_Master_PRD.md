@@ -1,7 +1,7 @@
 # Tracmio_v16.13_Master_PRD.md
 **Refined Product Requirements Document (PRD) & Master Engineering Specification**  
 **App Name**: Tracmio — Finance & Expenses Tracker  
-**Exact Package / Namespace**: `com.tracemio.app` (`applicationId = "com.tracemio.app"`, `namespace = "com.tracemio.app"`)  
+**Exact Package / Namespace**: `com.tracmio.app` (`applicationId = "com.tracmio.app"`, `namespace = "com.tracmio.app"`)  
 **Version**: `versionName = "16.13"` (`versionCode = 30`)  
 **SDK Targets**: `minSdk = 26`, `targetSdk = 35`, `compileSdk = 35`  
 **Design System**: v2.5.0 Aurora Teal Liquid Glass (Strict 1:1 Lock with `index.html`)  
@@ -141,7 +141,7 @@
 
 ---
 
-## 3. Architecture, Security & Build Verification (`com.tracemio.app`, v16.13)
-- **Package & Build**: Standardize strictly on `com.tracemio.app` (`versionCode = 30`, `versionName = "16.13"`, `minSdk = 26`, `targetSdk = 35`).
+## 3. Architecture, Security & Build Verification (`com.tracmio.app`, v16.13)
+- **Package & Build**: Standardize strictly on `com.tracmio.app` (`versionCode = 30`, `versionName = "16.13"`, `minSdk = 26`, `targetSdk = 35`).
 - **Database Migration Safety**: Use explicit Room migrations (plus automatic JSON backup export before schema upgrades—do **not** silently wipe user data with unguarded destructive migrations in production).
 - **Single APK & Clean Repo**: Keep only **one** `Tracmio-16.13.apk` (and signed `Tracmio-16.13.aab` for Play Store), remove all old APKs/duplicate HTML files, and verify `./gradlew clean :app:testDebugUnitTest assembleDebug bundleRelease` passes with zero errors.

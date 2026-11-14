@@ -1,10 +1,10 @@
-package com.tracemeo.app.ui.accounts
+package com.tracmio.app.ui.accounts
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.tracemeo.app.data.MoneyPaise
-import com.tracemeo.app.data.local.AccountEntity
-import com.tracemeo.app.data.repository.AccountRepository
+import com.tracmio.app.data.MoneyPaise
+import com.tracmio.app.data.local.AccountEntity
+import com.tracmio.app.data.repository.AccountRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch

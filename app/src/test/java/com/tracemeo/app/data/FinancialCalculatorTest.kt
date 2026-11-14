@@ -1,9 +1,9 @@
-package com.tracemeo.app.data
+package com.tracmio.app.data
 
-import com.tracemeo.app.DailyReminderReceiver
-import com.tracemeo.app.data.local.AccountEntity
-import com.tracemeo.app.data.local.LoanEntity
-import com.tracemeo.app.data.local.TransactionEntity
+import com.tracmio.app.DailyReminderReceiver
+import com.tracmio.app.data.local.AccountEntity
+import com.tracmio.app.data.local.LoanEntity
+import com.tracmio.app.data.local.TransactionEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

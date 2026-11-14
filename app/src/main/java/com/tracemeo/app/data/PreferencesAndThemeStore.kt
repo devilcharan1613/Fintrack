@@ -1,8 +1,8 @@
-package com.tracemeo.app.data
+package com.tracmio.app.data
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.tracemeo.app.data.security.TracmioSecurityEngine
+import com.tracmio.app.data.security.TracmioSecurityEngine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

@@ -1,4 +1,4 @@
-package com.tracemeo.app.ui.nativeapp
+package com.tracmio.app.ui.nativeapp
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -49,11 +49,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.tracemeo.app.data.LiquidGlassSettings
-import com.tracemeo.app.data.MoneyPaise
-import com.tracemeo.app.data.NativeIntelligenceCalculators
-import com.tracemeo.app.data.NativeLedgerCalculator
-import com.tracemeo.app.data.TransactionDateTime
+import com.tracmio.app.data.LiquidGlassSettings
+import com.tracmio.app.data.MoneyPaise
+import com.tracmio.app.data.NativeIntelligenceCalculators
+import com.tracmio.app.data.NativeLedgerCalculator
+import com.tracmio.app.data.TransactionDateTime
 import java.util.Calendar
 import java.util.Locale
 import kotlin.math.cos

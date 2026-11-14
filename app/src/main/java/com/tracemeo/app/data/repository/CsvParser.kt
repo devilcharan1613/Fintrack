@@ -1,4 +1,4 @@
-package com.tracemeo.app.data.repository
+package com.tracmio.app.data.repository
 
 internal fun parseCsvLine(line: String): List<String> {
     val values = mutableListOf<String>()

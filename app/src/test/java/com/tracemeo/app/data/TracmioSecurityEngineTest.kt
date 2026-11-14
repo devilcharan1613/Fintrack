@@ -1,7 +1,7 @@
-package com.tracemeo.app.data
+package com.tracmio.app.data
 
-import com.tracemeo.app.data.security.AppLockManager
-import com.tracemeo.app.data.security.TracmioSecurityEngine
+import com.tracmio.app.data.security.AppLockManager
+import com.tracmio.app.data.security.TracmioSecurityEngine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -133,7 +133,7 @@ class TracmioSecurityEngineTest {
         val gradleFile = listOf(File("build.gradle.kts"), File("app/build.gradle.kts")).firstOrNull { it.exists() }
         assertTrue("app/build.gradle.kts must exist", gradleFile != null)
         val gradleSrc = gradleFile!!.readText()
-        assertTrue("applicationId must be com.tracemio.app", gradleSrc.contains("""applicationId = "com.tracemio.app""""))
+        assertTrue("applicationId must be com.tracmio.app", gradleSrc.contains("""applicationId = "com.tracmio.app""""))
         assertTrue("versionName must be 16.13", gradleSrc.contains("""versionName = "16.13""""))
 
         val uiDir = listOf(

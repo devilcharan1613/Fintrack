@@ -1,7 +1,7 @@
-package com.tracemeo.app.data
+package com.tracmio.app.data
 
-import com.tracemeo.app.data.local.AccountEntity
-import com.tracemeo.app.data.local.TransactionEntity
+import com.tracmio.app.data.local.AccountEntity
+import com.tracmio.app.data.local.TransactionEntity
 
 object FinancialCalculator {
     private val positiveTypes = setOf("INCOME", "TRANSFER_IN", "BORROW")

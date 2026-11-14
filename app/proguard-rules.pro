@@ -5,7 +5,7 @@
 
 -keep class androidx.biometric.** { *; }
 -keep class androidx.security.crypto.** { *; }
--keep class com.tracemeo.app.data.local.** { *; }
+-keep class com.tracmio.app.data.local.** { *; }
 
 -assumenosideeffects class android.util.Log {
     public static boolean isLoggable(java.lang.String, int);

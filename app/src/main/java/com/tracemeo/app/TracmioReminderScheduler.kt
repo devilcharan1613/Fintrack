@@ -1,4 +1,4 @@
-package com.tracemeo.app
+package com.tracmio.app
 
 import android.app.AlarmManager
 import android.app.PendingIntent

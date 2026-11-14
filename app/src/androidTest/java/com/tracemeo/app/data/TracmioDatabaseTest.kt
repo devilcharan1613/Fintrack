@@ -1,12 +1,12 @@
-package com.tracemeo.app.data
+package com.tracmio.app.data
 
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.tracemeo.app.data.local.AccountEntity
-import com.tracemeo.app.data.local.TracmioDatabase
-import com.tracemeo.app.data.local.TransactionEntity
+import com.tracmio.app.data.local.AccountEntity
+import com.tracmio.app.data.local.TracmioDatabase
+import com.tracmio.app.data.local.TransactionEntity
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
