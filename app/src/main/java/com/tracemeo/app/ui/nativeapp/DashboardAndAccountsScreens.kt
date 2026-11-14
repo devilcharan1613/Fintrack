@@ -198,6 +198,30 @@ fun DashboardScreen(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 104.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        // Greeting Header matching Screenshot 2
+        item {
+            val greeting = remember {
+                val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+                when {
+                    hour < 12 -> "Good Morning"
+                    hour < 17 -> "Good Afternoon"
+                    else -> "Good Evening"
+                }
+            }
+            val userName = settings.userName.ifBlank { "Charan" }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "$greeting, $userName 👋",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = palette.textPrimary
+                )
+            }
+        }
+
         // Safe-to-Spend Daily Limit Banner
         item {
             GlassCard(
