@@ -40,10 +40,11 @@ fun LiquidGlassComponents(
                 .fillMaxWidth()
                 .background(
                     Brush.verticalGradient(
-                        listOf(
-                            Color(0xC70F3A4E),
-                            Color(0xB8092B3C)
-                        )
+                        if (palette.id == "dark") {
+                            listOf(Color(0xC70F3A4E), Color(0xB8092B3C))
+                        } else {
+                            listOf(palette.surfaceElevated.copy(alpha = 0.88f), palette.surface.copy(alpha = 0.80f))
+                        }
                     )
                 )
                 .padding(16.dp),

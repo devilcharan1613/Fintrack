@@ -41,7 +41,7 @@ object NativeStatementPdf {
         canvas.drawText("Generated: ${fmt.format(Date())}", 40f, y, bodyPaint)
         y += 28f
 
-        val totalBal = accounts.sumOf { if (it.balance != 0.0) it.balance else MoneyPaise.toRupees(it.balancePaise) }
+        val totalBal = accounts.sumOf { com.tracemeo.app.data.FinancialCalculator.balance(it, transactions) }
         canvas.drawText("Total Net Balance Across ${accounts.size} Accounts: $currencySymbol${"%,.2f".format(totalBal)}", 40f, y, titlePaint)
         y += 26f
 

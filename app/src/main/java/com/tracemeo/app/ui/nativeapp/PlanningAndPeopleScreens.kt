@@ -278,6 +278,7 @@ private fun PeopleAndKhataSection(
         val bill = totalBill.toDoubleOrNull() ?: 0.0
         val count = (headCount.toIntOrNull() ?: 1).coerceAtLeast(1)
         val perPerson = bill / count.toDouble()
+        val othersOwe = if (includeOwnShare) (bill - perPerson).coerceAtLeast(0.0) else bill
 
         AlertDialog(
             onDismissRequest = { showSmartSplit = false },
@@ -292,6 +293,12 @@ private fun PeopleAndKhataSection(
                         Text("Include my own share", color = palette.textPrimary)
                     }
                     Text("Each Person Pays: $curr${"%,.2f".format(perPerson)}", fontWeight = FontWeight.ExtraBold, color = palette.primary)
+                    Text(
+                        if (includeOwnShare) "Others Owe You: $curr${"%,.2f".format(othersOwe)} (${(count - 1).coerceAtLeast(0)} people)"
+                        else "Others Owe You: $curr${"%,.2f".format(othersOwe)} ($count people)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = palette.textSecondary
+                    )
                 }
             },
             confirmButton = {
