@@ -1,4 +1,4 @@
-package com.tracemeo.app.ui.nativeapp
+package com.tracmio.app.ui.nativeapp
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -66,12 +66,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.tracemeo.app.data.HashtagSummary
-import com.tracemeo.app.data.LiquidGlassSettings
-import com.tracemeo.app.data.MoneyPaise
-import com.tracemeo.app.data.NativeLedgerCalculator
-import com.tracemeo.app.data.UpiSmsDraft
-import com.tracemeo.app.data.local.TransactionEntity
+import com.tracmio.app.data.HashtagSummary
+import com.tracmio.app.data.LiquidGlassSettings
+import com.tracmio.app.data.MoneyPaise
+import com.tracmio.app.data.NativeLedgerCalculator
+import com.tracmio.app.data.UpiSmsDraft
+import com.tracmio.app.data.local.TransactionEntity
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
