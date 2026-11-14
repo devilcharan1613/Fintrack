@@ -1,4 +1,4 @@
-package com.tracemeo.app.ui.nativeapp
+package com.tracmio.app.ui.nativeapp
 
 import android.graphics.BitmapFactory
 import androidx.compose.animation.core.LinearEasing
@@ -66,9 +66,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tracemeo.app.R
-import com.tracemeo.app.data.LiquidGlassSettings
-import com.tracemeo.app.data.MoneyPaise
+import com.tracmio.app.R
+import com.tracmio.app.data.LiquidGlassSettings
+import com.tracmio.app.data.MoneyPaise
 import java.io.File
 import kotlin.math.cos
 import kotlin.math.sin
