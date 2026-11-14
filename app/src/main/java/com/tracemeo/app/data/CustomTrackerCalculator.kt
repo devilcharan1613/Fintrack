@@ -1,4 +1,4 @@
-package com.tracemeo.app.data
+package com.tracmio.app.data
 
 import java.time.LocalDate
 import kotlin.math.abs
