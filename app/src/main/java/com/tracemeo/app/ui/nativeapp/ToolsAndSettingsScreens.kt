@@ -1,4 +1,4 @@
-package com.tracemeo.app.ui.nativeapp
+package com.tracmio.app.ui.nativeapp
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -52,9 +52,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.tracemeo.app.TracmioReminderScheduler
-import com.tracemeo.app.data.CustomReminderItem
-import com.tracemeo.app.data.LiquidGlassSettings
+import com.tracmio.app.TracmioReminderScheduler
+import com.tracmio.app.data.CustomReminderItem
+import com.tracmio.app.data.LiquidGlassSettings
 import kotlinx.coroutines.launch
 import java.util.UUID
 
