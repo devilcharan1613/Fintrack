@@ -1,4 +1,4 @@
-package com.tracemeo.app.data.security
+package com.tracmio.app.data.security
 
 import android.app.KeyguardManager
 import android.content.Context
@@ -7,7 +7,7 @@ import android.os.Build
 import androidx.biometric.BiometricManager
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import com.tracemeo.app.data.local.TracmioDatabase
+import com.tracmio.app.data.local.TracmioDatabase
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
