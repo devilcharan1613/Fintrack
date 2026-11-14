@@ -1,4 +1,4 @@
-package com.tracemeo.app.ui.nativeapp
+package com.tracmio.app.ui.nativeapp
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -59,13 +59,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.tracemeo.app.data.AcademicEventItem
-import com.tracemeo.app.data.LiquidGlassSettings
-import com.tracemeo.app.data.MoneyPaise
-import com.tracemeo.app.data.NativeLedgerCalculator
-import com.tracemeo.app.data.RechargeTrackerItem
-import com.tracemeo.app.data.TransactionDateTime
-import com.tracemeo.app.data.local.CustomTrackerEntity
+import com.tracmio.app.data.AcademicEventItem
+import com.tracmio.app.data.LiquidGlassSettings
+import com.tracmio.app.data.MoneyPaise
+import com.tracmio.app.data.NativeLedgerCalculator
+import com.tracmio.app.data.RechargeTrackerItem
+import com.tracmio.app.data.TransactionDateTime
+import com.tracmio.app.data.local.CustomTrackerEntity
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
