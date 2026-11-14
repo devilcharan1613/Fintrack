@@ -1,101 +1,79 @@
 package com.tracemeo.app.data.local
 
 import androidx.room.Entity
-import androidx.room.Index
 import androidx.room.PrimaryKey
-import java.util.UUID
 
-@Entity(tableName = "quick_templates")
-data class QuickTemplateEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val stableUid: String = UUID.randomUUID().toString(),
-    val icon: String = "⚡",
-    val label: String,
-    val amount: Double,
-    val category: String = "Food & Dining"
-)
-
-@Entity(tableName = "cooling_wishlist")
-data class WishlistItemEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val stableUid: String = UUID.randomUUID().toString(),
+@Entity(tableName = "subscriptions")
+data class SubscriptionEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val name: String,
-    val price: Double,
-    val addedAt: Long = System.currentTimeMillis(),
-    val unlockedAt: Long = System.currentTimeMillis() + 24L * 60L * 60L * 1000L,
-    val status: String = "COOLING" // COOLING, BOUGHT, SKIPPED
+    val amount: Double,
+    val amountPaise: Long = Math.round(amount * 100.0),
+    val billingCycle: String = "Monthly", // Monthly, Yearly, 28d, 56d, 84d
+    val nextDueDateMillis: Long = System.currentTimeMillis(),
+    val category: String = "SIM, WiFi & Bills",
+    val isSimOrWifi: Boolean = false,
+    val validityDays: Int = 28,
+    val isActive: Boolean = true
 )
 
-@Entity(tableName = "cashback_entries")
-data class CashbackEntryEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val stableUid: String = UUID.randomUUID().toString(),
-    val source: String,
+@Entity(tableName = "academic_events")
+data class AcademicEventEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
+    val title: String,
+    val feeAmount: Double = 0.0,
+    val paidAmount: Double = 0.0,
+    val dueDate: String = "",
+    val semester: String = "Sem 1",
+    val isPaid: Boolean = false
+)
+
+@Entity(tableName = "reminders")
+data class ReminderItemEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
+    val title: String,
+    val amount: Double = 0.0,
+    val dueDate: String = "",
+    val timeHour: Int = 9,
+    val timeMinute: Int = 0,
+    val isCompleted: Boolean = false,
+    val isRecurring: Boolean = false
+)
+
+@Entity(tableName = "khata_entries")
+data class KhataEntryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
+    val shopOrFriend: String,
+    val itemDescription: String,
+    val amount: Double,
+    val isSettled: Boolean = false,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "wishlist_cooldowns")
+data class WishlistCooldownEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
+    val itemName: String,
+    val price: Double,
+    val createdAtMillis: Long = System.currentTimeMillis(),
+    val status: String = "COOLING" // COOLING, SKIPPED_SAVED, BOUGHT
+)
+
+@Entity(tableName = "cashback_rewards")
+data class CashbackRewardEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
+    val sourceApp: String,
     val amount: Double,
     val note: String = "",
     val timestamp: Long = System.currentTimeMillis()
 )
 
-@Entity(tableName = "value_items")
-data class ValueItemEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val stableUid: String = UUID.randomUUID().toString(),
-    val name: String,
-    val cost: Double,
-    val uses: Int = 1,
-    val createdAt: Long = System.currentTimeMillis()
-)
-
-@Entity(
-    tableName = "reminders",
-    indices = [
-        Index(value = ["kind", "isEnabled"])
-    ]
-)
-data class ReminderEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val stableUid: String = UUID.randomUUID().toString(),
-    val title: String,
-    val kind: String = "CUSTOM", // DAILY, CUSTOM, CALENDAR_EVENT, WARRANTY, MONTHLY_BACKUP
-    val hour: Int = 20,
-    val minute: Int = 0,
-    val dayOfMonth: Int = 1,
-    val triggerDate: String = "",
-    val isEnabled: Boolean = true,
-    val note: String = "",
-    val createdAt: Long = System.currentTimeMillis()
-)
-
-@Entity(tableName = "app_settings")
-data class AppSettingsEntity(
-    @PrimaryKey val id: Int = 1,
-    val themePreset: String = "dark",
-    val glassUiStyle: String = "ui1",
-    val wallpaperPreset: String = "wp1",
-    val backgroundVisibility: Float = 0.45f,
-    val wallpaperBlurDp: Float = 8f,
-    val glowIntensity: Float = 0.75f,
-    val uiScale: Float = 1.0f,
-    val deviceMotionEnabled: Boolean = true,
-    val animationStyle: Int = 1,
-    val customPrimaryHex: String = "#00D6A3",
-    val customSecondaryHex: String = "#00A9C7",
-    val privacyMaskEnabled: Boolean = false,
-    val stealthModeActive: Boolean = false,
-    val customWallpaperPath: String? = null,
-    val userName: String = "",
-    val currencySymbol: String = "₹",
-    val hasCompletedOnboarding: Boolean = false,
-    val customUpiAppsJson: String = "[]",
-    val toolsHubIdsJson: String = "[]",
-    val roundUpEnabled: Boolean = false,
-    val roundUpGoalId: Long? = null,
-    val roundUpStep: Int = 10,
-    val monthlyBackupEnabled: Boolean = false,
-    val monthlyBackupDay: Int = 1,
-    val monthlyBackupHour: Int = 10,
-    val monthlyBackupMinute: Int = 0,
-    val cashCountsJson: String = "[]",
-    val cashNote: String = "",
-    val updatedAt: Long = System.currentTimeMillis()
+@Entity(tableName = "price_per_use_items")
+data class PricePerUseEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
+    val itemName: String,
+    val purchasePrice: Double,
+    val usageCount: Int = 1,
+    val targetUses: Int = 30,
+    val createdAtMillis: Long = System.currentTimeMillis()
 )

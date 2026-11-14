@@ -1,6 +1,8 @@
 package com.tracemeo.app
 
 import android.app.AlarmManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -8,116 +10,134 @@ import android.os.Build
 import java.util.Calendar
 
 object TracmioReminderScheduler {
-    const val PREFS = "tracmio_reminders"
-    const val KEY_ENABLED = "enabled"
-    const val KEY_HOUR = "hour"
-    const val KEY_MINUTE = "minute"
-    const val KEY_MEME = "meme_mode"
-    const val KEY_ALERT_CATEGORY = "alert_category"
-    const val KEY_LAST_NOTIFICATION_INDEX = "last_notification_index"
-    const val KEY_USER_NAME = "user_name"
-    const val KEY_DAILY_SUMMARY_LINE = "daily_summary_line"
-    private const val REQUEST_CODE = 4102
+    const val CHANNEL_ID = "tracmio_daily"
+    const val CHANNEL_NAME = "Tracmio Offline Reminders"
+    private const val DAILY_REQ_CODE = 1613
+    private const val MONTHLY_BACKUP_REQ_CODE = 1614
 
-    fun getPrefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-
-    fun setUserName(context: Context, userName: String) {
-        getPrefs(context).edit().putString(KEY_USER_NAME, userName.trim()).apply()
-    }
-
-    fun getUserName(context: Context): String {
-        return getPrefs(context).getString(KEY_USER_NAME, "")?.trim().orEmpty()
-    }
-
-    fun setDailySummaryLine(context: Context, summaryLine: String) {
-        getPrefs(context).edit().putString(KEY_DAILY_SUMMARY_LINE, summaryLine.trim()).apply()
-    }
-
-    fun getDailySummaryLine(context: Context): String {
-        return getPrefs(context).getString(KEY_DAILY_SUMMARY_LINE, "")?.trim().orEmpty()
-    }
-
-    fun update(
-        context: Context,
-        enabled: Boolean,
-        hour: Int,
-        minute: Int,
-        memeMode: Boolean,
-        alertCategory: String = "ALL"
-    ) {
-        val safeHour = hour.coerceIn(0, 23)
-        val safeMinute = minute.coerceIn(0, 59)
-        val internalMemeMode = true
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_ENABLED, enabled)
-            .putInt(KEY_HOUR, safeHour)
-            .putInt(KEY_MINUTE, safeMinute)
-            .putBoolean(KEY_MEME, internalMemeMode)
-            .putString(KEY_ALERT_CATEGORY, alertCategory)
-            .apply()
-        if (enabled) {
-            scheduleNext(context, safeHour, safeMinute, internalMemeMode)
-        } else {
-            cancel(context)
+    fun ensureChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+            if (nm.getNotificationChannel(CHANNEL_ID) == null) {
+                val channel = NotificationChannel(
+                    CHANNEL_ID,
+                    CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    description = "100% offline expense check-ins, bill alerts, and monthly backup reminders"
+                }
+                nm.createNotificationChannel(channel)
+            }
         }
     }
 
-    fun rescheduleFromPrefs(context: Context) {
-        val prefs = getPrefs(context)
-        val enabled = prefs.getBoolean(KEY_ENABLED, true)
-        val hour = prefs.getInt(KEY_HOUR, 21)
-        val minute = prefs.getInt(KEY_MINUTE, 0)
-        val memeMode = true
-        if (enabled) {
-            scheduleNext(context, hour, minute, memeMode)
-        }
-    }
-
-    fun scheduleNext(
+    fun scheduleDailyReminder(
         context: Context,
-        hour: Int,
-        minute: Int,
-        memeMode: Boolean
+        hour: Int = 21,
+        minute: Int = 0,
+        userName: String = "Charan"
     ) {
+        ensureChannel(context)
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-        val pendingIntent = reminderPendingIntent(context, memeMode)
-        val now = Calendar.getInstance()
-        val target = Calendar.getInstance().apply {
+        val intent = Intent(context, DailyReminderReceiver::class.java).apply {
+            putExtra("user_name", userName)
+        }
+        val pi = PendingIntent.getBroadcast(
+            context,
+            DAILY_REQ_CODE,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val cal = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, hour.coerceIn(0, 23))
             set(Calendar.MINUTE, minute.coerceIn(0, 59))
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
-            if (!after(now)) {
+            if (timeInMillis <= System.currentTimeMillis()) {
                 add(Calendar.DAY_OF_YEAR, 1)
             }
         }
-
-        val triggerAtMillis = target.timeInMillis
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-            } else {
-                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-            }
-        } catch (_: SecurityException) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-        }
+        alarmManager.setInexactRepeating(
+            AlarmManager.RTC_WAKEUP,
+            cal.timeInMillis,
+            AlarmManager.INTERVAL_DAY,
+            pi
+        )
     }
 
-    fun cancel(context: Context) {
+    fun cancelDailyReminder(context: Context) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-        alarmManager.cancel(reminderPendingIntent(context, true))
+        val intent = Intent(context, DailyReminderReceiver::class.java)
+        val pi = PendingIntent.getBroadcast(
+            context,
+            DAILY_REQ_CODE,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        alarmManager.cancel(pi)
     }
 
-    private fun reminderPendingIntent(context: Context, memeMode: Boolean): PendingIntent {
-        val intent = Intent(context, DailyReminderReceiver::class.java).apply {
-            putExtra(KEY_MEME, memeMode)
+    fun scheduleEventReminder(
+        context: Context,
+        title: String,
+        message: String,
+        triggerAtMillis: Long,
+        eventId: String
+    ) {
+        ensureChannel(context)
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+        val intent = Intent(context, EventReminderReceiver::class.java).apply {
+            putExtra("title", title)
+            putExtra("message", message)
+            putExtra("event_id", eventId)
         }
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-            (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
-        return PendingIntent.getBroadcast(context, REQUEST_CODE, intent, flags)
+        val pi = PendingIntent.getBroadcast(
+            context,
+            eventId.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis.coerceAtLeast(System.currentTimeMillis() + 1000L), pi)
+    }
+
+    fun scheduleMonthlyBackupReminder(
+        context: Context,
+        enabled: Boolean,
+        dayOfMonth: Int = 1,
+        hour: Int = 20,
+        minute: Int = 0
+    ) {
+        ensureChannel(context)
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+        val intent = Intent(context, EventReminderReceiver::class.java).apply {
+            putExtra("title", "Monthly Encrypted Vault Backup")
+            putExtra("message", "Protect your offline Tracmio ledger by saving an encrypted JSON backup.")
+            putExtra("event_id", "monthly_backup")
+        }
+        val pi = PendingIntent.getBroadcast(
+            context,
+            MONTHLY_BACKUP_REQ_CODE,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        if (!enabled) {
+            alarmManager.cancel(pi)
+            return
+        }
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, dayOfMonth.coerceIn(1, 28))
+            set(Calendar.HOUR_OF_DAY, hour.coerceIn(0, 23))
+            set(Calendar.MINUTE, minute.coerceIn(0, 59))
+            set(Calendar.SECOND, 0)
+            if (timeInMillis <= System.currentTimeMillis()) {
+                add(Calendar.MONTH, 1)
+            }
+        }
+        alarmManager.setInexactRepeating(
+            AlarmManager.RTC_WAKEUP,
+            cal.timeInMillis,
+            AlarmManager.INTERVAL_DAY * 30L,
+            pi
+        )
     }
 }

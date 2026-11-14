@@ -1,68 +1,25 @@
 package com.tracemeo.app.ui.accounts
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.tracemeo.app.data.MoneyPaise
 import com.tracemeo.app.data.local.AccountEntity
+import com.tracemeo.app.data.local.TracmioDatabase
 import com.tracemeo.app.data.repository.AccountRepository
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class AccountsViewModel(
-    private val repository: AccountRepository
-) : ViewModel() {
+class AccountsViewModel(application: Application) : AndroidViewModel(application) {
+    private val repo = AccountRepository(TracmioDatabase.getInstance(application).accountDao())
 
-    val accounts = repository.getAllAccounts()
-        .stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
-            emptyList()
-        )
+    val accounts: StateFlow<List<AccountEntity>> = repo.getAllAccounts()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val totalBalance = repository.getTotalBalance()
-        .stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
-            0.0
-        )
+    val totalBalance: StateFlow<Double> = repo.getTotalBalance()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    fun addAccount(
-        name: String,
-        accountType: String,
-        balance: Double,
-        institution: String,
-        currency: String = "INR"
-    ) {
-        viewModelScope.launch {
-            repository.insertAccount(
-                AccountEntity(
-                    name = name,
-                    accountType = accountType,
-                    balance = balance,
-                    balancePaise = MoneyPaise.toPaise(balance),
-                    institution = institution,
-                    currency = currency
-                )
-            )
-        }
-    }
-
-    fun updateAccount(account: AccountEntity) {
-        viewModelScope.launch {
-            repository.updateAccount(account)
-        }
-    }
-
-    fun deleteAccount(account: AccountEntity) {
-        viewModelScope.launch {
-            repository.deleteAccount(account)
-        }
-    }
-
-    fun archiveAccount(id: Long) {
-        viewModelScope.launch {
-            repository.archiveAccount(id)
-        }
-    }
+    fun saveAccount(account: AccountEntity) = viewModelScope.launch { repo.insertAccount(account) }
+    fun deleteAccount(account: AccountEntity) = viewModelScope.launch { repo.deleteAccount(account) }
 }

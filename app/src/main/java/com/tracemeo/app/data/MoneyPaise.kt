@@ -2,53 +2,41 @@ package com.tracemeo.app.data
 
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.text.NumberFormat
-import java.util.Locale
 
 object MoneyPaise {
-    @Volatile
-    var activeCurrencySymbol: String = "₹"
-
-    fun toPaise(amount: Double): Long =
-        if (!amount.isFinite()) 0L
-        else BigDecimal.valueOf(amount).multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).toLong()
-
-    fun parsePaise(raw: String): Long? {
-        val cleaned = raw.trim()
-            .replace(",", "")
-            .removePrefix("₹")
-            .removePrefix("$")
-            .removePrefix("€")
-            .removePrefix("£")
-            .trim()
-        if (cleaned.isEmpty()) return null
-        return runCatching {
-            val decimal = BigDecimal(cleaned)
-            decimal.multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact()
-        }.getOrNull()
+    fun toPaise(rupees: Double): Long {
+        return (BigDecimal.valueOf(rupees).multiply(BigDecimal(100))).setScale(0, RoundingMode.HALF_UP).toLong()
     }
 
-    fun toRupees(paise: Long): Double = paise / 100.0
-
-    fun formatInput(paise: Long): String {
-        val bd = BigDecimal.valueOf(paise, 2).stripTrailingZeros()
-        return bd.toPlainString()
+    fun toRupees(paise: Long): Double {
+        return BigDecimal.valueOf(paise).divide(BigDecimal(100), 2, RoundingMode.HALF_UP).toDouble()
     }
 
-    fun formatRupees(paise: Long, masked: Boolean = false, symbol: String = activeCurrencySymbol): String {
-        if (masked) return "${symbol}••••••"
-        return formatCurrency(toRupees(paise), masked = false, symbol = symbol)
+    fun fromPaise(paise: Long): Double = toRupees(paise)
+
+    fun formatRupees(paise: Long, symbol: String = "₹"): String {
+        val r = toRupees(paise)
+        return "$symbol%,.2f".format(r)
     }
 
-    fun formatCurrency(amount: Double, masked: Boolean = false, symbol: String = activeCurrencySymbol): String {
-        if (masked) return "${symbol}••••••"
-        val sign = if (amount < 0) "-" else ""
-        val absVal = kotlin.math.abs(amount)
-        val locale = if (symbol == "₹") Locale("en", "IN") else Locale.US
-        val nf = NumberFormat.getNumberInstance(locale).apply {
-            minimumFractionDigits = if (absVal % 1.0 == 0.0) 0 else 2
-            maximumFractionDigits = 2
+    fun formatCurrency(amount: Double, symbol: String = "₹", stealthMode: Boolean = false, privacyMask: Boolean = false): String {
+        if (privacyMask) return "$symbol••••••"
+        val effective = if (stealthMode) {
+            val hash = kotlin.math.abs(amount.hashCode() % 155) + 25
+            hash.toDouble()
+        } else {
+            amount
         }
-        return "${sign}${symbol}${nf.format(absVal)}"
+        return if (effective % 1.0 == 0.0) {
+            "$symbol%,.0f".format(effective)
+        } else {
+            "$symbol%,.2f".format(effective)
+        }
+    }
+
+    fun parsePaise(raw: String): Long {
+        val cleaned = raw.replace(Regex("[^0-9.-]"), "").trim()
+        val num = cleaned.toDoubleOrNull() ?: 0.0
+        return toPaise(num)
     }
 }

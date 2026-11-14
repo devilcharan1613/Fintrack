@@ -1,6 +1,6 @@
 package com.tracemeo.app
 
-import android.app.NotificationChannel
+import android.Manifest
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -9,72 +9,40 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 
 class EventReminderReceiver : BroadcastReceiver() {
-
-    override fun onReceive(context: Context, intent: Intent?) {
-        if (intent == null) return
-        val type = intent.getStringExtra(EXTRA_TYPE) ?: TYPE_CALENDAR_EVENT
-        val title = intent.getStringExtra(EXTRA_TITLE) ?: "Tracmio Reminder"
-        val message = intent.getStringExtra(EXTRA_MESSAGE) ?: "You have an upcoming financial event."
-        val eventId = intent.getStringExtra(EXTRA_EVENT_ID) ?: ""
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            return
+    override fun onReceive(context: Context, intent: Intent) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
+            if (!granted) return
         }
+        TracmioReminderScheduler.ensureChannel(context)
+        val title = intent.getStringExtra("title").orEmpty().ifBlank { "Tracmio Reminder" }
+        val message = intent.getStringExtra("message").orEmpty().ifBlank { "Review your upcoming payment or backup." }
+        val eventId = intent.getStringExtra("event_id").orEmpty().ifBlank { "event" }
 
-        val channelId = CHANNEL_ID
-        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm != null) {
-            val channel = NotificationChannel(
-                channelId,
-                "Tracmio Events & Calendar",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Reminders for academic milestones, tuition deadlines, bills, and monthly backups"
-            }
-            nm.createNotificationChannel(channel)
+        val openIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
-
-        val openAppIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(EXTRA_EVENT_ID, eventId)
-            putExtra(EXTRA_TYPE, type)
-        }
-        val contentPendingIntent = PendingIntent.getActivity(
+        val pi = PendingIntent.getActivity(
             context,
-            (eventId.hashCode() xor 0x1234),
-            openAppIntent,
+            eventId.hashCode(),
+            openIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notifBuilder = NotificationCompat.Builder(context, channelId)
+        val notification = NotificationCompat.Builder(context, TracmioReminderScheduler.CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(message)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
-            .setContentIntent(contentPendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pi)
+            .build()
 
-        val notifId = (eventId.ifBlank { title }.hashCode() and 0x7FFFFFFF)
-        runCatching {
-            NotificationManagerCompat.from(context).notify(notifId, notifBuilder.build())
-        }
-    }
-
-    companion object {
-        const val CHANNEL_ID = "tracmio_calendar_events"
-        const val EXTRA_TYPE = "event_type"
-        const val EXTRA_TITLE = "event_title"
-        const val EXTRA_MESSAGE = "event_message"
-        const val EXTRA_EVENT_ID = "event_id"
-
-        const val TYPE_CALENDAR_EVENT = "CALENDAR_EVENT"
-        const val TYPE_MONTHLY_BACKUP = "MONTHLY_BACKUP"
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        nm.notify(eventId.hashCode(), notification)
     }
 }

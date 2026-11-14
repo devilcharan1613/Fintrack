@@ -1,47 +1,63 @@
 package com.tracemeo.app.ui.nativeapp
 
+import android.graphics.BitmapFactory
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
-import com.tracemeo.app.R
-import com.tracemeo.app.data.LiquidGlassSettings
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
-val PlusJakartaSansFamily = FontFamily(
-    Font(R.font.plus_jakarta_sans, FontWeight.Normal),
-    Font(R.font.plus_jakarta_sans, FontWeight.Medium),
-    Font(R.font.plus_jakarta_sans, FontWeight.SemiBold),
-    Font(R.font.plus_jakarta_sans, FontWeight.Bold),
-    Font(R.font.plus_jakarta_sans, FontWeight.ExtraBold)
-)
-
-val JetBrainsMonoFamily = FontFamily(
-    Font(R.font.jetbrains_mono, FontWeight.Normal),
-    Font(R.font.jetbrains_mono, FontWeight.Medium),
-    Font(R.font.jetbrains_mono, FontWeight.Bold)
-)
-
-val TracmioTypography = Typography(
-    headlineLarge = TextStyle(fontFamily = PlusJakartaSansFamily, fontWeight = FontWeight.ExtraBold, fontSize = 32.sp, lineHeight = 38.sp),
-    headlineMedium = TextStyle(fontFamily = PlusJakartaSansFamily, fontWeight = FontWeight.Bold, fontSize = 26.sp, lineHeight = 32.sp),
-    headlineSmall = TextStyle(fontFamily = PlusJakartaSansFamily, fontWeight = FontWeight.Bold, fontSize = 21.sp, lineHeight = 27.sp),
-    titleLarge = TextStyle(fontFamily = PlusJakartaSansFamily, fontWeight = FontWeight.Bold, fontSize = 18.sp, lineHeight = 24.sp),
-    titleMedium = TextStyle(fontFamily = PlusJakartaSansFamily, fontWeight = FontWeight.Bold, fontSize = 16.sp, lineHeight = 22.sp),
-    titleSmall = TextStyle(fontFamily = PlusJakartaSansFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp),
-    bodyLarge = TextStyle(fontFamily = PlusJakartaSansFamily, fontWeight = FontWeight.Normal, fontSize = 15.sp, lineHeight = 22.sp),
-    bodyMedium = TextStyle(fontFamily = PlusJakartaSansFamily, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 20.sp),
-    bodySmall = TextStyle(fontFamily = PlusJakartaSansFamily, fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 17.sp),
-    labelLarge = TextStyle(fontFamily = PlusJakartaSansFamily, fontWeight = FontWeight.Bold, fontSize = 13.sp, lineHeight = 18.sp),
-    labelMedium = TextStyle(fontFamily = PlusJakartaSansFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 16.sp),
-    labelSmall = TextStyle(fontFamily = PlusJakartaSansFamily, fontWeight = FontWeight.SemiBold, fontSize = 10.5.sp, lineHeight = 14.sp)
-)
+data class LiquidGlassSettings(
+    val themePreset: String = "dark",
+    val glassUiStyle: String = "ui1",
+    val wallpaperPreset: String = "wp1",
+    val backgroundVisibility: Float = 0.45f,
+    val wallpaperBlurDp: Float = 8f,
+    val glowIntensity: Float = 0.75f,
+    val uiScale: Float = 1.0f,
+    val deviceMotionEnabled: Boolean = false,
+    val animationStyle: Int = 1,
+    val customPrimaryHex: String = "#00F5D4",
+    val customSecondaryHex: String = "#A855F7",
+    val privacyMaskEnabled: Boolean = false,
+    val privacyMaskActive: Boolean = false,
+    val stealthModeActive: Boolean = false,
+    val customWallpaperPath: String? = null,
+    val userName: String = "Charan",
+    val currencySymbol: String = "₹",
+    val hasCompletedOnboarding: Boolean = false,
+    val roundUpEnabled: Boolean = false
+) {
+    companion object {
+        val ALLOWED_CURRENCIES = listOf("₹", "$", "€", "£")
+    }
+}
 
 data class ThemePalette(
     val id: String,
@@ -51,6 +67,8 @@ data class ThemePalette(
     val secondary: Color,
     val tertiary: Color,
     val background: Color,
+    val backgroundMid: Color,
+    val backgroundBottom: Color,
     val surface: Color,
     val surfaceElevated: Color,
     val surfaceBorder: Color,
@@ -60,260 +78,218 @@ data class ThemePalette(
     val meshGlow2: Color
 )
 
-data class GlassUiProfile(
-    val id: String,
-    val name: String,
-    val surfaceAlpha: Float,
-    val borderAlpha: Float,
-    val cornerDp: Int,
-    val blurIntensity: Float
-)
-
 object ThemePresets {
-    val ALL_THEMES = listOf(
-        "dark" to "Aurora Teal",
-        "tracmio" to "Tracmio Neon",
-        "obsidian" to "Obsidian Gold",
-        "sapphire" to "Sapphire Prism",
-        "light" to "Arctic Pearl",
-        "ruby" to "Cyber Ruby",
-        "emerald" to "Matrix Emerald",
-        "amethyst" to "Amethyst Nebula",
-        "titanium" to "Titanium Amber",
-        "ocean" to "Deep Ocean",
-        "custom" to "Custom Neon"
+    val ALL_THEMES: List<ThemePalette> = listOf(
+        ThemePalette(
+            id = "dark",
+            displayName = "Aurora Teal",
+            isLight = false,
+            primary = Color(0xFF00F5D4),
+            secondary = Color(0xFFA855F7),
+            tertiary = Color(0xFFFBBF24),
+            background = Color(0xFF031923),
+            backgroundMid = Color(0xFF052230),
+            backgroundBottom = Color(0xFF04131A),
+            surface = Color(0xC7092B3C),
+            surfaceElevated = Color(0xE00F3A4E),
+            surfaceBorder = Color(0x3D7DF5FF),
+            textPrimary = Color(0xFFFFFFFF),
+            textSecondary = Color(0xFFC0D4DF),
+            meshGlow1 = Color(0xFF00D6A3),
+            meshGlow2 = Color(0xFF695FDC)
+        ),
+        ThemePalette(
+            id = "tracmio",
+            displayName = "Tracmio Neon",
+            isLight = false,
+            primary = Color(0xFF18F2D0),
+            secondary = Color(0xFF10B981),
+            tertiary = Color(0xFF38BDF8),
+            background = Color(0xFF021A16),
+            backgroundMid = Color(0xFF052922),
+            backgroundBottom = Color(0xFF031411),
+            surface = Color(0xC708332B),
+            surfaceElevated = Color(0xE00E463B),
+            surfaceBorder = Color(0x4718F2D0),
+            textPrimary = Color(0xFFFFFFFF),
+            textSecondary = Color(0xFFBBE7DF),
+            meshGlow1 = Color(0xFF10B981),
+            meshGlow2 = Color(0xFF00D6A3)
+        ),
+        ThemePalette(
+            id = "obsidian",
+            displayName = "Obsidian Gold",
+            isLight = false,
+            primary = Color(0xFFF5A623),
+            secondary = Color(0xFFFBBF24),
+            tertiary = Color(0xFF38BDF8),
+            background = Color(0xFF100E09),
+            backgroundMid = Color(0xFF1A160D),
+            backgroundBottom = Color(0xFF0B0A07),
+            surface = Color(0xCC211B10),
+            surfaceElevated = Color(0xE62E2616),
+            surfaceBorder = Color(0x4DF5A623),
+            textPrimary = Color(0xFFFFFBF0),
+            textSecondary = Color(0xFFD6CBB5),
+            meshGlow1 = Color(0xFFF5A623),
+            meshGlow2 = Color(0xFF92400E)
+        ),
+        ThemePalette(
+            id = "sapphire",
+            displayName = "Sapphire Prism",
+            isLight = false,
+            primary = Color(0xFF38BDF8),
+            secondary = Color(0xFF818CF8),
+            tertiary = Color(0xFF00F5D4),
+            background = Color(0xFF051126),
+            backgroundMid = Color(0xFF0B1C3D),
+            backgroundBottom = Color(0xFF040D1E),
+            surface = Color(0xC70E234A),
+            surfaceElevated = Color(0xE0163161),
+            surfaceBorder = Color(0x4738BDF8),
+            textPrimary = Color(0xFFFFFFFF),
+            textSecondary = Color(0xFFC4D6F2),
+            meshGlow1 = Color(0xFF38BDF8),
+            meshGlow2 = Color(0xFF6366F1)
+        ),
+        ThemePalette(
+            id = "light",
+            displayName = "Arctic Pearl",
+            isLight = true,
+            primary = Color(0xFF00897B),
+            secondary = Color(0xFF0284C7),
+            tertiary = Color(0xFFD97706),
+            background = Color(0xFFEAF4F7),
+            backgroundMid = Color(0xFFF2F9FB),
+            backgroundBottom = Color(0xFFE0EFF4),
+            surface = Color(0xDEFFFFFF),
+            surfaceElevated = Color(0xF5F7FCFE),
+            surfaceBorder = Color(0x5500897B),
+            textPrimary = Color(0xFF0F2936),
+            textSecondary = Color(0xFF436475),
+            meshGlow1 = Color(0xFF2DD4BF),
+            meshGlow2 = Color(0xFF38BDF8)
+        ),
+        ThemePalette(
+            id = "ruby",
+            displayName = "Cyber Ruby",
+            isLight = false,
+            primary = Color(0xFFFB7185),
+            secondary = Color(0xFFA855F7),
+            tertiary = Color(0xFF00F5D4),
+            background = Color(0xFF1B0710),
+            backgroundMid = Color(0xFF2B0B19),
+            backgroundBottom = Color(0xFF14050B),
+            surface = Color(0xC7360F20),
+            surfaceElevated = Color(0xE04A142C),
+            surfaceBorder = Color(0x47FB7185),
+            textPrimary = Color(0xFFFFFFFF),
+            textSecondary = Color(0xFFEAC2CD),
+            meshGlow1 = Color(0xFFFB7185),
+            meshGlow2 = Color(0xFF9333EA)
+        ),
+        ThemePalette(
+            id = "emerald",
+            displayName = "Matrix Emerald",
+            isLight = false,
+            primary = Color(0xFF34D399),
+            secondary = Color(0xFF22D3EE),
+            tertiary = Color(0xFFFBBF24),
+            background = Color(0xFF031910),
+            backgroundMid = Color(0xFF06291A),
+            backgroundBottom = Color(0xFF02120B),
+            surface = Color(0xC7093322),
+            surfaceElevated = Color(0xE00E462F),
+            surfaceBorder = Color(0x4734D399),
+            textPrimary = Color(0xFFFFFFFF),
+            textSecondary = Color(0xFFB7E4CE),
+            meshGlow1 = Color(0xFF34D399),
+            meshGlow2 = Color(0xFF059669)
+        ),
+        ThemePalette(
+            id = "amethyst",
+            displayName = "Amethyst Nebula",
+            isLight = false,
+            primary = Color(0xFFC084FC),
+            secondary = Color(0xFF38BDF8),
+            tertiary = Color(0xFFFB7185),
+            background = Color(0xFF120822),
+            backgroundMid = Color(0xFF1D0E36),
+            backgroundBottom = Color(0xFF0D051A),
+            surface = Color(0xC728144A),
+            surfaceElevated = Color(0xE0361B63),
+            surfaceBorder = Color(0x47C084FC),
+            textPrimary = Color(0xFFFFFFFF),
+            textSecondary = Color(0xFFD9C7EE),
+            meshGlow1 = Color(0xFFA855F7),
+            meshGlow2 = Color(0xFF06B6D4)
+        ),
+        ThemePalette(
+            id = "titanium",
+            displayName = "Titanium Amber",
+            isLight = false,
+            primary = Color(0xFFFBBF24),
+            secondary = Color(0xFF94A3B8),
+            tertiary = Color(0xFF38BDF8),
+            background = Color(0xFF111418),
+            backgroundMid = Color(0xFF1A1F26),
+            backgroundBottom = Color(0xFF0B0E11),
+            surface = Color(0xCC222831),
+            surfaceElevated = Color(0xE62E3642),
+            surfaceBorder = Color(0x47FBBF24),
+            textPrimary = Color(0xFFF8FAFC),
+            textSecondary = Color(0xFFCBD5E1),
+            meshGlow1 = Color(0xFFFBBF24),
+            meshGlow2 = Color(0xFF475569)
+        ),
+        ThemePalette(
+            id = "ocean",
+            displayName = "Deep Ocean Aqua",
+            isLight = false,
+            primary = Color(0xFF22D3EE),
+            secondary = Color(0xFF0EA5E9),
+            tertiary = Color(0xFF00F5D4),
+            background = Color(0xFF021420),
+            backgroundMid = Color(0xFF042134),
+            backgroundBottom = Color(0xFF010E17),
+            surface = Color(0xC7072B42),
+            surfaceElevated = Color(0xE00B3B59),
+            surfaceBorder = Color(0x4722D3EE),
+            textPrimary = Color(0xFFFFFFFF),
+            textSecondary = Color(0xFFBAE0F5),
+            meshGlow1 = Color(0xFF22D3EE),
+            meshGlow2 = Color(0xFF0284C7)
+        )
     )
 
-    val AURORA_BASE_TOP = Color(0xFF031018)
-    val AURORA_BASE_MID = Color(0xFF071A27)
-    val AURORA_BASE_BOTTOM = Color(0xFF090F20)
-    val AURORA_GLASS_SURFACE = Color(0xFF082331) // rgba(8, 35, 49, 0.70)
-    val AURORA_GLASS_ELEVATED = Color(0xFF103444) // rgba(16, 52, 68, 0.78)
-    val AURORA_GLASS_BORDER = Color(0x6667E8F9) // rgba(103, 232, 249, 0.40)
-    val AURORA_SPECULAR_TOP = Color(0x59FFFFFF) // rgba(255, 255, 255, 0.35)
-    val AURORA_NEON_TEAL = Color(0xFF18F2D0)
-    val AURORA_NEON_AQUA = Color(0xFF18F2D0)
-    val AURORA_NEON_CYAN = Color(0xFF00F5D4)
-    val AURORA_VIOLET_GLOW = Color(0xFFA855F7)
-    val AURORA_EXPENSE_ROSE = Color(0xFFFB7185)
-    val AURORA_TRANSFER_SKY = Color(0xFF38BDF8)
-    val AURORA_WARNING_AMBER = Color(0xFFF5A623)
-
-    val GLASS_UI_PROFILES = listOf(
-        GlassUiProfile("ui1", "Crystal Aurora", 0.78f, 0.40f, 24, 1.0f),
-        GlassUiProfile("ui2", "Prism Frost", 0.82f, 0.48f, 26, 1.2f),
-        GlassUiProfile("ui3", "Liquid Pill", 0.72f, 0.36f, 28, 0.9f),
-        GlassUiProfile("ui4", "Obsidian Velvet", 0.88f, 0.28f, 22, 0.8f),
-        GlassUiProfile("ui5", "Ultra Clear", 0.60f, 0.50f, 24, 1.1f),
-        GlassUiProfile("ui6", "Neon Edge", 0.78f, 0.75f, 24, 1.0f),
-        GlassUiProfile("ui7", "Soft Satin", 0.84f, 0.28f, 24, 1.0f),
-        GlassUiProfile("ui8", "Sharp Tech", 0.80f, 0.42f, 16, 0.85f),
-        GlassUiProfile("ui9", "Aero Capsule", 0.74f, 0.42f, 30, 1.15f),
-        GlassUiProfile("ui10", "Executive Matte", 0.92f, 0.24f, 20, 0.6f)
+    val WALLPAPER_PRESETS: List<Pair<String, String>> = listOf(
+        "wp1" to "Aurora Cyan Mesh",
+        "wp2" to "Cosmic Violet Wave",
+        "wp3" to "Emerald Horizon",
+        "wp4" to "Solar Gold Halo",
+        "wp5" to "Midnight Sapphire",
+        "wp6" to "Coral Rose Mist",
+        "wp7" to "Arctic Frost",
+        "wp8" to "Deep Trench",
+        "wp9" to "Neon Matrix",
+        "wp10" to "Prism Borealis"
     )
 
-    fun getGlassProfile(id: String): GlassUiProfile =
-        GLASS_UI_PROFILES.firstOrNull { it.id == id } ?: GLASS_UI_PROFILES.first()
+    val GLASS_UI_STYLES: List<Pair<String, String>> = listOf(
+        "ui1" to "Liquid Cyan (Default)",
+        "ui2" to "Frosted Crystal",
+        "ui3" to "Neon Edge",
+        "ui4" to "Soft Satin",
+        "ui5" to "Deep Obsidian",
+        "ui6" to "Aqua Prism",
+        "ui7" to "Minimal Clear",
+        "ui8" to "Double Specular",
+        "ui9" to "Capsule Pill",
+        "ui10" to "High Contrast Pro"
+    )
 
-    fun parseHexColor(hex: String, fallback: Color): Color {
-        return runCatching {
-            val cleaned = hex.trim().removePrefix("#")
-            val parsed = cleaned.toLong(16)
-            when (cleaned.length) {
-                6 -> Color((0xFF000000L or parsed).toInt())
-                8 -> Color(parsed.toInt())
-                else -> fallback
-            }
-        }.getOrDefault(fallback)
-    }
-
-    fun getPalette(
-        preset: String,
-        customPrimaryHex: String = "#00D6A3",
-        customSecondaryHex: String = "#18F2D0"
-    ): ThemePalette {
-        return when (preset) {
-            "tracmio" -> ThemePalette(
-                id = "tracmio",
-                displayName = "Tracmio Neon",
-                isLight = false,
-                primary = Color(0xFF22C55E),
-                secondary = Color(0xFF06B6D4),
-                tertiary = Color(0xFF86EFAC),
-                background = Color(0xFF02120A),
-                surface = Color(0xFF062A1A),
-                surfaceElevated = Color(0xFF0B3B25),
-                surfaceBorder = Color(0x6622C55E),
-                textPrimary = Color(0xFFF0FDF4),
-                textSecondary = Color(0xFFA7F3D0),
-                meshGlow1 = Color(0x6622C55E),
-                meshGlow2 = Color(0x5506B6D4)
-            )
-            "obsidian" -> ThemePalette(
-                id = "obsidian",
-                displayName = "Obsidian Gold",
-                isLight = false,
-                primary = Color(0xFFF59E0B),
-                secondary = Color(0xFFD97706),
-                tertiary = Color(0xFFFEF08A),
-                background = Color(0xFF09090B),
-                surface = Color(0xFF1A1610),
-                surfaceElevated = Color(0xFF272115),
-                surfaceBorder = Color(0x55F59E0B),
-                textPrimary = Color(0xFFFFFBEB),
-                textSecondary = Color(0xFFFDE68A),
-                meshGlow1 = Color(0x55F59E0B),
-                meshGlow2 = Color(0x44B45309)
-            )
-            "sapphire" -> ThemePalette(
-                id = "sapphire",
-                displayName = "Sapphire Prism",
-                isLight = false,
-                primary = Color(0xFF3B82F6),
-                secondary = Color(0xFF6366F1),
-                tertiary = Color(0xFF93C5FD),
-                background = Color(0xFF030714),
-                surface = Color(0xFF0F1A38),
-                surfaceElevated = Color(0xFF172752),
-                surfaceBorder = Color(0x553B82F6),
-                textPrimary = Color(0xFFEFF6FF),
-                textSecondary = Color(0xFFBFDBFE),
-                meshGlow1 = Color(0x663B82F6),
-                meshGlow2 = Color(0x556366F1)
-            )
-            "light" -> ThemePalette(
-                id = "light",
-                displayName = "Arctic Pearl",
-                isLight = true,
-                primary = Color(0xFF009F91),
-                secondary = Color(0xFF0284C7),
-                tertiary = Color(0xFFD97706),
-                background = Color(0xFFEDF5F8),
-                surface = Color(0xFFE5F1F6),
-                surfaceElevated = Color(0xFFFFFFFF),
-                surfaceBorder = Color(0x473191A6),
-                textPrimary = Color(0xFF102B3B),
-                textSecondary = Color(0xFF527080),
-                meshGlow1 = Color(0xFF00D2BE),
-                meshGlow2 = Color(0xFF6EA5FF)
-            )
-            "ruby" -> ThemePalette(
-                id = "ruby",
-                displayName = "Cyber Ruby",
-                isLight = false,
-                primary = Color(0xFFF43F5E),
-                secondary = Color(0xFFFB923C),
-                tertiary = Color(0xFFFDA4AF),
-                background = Color(0xFF140206),
-                surface = Color(0xFF2B0A14),
-                surfaceElevated = Color(0xFF3E1020),
-                surfaceBorder = Color(0x55F43F5E),
-                textPrimary = Color(0xFFFFF1F2),
-                textSecondary = Color(0xFFFECDD3),
-                meshGlow1 = Color(0x66F43F5E),
-                meshGlow2 = Color(0x55FB923C)
-            )
-            "emerald" -> ThemePalette(
-                id = "emerald",
-                displayName = "Matrix Emerald",
-                isLight = false,
-                primary = Color(0xFF10B981),
-                secondary = Color(0xFF34D399),
-                tertiary = Color(0xFF6EE7B7),
-                background = Color(0xFF021610),
-                surface = Color(0xFF062C20),
-                surfaceElevated = Color(0xFF0A402E),
-                surfaceBorder = Color(0x5510B981),
-                textPrimary = Color(0xFFECFDF5),
-                textSecondary = Color(0xFFA7F3D0),
-                meshGlow1 = Color(0x6610B981),
-                meshGlow2 = Color(0x55059669)
-            )
-            "amethyst" -> ThemePalette(
-                id = "amethyst",
-                displayName = "Amethyst Nebula",
-                isLight = false,
-                primary = Color(0xFFC084FC),
-                secondary = Color(0xFFF472B6),
-                tertiary = Color(0xFFE879F9),
-                background = Color(0xFF0D041A),
-                surface = Color(0xFF200C3A),
-                surfaceElevated = Color(0xFF2D1252),
-                surfaceBorder = Color(0x55C084FC),
-                textPrimary = Color(0xFFFAF5FF),
-                textSecondary = Color(0xFFE9D5FF),
-                meshGlow1 = Color(0x66C084FC),
-                meshGlow2 = Color(0x55F472B6)
-            )
-            "titanium" -> ThemePalette(
-                id = "titanium",
-                displayName = "Titanium Amber",
-                isLight = false,
-                primary = Color(0xFFFBBF24),
-                secondary = Color(0xFF94A3B8),
-                tertiary = Color(0xFFFEF08A),
-                background = Color(0xFF0B0E14),
-                surface = Color(0xFF181E29),
-                surfaceElevated = Color(0xFF232B3A),
-                surfaceBorder = Color(0x55FBBF24),
-                textPrimary = Color(0xFFF8FAFC),
-                textSecondary = Color(0xFFCBD5E1),
-                meshGlow1 = Color(0x55FBBF24),
-                meshGlow2 = Color(0x4494A3B8)
-            )
-            "ocean" -> ThemePalette(
-                id = "ocean",
-                displayName = "Deep Ocean",
-                isLight = false,
-                primary = Color(0xFF00B4D8),
-                secondary = Color(0xFF90E0EF),
-                tertiary = Color(0xFF48CAE4),
-                background = Color(0xFF010C18),
-                surface = Color(0xFF062440),
-                surfaceElevated = Color(0xFF0A3257),
-                surfaceBorder = Color(0x5500B4D8),
-                textPrimary = Color(0xFFF0F9FF),
-                textSecondary = Color(0xFFBAE6FD),
-                meshGlow1 = Color(0x6600B4D8),
-                meshGlow2 = Color(0x550077B6)
-            )
-            "custom" -> {
-                val p = parseHexColor(customPrimaryHex, AURORA_NEON_TEAL)
-                val s = parseHexColor(customSecondaryHex, AURORA_VIOLET_GLOW)
-                ThemePalette(
-                    id = "custom",
-                    displayName = "Custom Neon",
-                    isLight = false,
-                    primary = p,
-                    secondary = s,
-                    tertiary = AURORA_WARNING_AMBER,
-                    background = AURORA_BASE_TOP,
-                    surface = AURORA_GLASS_SURFACE,
-                    surfaceElevated = AURORA_GLASS_ELEVATED,
-                    surfaceBorder = p.copy(alpha = 0.42f),
-                    textPrimary = Color(0xFFF4FBFF),
-                    textSecondary = Color(0xFFB1C7D5),
-                    meshGlow1 = p,
-                    meshGlow2 = s
-                )
-            }
-            else -> ThemePalette(
-                id = "dark",
-                displayName = "Aurora Teal",
-                isLight = false,
-                primary = AURORA_NEON_TEAL,
-                secondary = AURORA_VIOLET_GLOW,
-                tertiary = AURORA_WARNING_AMBER,
-                background = AURORA_BASE_TOP,
-                surface = AURORA_GLASS_SURFACE,
-                surfaceElevated = AURORA_GLASS_ELEVATED,
-                surfaceBorder = AURORA_GLASS_BORDER,
-                textPrimary = Color(0xFFF4FBFF),
-                textSecondary = Color(0xFFB1C7D5),
-                meshGlow1 = AURORA_NEON_CYAN,
-                meshGlow2 = AURORA_VIOLET_GLOW
-            )
-        }
+    fun getPalette(preset: String, primaryHex: String = "#00F5D4", secondaryHex: String = "#A855F7"): ThemePalette {
+        return ALL_THEMES.firstOrNull { it.id == preset } ?: ALL_THEMES.first()
     }
 }
 
@@ -322,72 +298,210 @@ fun TracmioNativeTheme(
     settings: LiquidGlassSettings = LiquidGlassSettings(),
     content: @Composable () -> Unit
 ) {
-    val palette = ThemePresets.getPalette(
-        settings.themePreset,
-        settings.customPrimaryHex,
-        settings.customSecondaryHex
-    )
+    val palette = ThemePresets.getPalette(settings.themePreset, settings.customPrimaryHex, settings.customSecondaryHex)
+    val baseDensity = LocalDensity.current
+    val scaledDensity = remember(baseDensity, settings.uiScale) {
+        val factor = settings.uiScale.coerceIn(0.8f, 1.3f)
+        Density(density = baseDensity.density * factor, fontScale = baseDensity.fontScale)
+    }
+
     val colorScheme = if (palette.isLight) {
         lightColorScheme(
             primary = palette.primary,
-            onPrimary = Color.White,
-            primaryContainer = palette.primary.copy(alpha = 0.16f),
-            onPrimaryContainer = palette.textPrimary,
             secondary = palette.secondary,
-            onSecondary = Color.White,
-            secondaryContainer = palette.secondary.copy(alpha = 0.16f),
-            onSecondaryContainer = palette.textPrimary,
             tertiary = palette.tertiary,
-            onTertiary = Color.White,
             background = palette.background,
-            onBackground = palette.textPrimary,
             surface = palette.surface,
-            onSurface = palette.textPrimary,
             surfaceVariant = palette.surfaceElevated,
-            onSurfaceVariant = palette.textSecondary,
-            surfaceContainerLowest = palette.background,
-            surfaceContainerLow = palette.surface,
             surfaceContainer = palette.surface,
             surfaceContainerHigh = palette.surfaceElevated,
             surfaceContainerHighest = palette.surfaceElevated,
             outline = palette.surfaceBorder,
-            outlineVariant = palette.surfaceBorder,
-            error = ThemePresets.AURORA_EXPENSE_ROSE,
-            onError = Color.White
+            onPrimary = Color.White,
+            onBackground = palette.textPrimary,
+            onSurface = palette.textPrimary,
+            onSurfaceVariant = palette.textSecondary
         )
     } else {
         darkColorScheme(
             primary = palette.primary,
-            onPrimary = Color(0xFF031923),
-            primaryContainer = palette.primary.copy(alpha = 0.22f),
-            onPrimaryContainer = Color(0xFFFFFFFF),
             secondary = palette.secondary,
-            onSecondary = Color(0xFF031923),
-            secondaryContainer = palette.secondary.copy(alpha = 0.22f),
-            onSecondaryContainer = Color(0xFFFFFFFF),
             tertiary = palette.tertiary,
-            onTertiary = Color(0xFF031923),
             background = palette.background,
-            onBackground = palette.textPrimary,
             surface = palette.surface,
-            onSurface = palette.textPrimary,
             surfaceVariant = palette.surfaceElevated,
-            onSurfaceVariant = palette.textSecondary,
-            surfaceContainerLowest = palette.background,
-            surfaceContainerLow = palette.surface,
             surfaceContainer = palette.surface,
             surfaceContainerHigh = palette.surfaceElevated,
             surfaceContainerHighest = palette.surfaceElevated,
             outline = palette.surfaceBorder,
-            outlineVariant = palette.surfaceBorder,
-            error = ThemePresets.AURORA_EXPENSE_ROSE,
-            onError = Color(0xFF031923)
+            onPrimary = palette.background,
+            onBackground = palette.textPrimary,
+            onSurface = palette.textPrimary,
+            onSurfaceVariant = palette.textSecondary
         )
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = TracmioTypography,
-        content = content
+    CompositionLocalProvider(LocalDensity provides scaledDensity) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            content = content
+        )
+    }
+}
+
+@Composable
+fun GlassCard(
+    settings: LiquidGlassSettings,
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(22.dp),
+    backgroundColor: Color? = null,
+    borderColor: Color? = null,
+    borderWidth: Dp = 1.4.dp,
+    onClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    val palette = ThemePresets.getPalette(settings.themePreset)
+    val bgBrush = if (backgroundColor != null) {
+        Brush.verticalGradient(listOf(backgroundColor, backgroundColor.copy(alpha = (backgroundColor.alpha * 0.92f))))
+    } else if (palette.isLight) {
+        Brush.verticalGradient(listOf(palette.surfaceElevated, palette.surface))
+    } else {
+        Brush.verticalGradient(listOf(Color(0xC70F3A4E), Color(0xB8092B3C)))
+    }
+
+    val strokeBrush = if (borderColor != null) {
+        Brush.verticalGradient(listOf(borderColor.copy(alpha = 0.75f), borderColor))
+    } else {
+        Brush.verticalGradient(listOf(Color(0x29FFFFFF), palette.surfaceBorder))
+    }
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(bgBrush)
+            .border(width = borderWidth, brush = strokeBrush, shape = shape)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+    ) {
+        content()
+    }
+}
+
+@Composable
+fun GlassBadge3D(
+    emoji: String,
+    accent: Color,
+    sizeDp: Dp
+) {
+    Box(
+        modifier = Modifier
+            .size(sizeDp)
+            .clip(RoundedCornerShape(13.dp))
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(accent.copy(alpha = 0.34f), accent.copy(alpha = 0.12f))
+                )
+            )
+            .border(1.2.dp, accent.copy(alpha = 0.55f), RoundedCornerShape(13.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        androidx.compose.material3.Text(text = emoji)
+    }
+}
+
+@Composable
+fun LiquidMeshBackground(
+    settings: LiquidGlassSettings,
+    tiltXProvider: () -> Float,
+    tiltYProvider: () -> Float
+) {
+    val palette = ThemePresets.getPalette(settings.themePreset)
+    val infiniteTransition = rememberInfiniteTransition(label = "aurora_mesh")
+    val phase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 12000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "aurora_phase"
     )
+
+    val customBitmap = remember(settings.customWallpaperPath) {
+        settings.customWallpaperPath?.let { path ->
+            runCatching { BitmapFactory.decodeFile(path)?.asImageBitmap() }.getOrNull()
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(palette.background, palette.backgroundMid, palette.backgroundBottom)
+                )
+            )
+    ) {
+        if (customBitmap != null) {
+            Image(
+                bitmap = customBitmap,
+                contentDescription = "Custom Wallpaper",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = settings.backgroundVisibility.coerceIn(0.05f, 1f) }
+            )
+        }
+
+        // GPU-composited radial aurora orbs (zero per-frame .blur() modifier)
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    translationX = tiltXProvider() * 14f
+                    translationY = tiltYProvider() * 14f
+                }
+        ) {
+            val glowAlpha = (0.28f * settings.glowIntensity).coerceIn(0.08f, 0.55f)
+            val orb1Center = Offset(
+                x = size.width * (0.22f + 0.08f * cos(phase)),
+                y = size.height * (0.18f + 0.06f * sin(phase))
+            )
+            val orb2Center = Offset(
+                x = size.width * (0.78f - 0.08f * sin(phase)),
+                y = size.height * (0.48f + 0.08f * cos(phase))
+            )
+            val orb3Center = Offset(
+                x = size.width * (0.35f + 0.06f * sin(phase * 0.7f)),
+                y = size.height * (0.82f - 0.05f * cos(phase * 0.7f))
+            )
+
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(palette.meshGlow1.copy(alpha = glowAlpha), Color.Transparent),
+                    center = orb1Center,
+                    radius = size.width * 0.72f
+                ),
+                center = orb1Center,
+                radius = size.width * 0.72f
+            )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(palette.meshGlow2.copy(alpha = glowAlpha * 0.9f), Color.Transparent),
+                    center = orb2Center,
+                    radius = size.width * 0.68f
+                ),
+                center = orb2Center,
+                radius = size.width * 0.68f
+            )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(palette.primary.copy(alpha = glowAlpha * 0.65f), Color.Transparent),
+                    center = orb3Center,
+                    radius = size.width * 0.62f
+                ),
+                center = orb3Center,
+                radius = size.width * 0.62f
+            )
+        }
+    }
 }
