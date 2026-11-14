@@ -1,13 +1,13 @@
-package com.tracemeo.app.data
+package com.tracmio.app.data
 
-import com.tracemeo.app.DailyReminderReceiver
-import com.tracemeo.app.data.local.AccountEntity
-import com.tracemeo.app.data.local.GoalContributionEntity
-import com.tracemeo.app.data.local.GoalEntity
-import com.tracemeo.app.data.local.LoanEntity
-import com.tracemeo.app.data.local.LoanPaymentEntity
-import com.tracemeo.app.data.local.PersonEntity
-import com.tracemeo.app.data.local.TransactionEntity
+import com.tracmio.app.DailyReminderReceiver
+import com.tracmio.app.data.local.AccountEntity
+import com.tracmio.app.data.local.GoalContributionEntity
+import com.tracmio.app.data.local.GoalEntity
+import com.tracmio.app.data.local.LoanEntity
+import com.tracmio.app.data.local.LoanPaymentEntity
+import com.tracmio.app.data.local.PersonEntity
+import com.tracmio.app.data.local.TransactionEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -167,7 +167,7 @@ class NativeFinanceAccuracyTest {
 
     @Test
     fun toolsHubCatalogContainsAllTwentyFourUtilityTools() {
-        val ids = com.tracemeo.app.ui.nativeapp.ALL_TOOLS_CATALOG.map { it.id }.toSet()
+        val ids = com.tracmio.app.ui.nativeapp.ALL_TOOLS_CATALOG.map { it.id }.toSet()
         assertTrue(ids.contains("khata"))
         assertTrue(ids.contains("recharge"))
         assertTrue(ids.contains("refunds"))
@@ -183,7 +183,7 @@ class NativeFinanceAccuracyTest {
 
     @Test
     fun kidSimpleAppGuideFeaturesIncludeExamplesAndValidRoutes() {
-        val features = com.tracemeo.app.ui.nativeapp.ALL_GUIDE_FEATURES
+        val features = com.tracmio.app.ui.nativeapp.ALL_GUIDE_FEATURES
         assertTrue(features.size >= 30)
         features.forEach { item ->
             assertTrue("Missing whatItDoes on ${item.title}", item.whatItDoes.isNotBlank())
@@ -199,8 +199,8 @@ class NativeFinanceAccuracyTest {
         assertEquals("dark", defaultSettings.themePreset)
         assertEquals("ui1", defaultSettings.glassUiStyle)
 
-        val palette = com.tracemeo.app.ui.nativeapp.ThemePresets.getPalette(defaultSettings.themePreset)
-        val profile = com.tracemeo.app.ui.nativeapp.ThemePresets.getGlassProfile(defaultSettings.glassUiStyle)
+        val palette = com.tracmio.app.ui.nativeapp.ThemePresets.getPalette(defaultSettings.themePreset)
+        val profile = com.tracmio.app.ui.nativeapp.ThemePresets.getGlassProfile(defaultSettings.glassUiStyle)
 
         assertEquals(androidx.compose.ui.graphics.Color(0xFF031018), palette.background)
         assertEquals(androidx.compose.ui.graphics.Color(0xFF082331), palette.surface)
@@ -218,7 +218,7 @@ class NativeFinanceAccuracyTest {
         assertEquals(0.78f, profile.surfaceAlpha, 0.001f)
         assertEquals(0.40f, profile.borderAlpha, 0.001f)
 
-        val lightPalette = com.tracemeo.app.ui.nativeapp.ThemePresets.getPalette("light")
+        val lightPalette = com.tracmio.app.ui.nativeapp.ThemePresets.getPalette("light")
         assertTrue(lightPalette.isLight)
         assertEquals(androidx.compose.ui.graphics.Color(0xFFEDF5F8), lightPalette.background)
         assertEquals(androidx.compose.ui.graphics.Color(0xFF009F91), lightPalette.primary)
