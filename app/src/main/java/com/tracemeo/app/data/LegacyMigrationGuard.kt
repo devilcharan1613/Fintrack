@@ -1,4 +1,4 @@
-package com.tracemeo.app.data
+package com.tracmio.app.data
 
 object LegacyMigrationGuard {
     fun shouldImportLegacyJson(
