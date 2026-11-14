@@ -1,4 +1,4 @@
-package com.tracemeo.app.ui.nativeapp
+package com.tracmio.app.ui.nativeapp
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -71,14 +71,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tracemeo.app.data.CashCountLine
-import com.tracemeo.app.data.LiquidGlassSettings
-import com.tracemeo.app.data.MoneyPaise
-import com.tracemeo.app.data.NativeIntelligenceCalculators
-import com.tracemeo.app.data.NativeLedgerCalculator
-import com.tracemeo.app.data.SubscriptionItem
-import com.tracemeo.app.data.local.AccountEntity
-import com.tracemeo.app.data.security.AppLockState
+import com.tracmio.app.data.CashCountLine
+import com.tracmio.app.data.LiquidGlassSettings
+import com.tracmio.app.data.MoneyPaise
+import com.tracmio.app.data.NativeIntelligenceCalculators
+import com.tracmio.app.data.NativeLedgerCalculator
+import com.tracmio.app.data.SubscriptionItem
+import com.tracmio.app.data.local.AccountEntity
+import com.tracmio.app.data.security.AppLockState
 import java.util.UUID
 import kotlin.math.abs
 
