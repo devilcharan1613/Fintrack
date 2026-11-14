@@ -6,10 +6,10 @@ plugins {
 }
 
 android {
-    namespace = "com.tracemeo.app"
+    namespace = "com.tracmio.app"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.tracemio.app"
+        applicationId = "com.tracmio.app"
         minSdk = 26
         targetSdk = 35
         versionCode = 30
