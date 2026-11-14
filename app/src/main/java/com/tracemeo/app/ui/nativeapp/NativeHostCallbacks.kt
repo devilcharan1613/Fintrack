@@ -1,8 +1,8 @@
-package com.tracemeo.app.ui.nativeapp
+package com.tracmio.app.ui.nativeapp
 
-import com.tracemeo.app.data.local.AccountEntity
-import com.tracemeo.app.data.local.TransactionEntity
-import com.tracemeo.app.data.security.DeviceSecurityCapability
+import com.tracmio.app.data.local.AccountEntity
+import com.tracmio.app.data.local.TransactionEntity
+import com.tracmio.app.data.security.DeviceSecurityCapability
 
 interface NativeHostCallbacks {
     fun chooseWallpaperImage()
