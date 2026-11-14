@@ -1,4 +1,4 @@
-package com.tracemeo.app.ui.nativeapp
+package com.tracmio.app.ui.nativeapp
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -76,16 +76,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.tracemeo.app.data.AccountAllocation
-import com.tracemeo.app.data.LiquidGlassSettings
-import com.tracemeo.app.data.MoneyPaise
-import com.tracemeo.app.data.NativeIntelligenceCalculators
-import com.tracemeo.app.data.NativeLedgerCalculator
-import com.tracemeo.app.data.PendingRefundItem
-import com.tracemeo.app.data.SpendingChartWindow
-import com.tracemeo.app.data.UpiSmsDraft
-import com.tracemeo.app.data.local.AccountEntity
-import com.tracemeo.app.data.local.TransactionEntity
+import com.tracmio.app.data.AccountAllocation
+import com.tracmio.app.data.LiquidGlassSettings
+import com.tracmio.app.data.MoneyPaise
+import com.tracmio.app.data.NativeIntelligenceCalculators
+import com.tracmio.app.data.NativeLedgerCalculator
+import com.tracmio.app.data.PendingRefundItem
+import com.tracmio.app.data.SpendingChartWindow
+import com.tracmio.app.data.UpiSmsDraft
+import com.tracmio.app.data.local.AccountEntity
+import com.tracmio.app.data.local.TransactionEntity
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
