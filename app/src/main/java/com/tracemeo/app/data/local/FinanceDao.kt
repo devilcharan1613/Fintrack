@@ -16,6 +16,12 @@ interface FinanceDao {
     @Query("SELECT * FROM transactions ORDER BY timestamp DESC, id DESC")
     fun transactions(): Flow<List<TransactionEntity>>
 
+    @Query("SELECT * FROM transactions WHERE id = :id LIMIT 1")
+    suspend fun getTransactionById(id: Long): TransactionEntity?
+
+    @Query("SELECT * FROM transactions WHERE transferId = :transferId")
+    suspend fun getTransactionsByTransferId(transferId: String): List<TransactionEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(tx: TransactionEntity): Long
 

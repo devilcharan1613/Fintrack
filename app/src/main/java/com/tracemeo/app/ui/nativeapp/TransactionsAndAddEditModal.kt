@@ -280,7 +280,14 @@ fun AddEditTransactionSheet(
     var txType by remember { mutableStateOf(editingTransaction?.type ?: initialType) }
     var amountExpression by remember { mutableStateOf(editingTransaction?.amount?.toString() ?: "") }
     var selectedAccountId by remember {
-        mutableStateOf(editingTransaction?.accountId ?: state.accounts.firstOrNull()?.id ?: 1L)
+        mutableLongStateOf(editingTransaction?.accountId ?: state.accounts.firstOrNull()?.id ?: 1L)
+    }
+    var transferToAccountId by remember {
+        mutableLongStateOf(
+            editingTransaction?.transferAccountId
+                ?: state.accounts.firstOrNull { it.id != selectedAccountId }?.id
+                ?: selectedAccountId
+        )
     }
     var selectedCategory by remember { mutableStateOf(editingTransaction?.category ?: "Select Category") }
     var subcategory by remember { mutableStateOf(editingTransaction?.subcategory ?: "") }
@@ -322,6 +329,7 @@ fun AddEditTransactionSheet(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .imePadding()
                     .padding(horizontal = 20.dp, vertical = 16.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -449,10 +457,43 @@ fun AddEditTransactionSheet(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(if (sel) palette.primary else palette.surface)
-                                .clickable { selectedAccountId = acc.id }
+                                .clickable {
+                                    selectedAccountId = acc.id
+                                    if (transferToAccountId == acc.id) {
+                                        transferToAccountId = state.accounts.firstOrNull { it.id != acc.id }?.id ?: acc.id
+                                    }
+                                }
                                 .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Text(acc.name, color = if (sel) palette.background else palette.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+
+                // Destination account selector when logging a TRANSFER
+                if (txType.equals("TRANSFER", true) && editingTransaction == null) {
+                    val destAccounts = state.accounts.filter { it.id != selectedAccountId }
+                    Text("Transfer To Account / Wallet", style = MaterialTheme.typography.labelMedium, color = palette.primary)
+                    if (destAccounts.isEmpty()) {
+                        Text(
+                            "Add a second account/wallet above to transfer funds.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFFBBF24)
+                        )
+                    } else {
+                        Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            destAccounts.forEach { acc ->
+                                val sel = transferToAccountId == acc.id
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (sel) palette.primary else palette.surface)
+                                        .clickable { transferToAccountId = acc.id }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                ) {
+                                    Text(acc.name, color = if (sel) palette.background else palette.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
                         }
                     }
                 }
@@ -582,6 +623,21 @@ fun AddEditTransactionSheet(
                             ?: amountExpression.toDoubleOrNull()
                             ?: 0.0
                         if (evaluated > 0.0) {
+                            if (txType.equals("TRANSFER", true) && editingTransaction == null) {
+                                if (transferToAccountId == selectedAccountId) {
+                                    viewModel.postStatus("Select a different destination account for transfer")
+                                    return@Button
+                                }
+                                isSubmitting = true
+                                viewModel.transferFunds(
+                                    fromId = selectedAccountId,
+                                    toId = transferToAccountId,
+                                    amount = evaluated,
+                                    note = noteText.trim().ifBlank { "Account Transfer" }
+                                )
+                                onDismiss()
+                                return@Button
+                            }
                             isSubmitting = true
                             val finalCat = if (selectedCategory == "Select Category") "Other" else selectedCategory
                             viewModel.saveTransaction(
@@ -637,7 +693,8 @@ fun ExpenseReceiptModal(
     onDismiss: () -> Unit,
     onDelete: (TransactionEntity) -> Unit,
     onEdit: (TransactionEntity) -> Unit,
-    onRepeat: (TransactionEntity) -> Unit
+    onRepeat: (TransactionEntity) -> Unit,
+    onPrint: ((TransactionEntity) -> Unit)? = null
 ) {
     val dateFormatted = remember(transaction.timestamp) {
         SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(transaction.timestamp))
@@ -708,6 +765,14 @@ fun ExpenseReceiptModal(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("↻ Repeat This Transaction", color = palette.background, fontWeight = FontWeight.ExtraBold)
+                }
+                if (onPrint != null) {
+                    OutlinedButton(
+                        onClick = { onPrint(transaction) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("🖨️ Print Receipt PDF", color = palette.primary, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         },

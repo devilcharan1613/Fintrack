@@ -434,6 +434,10 @@ fun NativeTracmioApp(
                     onRepeat = {
                         viewModel.repeatTransaction(it)
                         receiptTransaction = null
+                    },
+                    onPrint = {
+                        val accName = state.accounts.firstOrNull { a -> a.id == it.accountId }?.name ?: "Account"
+                        hostCallbacks.printReceipt(it, accName)
                     }
                 )
             }

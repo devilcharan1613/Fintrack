@@ -31,6 +31,7 @@ class NativeTracmioViewModel(application: Application) : AndroidViewModel(applic
     private val pinnedToolIdsFlow = MutableStateFlow(prefsStore.getPinnedToolIds())
     private val statusMessageFlow = MutableStateFlow<String?>(null)
     private val deletedTxFlow = MutableStateFlow<TransactionEntity?>(null)
+    private val deletedPairTxFlow = MutableStateFlow<List<TransactionEntity>>(emptyList())
     private val deletedChipFlow = MutableStateFlow<QuickSpendChip?>(null)
     private val isAppLockedFlow = MutableStateFlow(appLockManager.getState().isEnabled)
     private val appLockStateFlow = MutableStateFlow(appLockManager.getState())
@@ -264,6 +265,18 @@ class NativeTracmioViewModel(application: Application) : AndroidViewModel(applic
             return
         }
         val delTx = deletedTxFlow.value
+        val delPair = deletedPairTxFlow.value
+        if (delPair.isNotEmpty()) {
+            viewModelScope.launch(Dispatchers.IO) {
+                repository.runInTransaction {
+                    delPair.forEach { repository.insertTransaction(it.copy(id = 0)) }
+                }
+                deletedPairTxFlow.value = emptyList()
+                deletedTxFlow.value = null
+                statusMessageFlow.value = "Restored transfer pair"
+            }
+            return
+        }
         if (delTx != null) {
             viewModelScope.launch(Dispatchers.IO) {
                 val existing = repository.transactions.first().any { it.id == delTx.id }
@@ -336,26 +349,44 @@ class NativeTracmioViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    fun reconcileAccountBalance(account: AccountEntity, targetActualBalance: Double) {
+    fun reconcileAccountBalance(account: AccountEntity, targetActualBalance: Double, customNote: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
-            val txns = repository.transactions.first()
-            val currentBal = FinancialCalculator.balance(account, txns)
-            val delta = targetActualBalance - currentBal
-            if (kotlin.math.abs(delta) >= 0.01) {
-                repository.insertTransaction(
-                    TransactionEntity(
-                        accountId = account.id,
-                        type = if (delta >= 0) "INCOME" else "EXPENSE",
-                        amount = kotlin.math.abs(delta),
-                        amountPaise = MoneyPaise.toPaise(kotlin.math.abs(delta)),
-                        category = "Balance Adjustment",
-                        paymentMethod = account.accountType,
-                        note = "Reconciled ${account.name} to ${settingsFlow.value.currencySymbol}${"%,.2f".format(targetActualBalance)}"
-                    )
-                )
+            val applied = reconcileAccountBalanceInternal(account, targetActualBalance, customNote)
+            if (applied) {
                 statusMessageFlow.value = "Reconciled ${account.name}"
             }
         }
+    }
+
+    private suspend fun reconcileAccountBalanceInternal(
+        account: AccountEntity,
+        targetActualBalance: Double,
+        customNote: String? = null
+    ): Boolean {
+        val txns = repository.transactions.first()
+        val currentBal = FinancialCalculator.balance(account, txns)
+        val delta = targetActualBalance - currentBal
+        if (kotlin.math.abs(delta) >= 0.01) {
+            val notePrefix = customNote?.takeIf { it.isNotBlank() }?.let { TracmioSecurityEngine.sanitizeInput(it, 120) }
+            val finalNote = if (notePrefix != null) {
+                "$notePrefix · Reconciled ${account.name} to ${settingsFlow.value.currencySymbol}${"%,.2f".format(targetActualBalance)}"
+            } else {
+                "Reconciled ${account.name} to ${settingsFlow.value.currencySymbol}${"%,.2f".format(targetActualBalance)}"
+            }
+            repository.insertTransaction(
+                TransactionEntity(
+                    accountId = account.id,
+                    type = if (delta >= 0) "INCOME" else "EXPENSE",
+                    amount = kotlin.math.abs(delta),
+                    amountPaise = MoneyPaise.toPaise(kotlin.math.abs(delta)),
+                    category = "Balance Adjustment",
+                    paymentMethod = account.accountType,
+                    note = finalNote
+                )
+            )
+            return true
+        }
+        return false
     }
 
     fun applyCashDenominationCount(lines: List<CashCountLine>, note: String, accountId: Long?) {
@@ -365,8 +396,8 @@ class NativeTracmioViewModel(application: Application) : AndroidViewModel(applic
             val target = accounts.firstOrNull { it.id == accountId }
                 ?: accounts.firstOrNull { it.accountType.equals("Cash", true) || it.accountType.equals("Wallet", true) }
                 ?: return@launch
-            reconcileAccountBalance(target, total)
-            statusMessageFlow.value = "Cash count applied (${settingsFlow.value.currencySymbol}${"%,.0f".format(total)})"
+            reconcileAccountBalanceInternal(target, total, note.ifBlank { "Cash Denomination Count" })
+            statusMessageFlow.value = "Cash count applied to ${target.name} (${settingsFlow.value.currencySymbol}${"%,.0f".format(total)})"
         }
     }
 
@@ -388,32 +419,35 @@ class NativeTracmioViewModel(application: Application) : AndroidViewModel(applic
         if (amount <= 0.0 || fromId == toId) return
         viewModelScope.launch(Dispatchers.IO) {
             val xferId = "xfer_${System.currentTimeMillis()}"
-            repository.insertTransaction(
-                TransactionEntity(
-                    accountId = fromId,
-                    type = "TRANSFER_OUT",
-                    amount = amount,
-                    amountPaise = MoneyPaise.toPaise(amount),
-                    category = "Transfer",
-                    transferAccountId = toId,
-                    transferId = xferId,
-                    paymentMethod = "Bank Transfer",
-                    note = TracmioSecurityEngine.sanitizeInput(note, 150)
+            val cleanNote = TracmioSecurityEngine.sanitizeInput(note, 150)
+            repository.runInTransaction {
+                repository.insertTransaction(
+                    TransactionEntity(
+                        accountId = fromId,
+                        type = "TRANSFER_OUT",
+                        amount = amount,
+                        amountPaise = MoneyPaise.toPaise(amount),
+                        category = "Transfer",
+                        transferAccountId = toId,
+                        transferId = xferId,
+                        paymentMethod = "Bank Transfer",
+                        note = cleanNote
+                    )
                 )
-            )
-            repository.insertTransaction(
-                TransactionEntity(
-                    accountId = toId,
-                    type = "TRANSFER_IN",
-                    amount = amount,
-                    amountPaise = MoneyPaise.toPaise(amount),
-                    category = "Transfer",
-                    transferAccountId = fromId,
-                    transferId = xferId,
-                    paymentMethod = "Cash",
-                    note = TracmioSecurityEngine.sanitizeInput(note, 150)
+                repository.insertTransaction(
+                    TransactionEntity(
+                        accountId = toId,
+                        type = "TRANSFER_IN",
+                        amount = amount,
+                        amountPaise = MoneyPaise.toPaise(amount),
+                        category = "Transfer",
+                        transferAccountId = fromId,
+                        transferId = xferId,
+                        paymentMethod = "Bank Transfer",
+                        note = cleanNote
+                    )
                 )
-            )
+            }
             statusMessageFlow.value = "Transferred ${settingsFlow.value.currencySymbol}${"%,.0f".format(amount)}"
         }
     }
@@ -442,54 +476,90 @@ class NativeTracmioViewModel(application: Application) : AndroidViewModel(applic
                 val upiAmt = if (upiPortion > 0) upiPortion else (amount - cashAmt).coerceAtLeast(0.0)
                 val accounts = repository.accounts.first()
                 val cashAcc = accounts.firstOrNull { it.accountType.equals("Cash", true) || it.accountType.equals("Wallet", true) }?.id ?: accountId
-                if (cashAmt > 0.0) {
-                    repository.insertTransaction(
-                        TransactionEntity(
-                            accountId = cashAcc, type = type, amount = cashAmt, amountPaise = MoneyPaise.toPaise(cashAmt),
-                            category = category, subcategory = subcategory, paymentMethod = "Cash", note = "$cleanNote [Cash Split]".trim(), hashtags = hashtags, warrantyDate = warrantyDate
+                repository.runInTransaction {
+                    if (cashAmt > 0.0) {
+                        repository.insertTransaction(
+                            TransactionEntity(
+                                accountId = cashAcc, type = type, amount = cashAmt, amountPaise = MoneyPaise.toPaise(cashAmt),
+                                category = category, subcategory = subcategory, paymentMethod = "Cash", note = "$cleanNote [Cash Split]".trim(), hashtags = hashtags, warrantyDate = warrantyDate
+                            )
                         )
-                    )
-                }
-                if (upiAmt > 0.0) {
-                    repository.insertTransaction(
-                        TransactionEntity(
-                            accountId = accountId, type = type, amount = upiAmt, amountPaise = MoneyPaise.toPaise(upiAmt),
-                            category = category, subcategory = subcategory, paymentMethod = "UPI", upiApp = upiApp.ifBlank { "UPI" }, note = "$cleanNote [UPI Split]".trim(), hashtags = hashtags, warrantyDate = warrantyDate
+                    }
+                    if (upiAmt > 0.0) {
+                        repository.insertTransaction(
+                            TransactionEntity(
+                                accountId = accountId, type = type, amount = upiAmt, amountPaise = MoneyPaise.toPaise(upiAmt),
+                                category = category, subcategory = subcategory, paymentMethod = "UPI", upiApp = upiApp.ifBlank { "UPI" }, note = "$cleanNote [UPI Split]".trim(), hashtags = hashtags, warrantyDate = warrantyDate
+                            )
                         )
-                    )
+                    }
                 }
                 statusMessageFlow.value = "Saved Half-Cash + Half-UPI split"
                 return@launch
             }
 
-            val tx = TransactionEntity(
-                id = editingId ?: 0L,
-                accountId = accountId,
-                type = type.uppercase(),
-                amount = amount,
-                amountPaise = MoneyPaise.toPaise(amount),
-                category = category,
-                subcategory = subcategory,
-                paymentMethod = paymentMethod,
-                upiApp = upiApp,
-                note = cleanNote,
-                hashtags = hashtags,
-                warrantyDate = warrantyDate,
-                allocationId = allocationId
-            )
             if (editingId != null) {
-                repository.updateTransaction(tx)
+                val existing = repository.getTransactionById(editingId)
+                val updated = if (existing != null) {
+                    existing.copy(
+                        accountId = accountId,
+                        type = type.uppercase(),
+                        amount = amount,
+                        amountPaise = MoneyPaise.toPaise(amount),
+                        category = category,
+                        subcategory = subcategory,
+                        paymentMethod = paymentMethod,
+                        upiApp = upiApp,
+                        note = cleanNote,
+                        hashtags = hashtags,
+                        warrantyDate = warrantyDate,
+                        allocationId = allocationId
+                    )
+                } else {
+                    TransactionEntity(
+                        id = editingId,
+                        accountId = accountId,
+                        type = type.uppercase(),
+                        amount = amount,
+                        amountPaise = MoneyPaise.toPaise(amount),
+                        category = category,
+                        subcategory = subcategory,
+                        paymentMethod = paymentMethod,
+                        upiApp = upiApp,
+                        note = cleanNote,
+                        hashtags = hashtags,
+                        warrantyDate = warrantyDate,
+                        allocationId = allocationId
+                    )
+                }
+                repository.updateTransaction(updated)
                 statusMessageFlow.value = "Updated transaction"
             } else {
-                repository.insertTransaction(tx)
-                val acc = repository.getAccountById(accountId)
-                if (acc != null) {
-                    if (type.equals("INCOME", true)) {
-                        val splitAcc = NativeLedgerCalculator.applyAutoSplitToAllocations(acc, amount)
-                        if (splitAcc != acc) repository.updateAccount(splitAcc)
-                    } else if (allocationId.isNotBlank()) {
-                        val adjAcc = NativeLedgerCalculator.adjustAllocationsForTransaction(acc, allocationId, type, amount)
-                        if (adjAcc != acc) repository.updateAccount(adjAcc)
+                val tx = TransactionEntity(
+                    accountId = accountId,
+                    type = type.uppercase(),
+                    amount = amount,
+                    amountPaise = MoneyPaise.toPaise(amount),
+                    category = category,
+                    subcategory = subcategory,
+                    paymentMethod = paymentMethod,
+                    upiApp = upiApp,
+                    note = cleanNote,
+                    hashtags = hashtags,
+                    warrantyDate = warrantyDate,
+                    allocationId = allocationId
+                )
+                repository.runInTransaction {
+                    repository.insertTransaction(tx)
+                    val acc = repository.getAccountById(accountId)
+                    if (acc != null) {
+                        if (type.equals("INCOME", true)) {
+                            val splitAcc = NativeLedgerCalculator.applyAutoSplitToAllocations(acc, amount)
+                            if (splitAcc != acc) repository.updateAccount(splitAcc)
+                        } else if (allocationId.isNotBlank()) {
+                            val adjAcc = NativeLedgerCalculator.adjustAllocationsForTransaction(acc, allocationId, type, amount)
+                            if (adjAcc != acc) repository.updateAccount(adjAcc)
+                        }
                     }
                 }
                 if (type.equals("EXPENSE", true)) applyRoundUpIfEnabled(amount)
@@ -521,8 +591,22 @@ class NativeTracmioViewModel(application: Application) : AndroidViewModel(applic
 
     fun deleteTransaction(tx: TransactionEntity) {
         viewModelScope.launch(Dispatchers.IO) {
-            deletedTxFlow.value = tx
             deletedChipFlow.value = null
+            val tid = tx.transferId
+            if (!tid.isNullOrBlank()) {
+                val linked = repository.getTransactionsByTransferId(tid)
+                if (linked.size > 1) {
+                    deletedPairTxFlow.value = linked
+                    deletedTxFlow.value = tx
+                    repository.runInTransaction {
+                        linked.forEach { repository.deleteTransaction(it) }
+                    }
+                    statusMessageFlow.value = "Deleted linked transfer pair"
+                    return@launch
+                }
+            }
+            deletedPairTxFlow.value = emptyList()
+            deletedTxFlow.value = tx
             repository.deleteTransaction(tx)
             statusMessageFlow.value = "Deleted ${tx.category}"
         }
@@ -845,6 +929,60 @@ class NativeTracmioViewModel(application: Application) : AndroidViewModel(applic
                 return@launch
             }
             val count = runCatching { repository.importBackupJson(plain) }.getOrDefault(0)
+            runCatching {
+                val obj = org.json.JSONObject(plain)
+                obj.optJSONObject("appPreferences")?.let { p ->
+                    prefsStore.updateSettings { cur ->
+                        cur.copy(
+                            userName = TracmioSecurityEngine.sanitizeInput(p.optString("userName", cur.userName), 40).ifBlank { cur.userName },
+                            currencySymbol = TracmioSecurityEngine.sanitizeInput(p.optString("currencySymbol", cur.currencySymbol), 6).ifBlank { cur.currencySymbol },
+                            themePreset = p.optString("themePreset", cur.themePreset),
+                            glassUiStyle = p.optString("glassUiStyle", cur.glassUiStyle),
+                            wallpaperPreset = p.optString("wallpaperPreset", cur.wallpaperPreset),
+                            backgroundVisibility = p.optDouble("backgroundVisibility", cur.backgroundVisibility.toDouble()).toFloat().coerceIn(0.05f, 1.0f),
+                            glowIntensity = p.optDouble("glowIntensity", cur.glowIntensity.toDouble()).toFloat().coerceIn(0.1f, 1.2f),
+                            uiScale = p.optDouble("uiScale", cur.uiScale.toDouble()).toFloat().coerceIn(0.8f, 1.3f),
+                            roundUpEnabled = p.optBoolean("roundUpEnabled", cur.roundUpEnabled)
+                        )
+                    }
+                }
+                obj.optJSONArray("quickSpendChips")?.let { arr ->
+                    val chips = (0 until arr.length()).map { idx ->
+                        val c = arr.getJSONObject(idx)
+                        QuickSpendChip(
+                            id = c.optString("id", "q_$idx"),
+                            emoji = c.optString("emoji", "⚡"),
+                            title = TracmioSecurityEngine.sanitizeInput(c.optString("title", "Spend"), 30),
+                            amount = c.optDouble("amount", 0.0),
+                            category = TracmioSecurityEngine.sanitizeInput(c.optString("category", "Other"), 40)
+                        )
+                    }.filter { it.amount > 0.0 }
+                    if (chips.isNotEmpty()) {
+                        quickChipsFlow.value = chips
+                        prefsStore.saveQuickSpendChips(chips)
+                    }
+                }
+                obj.optJSONArray("pendingRefunds")?.let { arr ->
+                    val refs = (0 until arr.length()).map { idx ->
+                        val r = arr.getJSONObject(idx)
+                        PendingRefundItem(
+                            id = r.optString("id", "ref_$idx"),
+                            title = TracmioSecurityEngine.sanitizeInput(r.optString("title", "Refund"), 80),
+                            source = TracmioSecurityEngine.sanitizeInput(r.optString("source", "Store / App"), 50),
+                            amount = r.optDouble("amount", 0.0),
+                            expectedDate = TracmioSecurityEngine.sanitizeInput(r.optString("expectedDate", "Soon"), 30),
+                            isReceived = r.optBoolean("isReceived", false)
+                        )
+                    }
+                    pendingRefundsFlow.value = refs
+                    prefsStore.savePendingRefunds(refs)
+                }
+                obj.optJSONArray("pinnedToolIds")?.let { arr ->
+                    val pins = (0 until arr.length()).map { arr.getString(it) }
+                    pinnedToolIdsFlow.value = pins
+                    prefsStore.savePinnedToolIds(pins)
+                }
+            }
             statusMessageFlow.value = "Imported $count records safely into offline vault"
         }
     }

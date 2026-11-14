@@ -1162,10 +1162,14 @@ fun StandaloneCashCounterScreen(
     viewModel: NativeTracmioViewModel,
     onBack: () -> Unit
 ) {
-    val cashAccount = remember(state.accounts) {
-        state.accounts.firstOrNull { it.accountType.equals("Cash", true) || it.accountType.equals("Wallet", true) }
-            ?: state.accounts.firstOrNull()
+    val preferredAccounts = remember(state.accounts) {
+        val wallets = state.accounts.filter { it.accountType.equals("Cash", true) || it.accountType.equals("Wallet", true) }
+        if (wallets.isNotEmpty()) wallets else state.accounts
     }
+    var selectedAccountId by remember(preferredAccounts) {
+        mutableLongStateOf(preferredAccounts.firstOrNull()?.id ?: 0L)
+    }
+    val cashAccount = state.accounts.firstOrNull { it.id == selectedAccountId } ?: preferredAccounts.firstOrNull()
     Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         if (cashAccount == null) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1179,6 +1183,8 @@ fun StandaloneCashCounterScreen(
                 account = cashAccount,
                 palette = palette,
                 currencySymbol = settings.currencySymbol,
+                availableAccounts = state.accounts,
+                onSelectAccount = { selectedAccountId = it.id },
                 onDismiss = onBack,
                 onApplyReconcile = { _, note, lines ->
                     viewModel.applyCashDenominationCount(lines, note, cashAccount.id)

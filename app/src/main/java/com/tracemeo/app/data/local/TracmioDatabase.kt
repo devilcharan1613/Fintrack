@@ -133,13 +133,39 @@ abstract class TracmioDatabase : RoomDatabase() {
         }
 
         private fun getOrCreatePassphrase(context: Context): ByteArray {
-            val prefs = context.getSharedPreferences("tracmio_db_key_store", Context.MODE_PRIVATE)
-            val existing = prefs.getString("db_passphrase_b64", null)
-            if (!existing.isNullOrBlank()) {
-                return Base64.decode(existing, Base64.NO_WRAP)
+            val securePrefs = runCatching {
+                val masterKey = androidx.security.crypto.MasterKey.Builder(context)
+                    .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM)
+                    .build()
+                androidx.security.crypto.EncryptedSharedPreferences.create(
+                    context,
+                    "tracmio_db_key_secure",
+                    masterKey,
+                    androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                )
+            }.getOrElse {
+                context.getSharedPreferences("tracmio_db_key_store", Context.MODE_PRIVATE)
             }
+
+            val existingSecure = securePrefs.getString("db_passphrase_b64", null)
+            if (!existingSecure.isNullOrBlank()) {
+                return Base64.decode(existingSecure, Base64.NO_WRAP)
+            }
+
+            // One-time non-destructive migration from legacy unencrypted prefs so existing vaults remain readable
+            val legacyPrefs = context.getSharedPreferences("tracmio_db_key_store", Context.MODE_PRIVATE)
+            val legacyPass = legacyPrefs.getString("db_passphrase_b64", null)
+            if (!legacyPass.isNullOrBlank()) {
+                securePrefs.edit().putString("db_passphrase_b64", legacyPass).apply()
+                if (securePrefs !== legacyPrefs) {
+                    legacyPrefs.edit().remove("db_passphrase_b64").apply()
+                }
+                return Base64.decode(legacyPass, Base64.NO_WRAP)
+            }
+
             val raw = ByteArray(32).also { SecureRandom().nextBytes(it) }
-            prefs.edit().putString("db_passphrase_b64", Base64.encodeToString(raw, Base64.NO_WRAP)).apply()
+            securePrefs.edit().putString("db_passphrase_b64", Base64.encodeToString(raw, Base64.NO_WRAP)).apply()
             return raw
         }
 

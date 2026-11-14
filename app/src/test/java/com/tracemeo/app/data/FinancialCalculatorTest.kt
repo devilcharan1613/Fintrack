@@ -78,4 +78,43 @@ class FinancialCalculatorTest {
         assertNotNull(xlsx)
         assertTrue(xlsx.size > 100)
     }
+
+    @Test
+    fun monthlyPaceFiltersCurrentMonthAndTransfersPreserveTotalBalance() {
+        val now = 1_760_500_000_000L // mid-month timestamp
+        val lastMonth = now - 35L * 86_400_000L
+        val fromAcc = AccountEntity(id = 1L, name = "Bank", accountType = "Bank", balance = 5000.0)
+        val toAcc = AccountEntity(id = 2L, name = "Cash", accountType = "Cash", balance = 500.0)
+
+        val txs = listOf(
+            TransactionEntity(id = 1L, accountId = 1L, type = "EXPENSE", amount = 8000.0, category = "Rent & Housing", timestamp = lastMonth),
+            TransactionEntity(id = 2L, accountId = 1L, type = "EXPENSE", amount = 1200.0, category = "Food & Chai", paymentMethod = "UPI", upiApp = "GPay", timestamp = now - 2L * 86_400_000L),
+            TransactionEntity(id = 3L, accountId = 1L, type = "TRANSFER_OUT", amount = 1000.0, category = "Transfer", transferAccountId = 2L, transferId = "xfer_1", timestamp = now - 2L * 86_400_000L),
+            TransactionEntity(id = 4L, accountId = 2L, type = "TRANSFER_IN", amount = 1000.0, category = "Transfer", transferAccountId = 1L, transferId = "xfer_1", timestamp = now - 2L * 86_400_000L)
+        )
+
+        // Paired transfer keeps combined balance invariant: (5000 - 8000 - 1200 - 1000) + (500 + 1000) = -5200 + 1500
+        // Combined before transfer = 5000 + 500 - 9200 = -3700; after transfer = -3700
+        val combined = FinancialCalculator.balance(fromAcc, txs) + FinancialCalculator.balance(toAcc, txs)
+        assertEquals(5000.0 + 500.0 - 9200.0, combined, 0.01)
+
+        val pace = NativeIntelligenceCalculators.computeMonthlyPace(
+            accounts = listOf(fromAcc, toAcc),
+            transactions = txs,
+            budgets = listOf(com.tracemeo.app.data.local.BudgetEntity(category = "All", monthlyLimit = 10000.0)),
+            nowMillis = now
+        )
+        assertEquals(1200.0, pace.spentSoFar, 0.01)
+
+        val cmp = NativeIntelligenceCalculators.computeMonthComparison(txs, now)
+        assertEquals(1200.0, cmp.thisMonthExpense, 0.01)
+        assertEquals(8000.0, cmp.lastMonthExpense, 0.01)
+
+        val streak = NativeIntelligenceCalculators.computeNoSpendStreakDays(txs, now)
+        assertEquals(2, streak)
+
+        val story = NativeIntelligenceCalculators.computeMoneyStory(txs, now)
+        assertEquals("Food & Chai", story.topCategory)
+        assertEquals("GPay", story.topPaymentMethod)
+    }
 }

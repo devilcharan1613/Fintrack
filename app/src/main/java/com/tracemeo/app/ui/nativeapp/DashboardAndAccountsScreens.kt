@@ -544,6 +544,7 @@ fun AccountsScreen(
             account = acc,
             palette = palette,
             currencySymbol = curr,
+            liveBalance = FinancialCalculator.balance(acc, state.transactions),
             onDismiss = { allocatingAccount = null },
             onSaveAllocations = { list ->
                 viewModel.updateAccountAllocations(acc, list)

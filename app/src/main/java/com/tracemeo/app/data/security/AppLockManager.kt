@@ -5,7 +5,40 @@ import com.tracemeo.app.data.AppLockState
 import java.security.SecureRandom
 
 class AppLockManager(context: Context) {
-    private val prefs = context.getSharedPreferences("tracmio_applock_prefs", Context.MODE_PRIVATE)
+    private val prefs = run {
+        val secure = runCatching {
+            val masterKey = androidx.security.crypto.MasterKey.Builder(context)
+                .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            androidx.security.crypto.EncryptedSharedPreferences.create(
+                context,
+                "tracmio_applock_secure_prefs",
+                masterKey,
+                androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        }.getOrNull()
+
+        if (secure != null) {
+            val legacy = context.getSharedPreferences("tracmio_applock_prefs", Context.MODE_PRIVATE)
+            if (legacy.contains("enabled") && !secure.contains("enabled")) {
+                secure.edit()
+                    .putBoolean("enabled", legacy.getBoolean("enabled", false))
+                    .putString("pin_hash", legacy.getString("pin_hash", ""))
+                    .putInt("pin_length", legacy.getInt("pin_length", 4))
+                    .putBoolean("biometric", legacy.getBoolean("biometric", false))
+                    .putString("sec_question", legacy.getString("sec_question", ""))
+                    .putString("sec_answer_hash", legacy.getString("sec_answer_hash", ""))
+                    .putString("recovery_key_hash", legacy.getString("recovery_key_hash", ""))
+                    .putString("recovery_key_plain", legacy.getString("recovery_key_plain", ""))
+                    .apply()
+                legacy.edit().clear().apply()
+            }
+            secure
+        } else {
+            context.getSharedPreferences("tracmio_applock_prefs", Context.MODE_PRIVATE)
+        }
+    }
 
     fun enableLock(
         pin: String,

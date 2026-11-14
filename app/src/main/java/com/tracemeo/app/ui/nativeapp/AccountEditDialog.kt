@@ -3,8 +3,9 @@ package com.tracemeo.app.ui.nativeapp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -154,6 +155,7 @@ fun AccountAllocationDialog(
     account: AccountEntity,
     palette: ThemePalette,
     currencySymbol: String,
+    liveBalance: Double? = null,
     onDismiss: () -> Unit,
     onSaveAllocations: (List<AccountAllocation>) -> Unit
 ) {
@@ -165,7 +167,7 @@ fun AccountAllocationDialog(
     var bucketAmount by remember { mutableStateOf("") }
     var autoSplitPct by remember { mutableStateOf("") }
 
-    val accBal = if (account.balance != 0.0) account.balance else MoneyPaise.toRupees(account.balancePaise)
+    val accBal = liveBalance ?: (if (account.balance != 0.0) account.balance else MoneyPaise.toRupees(account.balancePaise))
     val totalAllocated = allocations.sumOf { it.allocatedAmount }
     val unallocated = (accBal - totalAllocated).coerceAtLeast(0.0)
 
@@ -272,6 +274,8 @@ fun CashCountDenominationDialog(
     account: AccountEntity,
     palette: ThemePalette,
     currencySymbol: String,
+    availableAccounts: List<AccountEntity> = emptyList(),
+    onSelectAccount: ((AccountEntity) -> Unit)? = null,
     onDismiss: () -> Unit,
     onApplyReconcile: (countedTotal: Double, note: String, lines: List<CashCountLine>) -> Unit
 ) {
@@ -279,8 +283,8 @@ fun CashCountDenominationDialog(
     val coins = listOf(20, 10, 5, 2, 1)
 
     var selectedType by remember { mutableStateOf("NOTE") }
-    var selectedDenom by remember { mutableStateOf(500) }
-    var quantity by remember { mutableStateOf(1) }
+    var selectedDenom by remember { mutableIntStateOf(500) }
+    var quantity by remember { mutableIntStateOf(1) }
     var addedLines by remember { mutableStateOf(listOf<CashCountLine>()) }
     var noteText by remember { mutableStateOf("") }
 
@@ -299,6 +303,22 @@ fun CashCountDenominationDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (availableAccounts.size > 1 && onSelectAccount != null) {
+                    Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        availableAccounts.forEach { acc ->
+                            val sel = acc.id == account.id
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (sel) palette.primary else palette.surface)
+                                    .clickable { onSelectAccount(acc) }
+                                    .padding(horizontal = 8.dp, vertical = 5.dp)
+                            ) {
+                                Text(acc.name, style = MaterialTheme.typography.labelSmall, color = if (sel) palette.background else palette.textPrimary, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
                 Text("Step 1: Pick Note or Coin", style = MaterialTheme.typography.labelMedium, color = palette.textSecondary)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("NOTE" to "💵 Notes (₹500–₹10)", "COIN" to "🪙 Coins (₹20–₹1)").forEach { (type, label) ->
