@@ -1,4 +1,4 @@
-package com.tracemeo.app.ui.nativeapp
+package com.tracmio.app.ui.nativeapp
 
 import android.content.Context
 import android.hardware.Sensor
@@ -67,8 +67,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.tracemeo.app.data.UpiSmsDraft
-import com.tracemeo.app.data.local.TransactionEntity
+import com.tracmio.app.data.UpiSmsDraft
+import com.tracmio.app.data.local.TransactionEntity
 
 @Composable
 fun NativeTracmioApp(
