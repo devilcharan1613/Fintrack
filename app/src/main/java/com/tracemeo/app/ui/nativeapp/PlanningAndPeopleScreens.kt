@@ -1,4 +1,4 @@
-package com.tracemeo.app.ui.nativeapp
+package com.tracmio.app.ui.nativeapp
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -55,18 +55,18 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.tracemeo.app.data.KhataEntryItem
-import com.tracemeo.app.data.LiquidGlassSettings
-import com.tracemeo.app.data.MoneyPaise
-import com.tracemeo.app.data.NativeLedgerCalculator
-import com.tracemeo.app.data.PersonLedgerSummary
-import com.tracemeo.app.data.TransactionDateTime
-import com.tracemeo.app.data.local.BudgetEntity
-import com.tracemeo.app.data.local.GoalEntity
-import com.tracemeo.app.data.local.LoanEntity
-import com.tracemeo.app.data.local.PersonEntity
-import com.tracemeo.app.data.local.ValueItemEntity
-import com.tracemeo.app.data.local.WishlistItemEntity
+import com.tracmio.app.data.KhataEntryItem
+import com.tracmio.app.data.LiquidGlassSettings
+import com.tracmio.app.data.MoneyPaise
+import com.tracmio.app.data.NativeLedgerCalculator
+import com.tracmio.app.data.PersonLedgerSummary
+import com.tracmio.app.data.TransactionDateTime
+import com.tracmio.app.data.local.BudgetEntity
+import com.tracmio.app.data.local.GoalEntity
+import com.tracmio.app.data.local.LoanEntity
+import com.tracmio.app.data.local.PersonEntity
+import com.tracmio.app.data.local.ValueItemEntity
+import com.tracmio.app.data.local.WishlistItemEntity
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
