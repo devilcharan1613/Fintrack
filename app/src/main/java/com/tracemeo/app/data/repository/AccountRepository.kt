@@ -1,7 +1,7 @@
-package com.tracemeo.app.data.repository
+package com.tracmio.app.data.repository
 
-import com.tracemeo.app.data.local.AccountDao
-import com.tracemeo.app.data.local.AccountEntity
+import com.tracmio.app.data.local.AccountDao
+import com.tracmio.app.data.local.AccountEntity
 import kotlinx.coroutines.flow.Flow
 
 class AccountRepository(
