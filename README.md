@@ -36,7 +36,7 @@ Single APK output: `app/build/outputs/apk/debug/Tracmio-16.13.apk`
 
 - App name: **Tracmio**
 - Tagline: Finance & Expenses Tracker
-- Application ID / Namespace: `com.tracemeo.app`
+- Application ID / Namespace: `com.tracmio.app`
 - Version name: `16.13`
 - Version code: `30`
 - Minimum Android SDK: `26`
