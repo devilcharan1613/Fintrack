@@ -1,4 +1,4 @@
-package com.tracemeo.app
+package com.tracmio.app
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
